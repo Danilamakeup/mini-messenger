@@ -2,59 +2,26 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Discord Clone</title>
+<title>Chat</title>
 
 <style>
 body {
     margin: 0;
-    font-family: Arial;
-    background: #313338;
-    color: white;
+    font-family: Inter, Arial;
+    background: #1e1f22;
+    color: #ddd;
 }
 
-/* layout */
 .app {
     display: flex;
     height: 100vh;
 }
 
-/* servers (левая полоса) */
-.servers {
-    width: 70px;
-    background: #1e1f22;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding-top: 10px;
-}
-
-.server {
-    width: 50px;
-    height: 50px;
-    background: #5865f2;
-    border-radius: 50%;
-    margin-bottom: 10px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-}
-
-/* channels */
-.channels {
+/* sidebar */
+.sidebar {
     width: 220px;
     background: #2b2d31;
     padding: 10px;
-}
-
-.channel {
-    padding: 8px;
-    border-radius: 6px;
-    cursor:pointer;
-}
-
-.channel:hover {
-    background: #404249;
 }
 
 /* chat */
@@ -66,23 +33,31 @@ body {
 
 .messages {
     flex: 1;
-    padding: 10px;
+    padding: 15px;
     overflow-y: auto;
 }
 
+/* message */
 .msg {
-    margin-bottom: 10px;
+    margin-bottom: 12px;
 }
 
 .name {
-    font-weight: bold;
+    font-weight: 600;
+    font-size: 14px;
+    color: #fff;
+}
+
+.text {
+    margin-top: 2px;
 }
 
 /* input */
 .input {
     display: flex;
     padding: 10px;
-    background: #383a40;
+    background: #2b2d31;
+    gap: 6px;
 }
 
 input {
@@ -94,21 +69,27 @@ input {
     color: white;
 }
 
-button {
-    margin-left: 5px;
+/* buttons */
+.btn {
     padding: 10px;
-    border: none;
     border-radius: 8px;
-    background: #5865f2;
+    border: none;
+    background: #3a3c42;
     color: white;
-    cursor:pointer;
+    cursor: pointer;
 }
 
-/* mobile */
-@media (max-width: 700px) {
-    .channels {
-        display: none;
-    }
+.btn:hover {
+    background: #4a4d55;
+}
+
+/* push to talk */
+#ptt {
+    background: #5865f2;
+}
+
+#ptt.recording {
+    background: #ed4245;
 }
 </style>
 </head>
@@ -117,17 +98,9 @@ button {
 
 <div class="app">
 
-<div class="servers">
-    <div class="server" onclick="joinRoom('general')">G</div>
-    <div class="server" onclick="joinRoom('gaming')">🎮</div>
-    <div class="server" onclick="joinRoom('music')">🎵</div>
-</div>
-
-<div class="channels">
-    <h3>Комнаты</h3>
-    <div class="channel" onclick="joinRoom('general')"># general</div>
-    <div class="channel" onclick="joinRoom('gaming')"># gaming</div>
-    <div class="channel" onclick="joinRoom('music')"># music</div>
+<div class="sidebar">
+    <div onclick="joinRoom('general')"># general</div>
+    <div onclick="joinRoom('gaming')"># gaming</div>
 </div>
 
 <div class="chat">
@@ -135,11 +108,10 @@ button {
 <div id="messages" class="messages"></div>
 
 <div class="input">
-    <input id="input">
-    <button onclick="send()">➤</button>
-    <button onclick="toggleMute()">🔇</button>
-    <button onclick="toggleDeaf()">🔊</button>
-    <button onclick="voice()">🎤</button>
+    <input id="input" placeholder="Сообщение...">
+    <button class="btn" onclick="send()">➤</button>
+    <button id="ptt" class="btn">🎤 Hold</button>
+    <span id="timer">0s</span>
 </div>
 
 </div>
@@ -157,8 +129,7 @@ if(!name){
 }
 
 let room = "general";
-let muted = false;
-let deaf = false;
+joinRoom(room);
 
 /* комнаты */
 function joinRoom(r){
@@ -167,7 +138,7 @@ function joinRoom(r){
     socket.emit("join",{name, room});
 }
 
-/* отправка */
+/* текст */
 function send(){
     const input = document.getElementById("input");
     if(input.value){
@@ -177,69 +148,83 @@ function send(){
 }
 
 /* ENTER */
-document.getElementById("input").addEventListener("keydown",e=>{
+input.addEventListener("keydown", e=>{
     if(e.key==="Enter") send();
 });
 
 /* сообщения */
-socket.on("chat", msg=>{
+function add(msg){
     const div = document.createElement("div");
     div.className="msg";
 
     if(msg.type==="text"){
-        div.innerHTML=`<span class="name">${msg.name}:</span> ${msg.text}`;
+        div.innerHTML = `<div class="name">${msg.name}</div>
+        <div class="text">${msg.text}</div>`;
     }
 
     if(msg.type==="voice"){
-        if(!deaf){
-            div.innerHTML=`<span class="name">${msg.name}:</span>
-            <audio controls src="${msg.audio}"></audio>`;
-        }
+        div.innerHTML = `<div class="name">${msg.name}</div>
+        <audio controls src="${msg.audio}"></audio>`;
     }
 
-    document.getElementById("messages").appendChild(div);
+    messages.appendChild(div);
+}
+
+socket.on("chat", add);
+
+socket.on("room history", data=>{
+    messages.innerHTML="";
+    data.forEach(add);
 });
 
-/* 🎤 голос */
-async function voice(){
-    if(muted) return;
+/* 🎤 PUSH TO TALK */
+let recorder;
+let chunks=[];
+let startTime;
+let timerInt;
 
+const btn = document.getElementById("ptt");
+
+btn.onmousedown = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-    const rec = new MediaRecorder(stream);
+    recorder = new MediaRecorder(stream);
 
-    let chunks=[];
+    chunks=[];
+    recorder.ondataavailable = e => chunks.push(e.data);
 
-    rec.ondataavailable=e=>chunks.push(e.data);
+    recorder.start();
 
-    rec.onstop=()=>{
-        const blob = new Blob(chunks);
-        const reader = new FileReader();
+    startTime = Date.now();
+    btn.classList.add("recording");
 
-        reader.onload=()=>{
-            socket.emit("voice", reader.result);
-        };
+    timerInt = setInterval(()=>{
+        const sec = Math.floor((Date.now()-startTime)/1000);
+        document.getElementById("timer").innerText = sec + "s";
+    },200);
+};
 
-        reader.readAsDataURL(blob);
+btn.onmouseup = async () => {
+    recorder.stop();
+    clearInterval(timerInt);
+    btn.classList.remove("recording");
+    document.getElementById("timer").innerText = "0s";
+
+    recorder.onstop = async () => {
+        const blob = new Blob(chunks, {type:"audio/webm"});
+
+        const formData = new FormData();
+        formData.append("audio", blob);
+
+        const res = await fetch("/upload", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await res.json();
+
+        socket.emit("voice-file", data.url);
     };
-
-    rec.start();
-    setTimeout(()=>rec.stop(),5000);
-}
-
-/* 🔇 mute */
-function toggleMute(){
-    muted=!muted;
-    alert(muted ? "Микрофон выкл" : "Микрофон вкл");
-}
-
-/* 🔊 deaf */
-function toggleDeaf(){
-    deaf=!deaf;
-    alert(deaf ? "Звук выкл" : "Звук вкл");
-}
-
-/* старт */
-joinRoom("general");
+};
 </script>
 
 </body>
