@@ -16,32 +16,45 @@ if (!fs.existsSync("public/voices")) {
 
 const upload = multer({ dest: "public/voices/" });
 
+// ---------------- PRO STATE ----------------
 const users = {};
+
 const rooms = {
-    general: [],
-    gaming: [],
-    music: []
+    general: { messages: [], users: new Set() },
+    gaming: { messages: [], users: new Set() },
+    music: { messages: [], users: new Set() }
 };
 
-// ---------------- SOCKET ----------------
+// ---------------- JOIN ROOM ----------------
 io.on("connection", (socket) => {
 
     socket.on("join", ({ name, room }) => {
 
         const prev = users[socket.id]?.room;
 
-        if (prev) socket.leave(prev);
+        if (prev && rooms[prev]) {
+            rooms[prev].users.delete(socket.id);
+            socket.leave(prev);
+        }
+
+        if (!rooms[room]) {
+            rooms[room] = { messages: [], users: new Set() };
+        }
 
         socket.join(room);
 
         users[socket.id] = { name, room };
 
-        socket.emit("room history", rooms[room] || []);
+        rooms[room].users.add(socket.id);
 
-        io.emit("room stats", getStats());
+        // 🔥 ВАЖНО: ВСЕГДА ОТПРАВЛЯЕМ ИСТОРИЮ
+        socket.emit("history", rooms[room].messages);
+
+        io.emit("stats", getStats());
         io.emit("online", Object.keys(users).length);
     });
 
+    // ---------------- CHAT ----------------
     socket.on("chat", (text) => {
         const u = users[socket.id];
         if (!u) return;
@@ -49,15 +62,23 @@ io.on("connection", (socket) => {
         const msg = {
             type: "text",
             name: u.name,
-            text
+            text,
+            time: Date.now()
         };
 
-        rooms[u.room].push(msg);
+        rooms[u.room].messages.push(msg);
 
         io.to(u.room).emit("chat", msg);
     });
 
-    socket.on("voice", (url) => {
+    // ---------------- VOICE MSG ----------------
+    app.post("/upload", upload.single("audio"), (req, res) => {
+        const file = "/voices/" + req.file.filename + ".webm";
+        fs.renameSync(req.file.path, "public" + file);
+        res.json({ url: file });
+    });
+
+    socket.on("voice-msg", (url) => {
         const u = users[socket.id];
         if (!u) return;
 
@@ -67,12 +88,11 @@ io.on("connection", (socket) => {
             audio: url
         };
 
-        rooms[u.room].push(msg);
-
+        rooms[u.room].messages.push(msg);
         io.to(u.room).emit("chat", msg);
     });
 
-    // WebRTC signaling
+    // ---------------- WEBRTC ----------------
     socket.on("voice-join", (room) => {
         socket.join("voice:" + room);
         socket.to("voice:" + room).emit("user-joined", socket.id);
@@ -86,28 +106,26 @@ io.on("connection", (socket) => {
     });
 
     socket.on("disconnect", () => {
+        const u = users[socket.id];
+
+        if (u && rooms[u.room]) {
+            rooms[u.room].users.delete(socket.id);
+        }
+
         delete users[socket.id];
 
+        io.emit("stats", getStats());
         io.emit("online", Object.keys(users).length);
-        io.emit("room stats", getStats());
     });
 });
 
+// ---------------- STATS ----------------
 function getStats() {
-    const stats = {};
+    const s = {};
     for (let r in rooms) {
-        stats[r] = rooms[r].length;
+        s[r] = rooms[r].users.size;
     }
-    return stats;
+    return s;
 }
 
-// voice upload
-app.post("/upload", upload.single("audio"), (req, res) => {
-    const file = "/voices/" + req.file.filename + ".webm";
-
-    fs.renameSync(req.file.path, "public" + file);
-
-    res.json({ url: file });
-});
-
-server.listen(3000, () => console.log("Server started"));
+server.listen(3000, () => console.log("PRO RUN"));
