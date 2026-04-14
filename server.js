@@ -1,7 +1,6 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const fs = require("fs");
 
 const app = express();
 const server = http.createServer(app);
@@ -10,64 +9,49 @@ const io = new Server(server);
 app.use(express.static("public"));
 
 const users = {};
-let messages = [];
-
-if (fs.existsSync("messages.json")) {
-    messages = JSON.parse(fs.readFileSync("messages.json"));
-}
-
-function save() {
-    fs.writeFileSync("messages.json", JSON.stringify(messages, null, 2));
-}
-
-function updateUsers() {
-    io.emit("users", users);
-}
+const rooms = {}; // комнаты
 
 io.on("connection", (socket) => {
 
-    socket.emit("history", messages);
+    socket.on("join", ({name, room}) => {
+        socket.join(room);
 
-    socket.on("set name", (name) => {
-        users[socket.id] = {
-            name,
-            online: true
-        };
-        updateUsers();
+        users[socket.id] = { name, room };
+
+        if (!rooms[room]) rooms[room] = [];
+
+        io.to(room).emit("users", Object.values(users).filter(u=>u.room===room));
     });
 
-    socket.on("chat", (text) => {
+    socket.on("chat", (msg) => {
         const user = users[socket.id];
+        if (!user) return;
 
-        const msg = {
+        const data = {
             type: "text",
-            name: user?.name || "Аноним",
-            text
+            name: user.name,
+            text: msg
         };
 
-        messages.push(msg);
-        save();
-        io.emit("chat", msg);
+        rooms[user.room].push(data);
+        io.to(user.room).emit("chat", data);
     });
 
-    // 🎤 ГОЛОС (FIX: base64)
-    socket.on("voice", (audioBase64) => {
+    socket.on("voice", (audio) => {
         const user = users[socket.id];
+        if (!user) return;
 
-        const msg = {
+        const data = {
             type: "voice",
-            name: user?.name || "Аноним",
-            audio: audioBase64
+            name: user.name,
+            audio
         };
 
-        messages.push(msg);
-        save();
-        io.emit("chat", msg);
+        io.to(user.room).emit("chat", data);
     });
 
     socket.on("disconnect", () => {
         delete users[socket.id];
-        updateUsers();
     });
 });
 
