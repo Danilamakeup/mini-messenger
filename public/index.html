@@ -12,13 +12,12 @@ body {
     color: white;
 }
 
-/* layout */
 .app {
     display: flex;
     height: 100vh;
 }
 
-/* servers (левая полоса) */
+/* servers */
 .servers {
     width: 70px;
     background: #1e1f22;
@@ -42,7 +41,7 @@ body {
 
 /* channels */
 .channels {
-    width: 220px;
+    width: 240px;
     background: #2b2d31;
     padding: 10px;
 }
@@ -51,10 +50,12 @@ body {
     padding: 8px;
     border-radius: 6px;
     cursor:pointer;
+    display:flex;
+    justify-content:space-between;
 }
 
 .channel:hover {
-    background: #404249;
+    background:#404249;
 }
 
 /* chat */
@@ -74,41 +75,37 @@ body {
     margin-bottom: 10px;
 }
 
-.name {
-    font-weight: bold;
-}
-
 /* input */
 .input {
-    display: flex;
-    padding: 10px;
-    background: #383a40;
+    display:flex;
+    padding:10px;
+    background:#2b2d31;
+    gap:5px;
 }
 
 input {
-    flex: 1;
-    padding: 10px;
-    border-radius: 8px;
-    border: none;
-    background: #1e1f22;
-    color: white;
+    flex:1;
+    padding:10px;
+    border:none;
+    border-radius:8px;
+    background:#1e1f22;
+    color:white;
 }
 
 button {
-    margin-left: 5px;
-    padding: 10px;
-    border: none;
-    border-radius: 8px;
-    background: #5865f2;
-    color: white;
-    cursor:pointer;
+    padding:10px;
+    border:none;
+    background:#5865f2;
+    color:white;
+    border-radius:8px;
 }
 
-/* mobile */
-@media (max-width: 700px) {
-    .channels {
-        display: none;
-    }
+/* notification */
+.badge {
+    background:red;
+    border-radius:10px;
+    padding:2px 6px;
+    font-size:12px;
 }
 </style>
 </head>
@@ -118,16 +115,29 @@ button {
 <div class="app">
 
 <div class="servers">
-    <div class="server" onclick="joinRoom('general')">G</div>
-    <div class="server" onclick="joinRoom('gaming')">🎮</div>
-    <div class="server" onclick="joinRoom('music')">🎵</div>
+    <div class="server" onclick="join('general')">G</div>
+    <div class="server" onclick="join('gaming')">🎮</div>
+    <div class="server" onclick="join('music')">🎵</div>
 </div>
 
 <div class="channels">
     <h3>Комнаты</h3>
-    <div class="channel" onclick="joinRoom('general')"># general</div>
-    <div class="channel" onclick="joinRoom('gaming')"># gaming</div>
-    <div class="channel" onclick="joinRoom('music')"># music</div>
+
+    <div class="channel" onclick="join('general')">
+        general <span id="c-general">0</span>
+    </div>
+
+    <div class="channel" onclick="join('gaming')">
+        gaming <span id="c-gaming">0</span>
+    </div>
+
+    <div class="channel" onclick="join('music')">
+        music <span id="c-music">0</span>
+    </div>
+
+    <hr>
+
+    <div>🌍 Online: <span id="online">0</span></div>
 </div>
 
 <div class="chat">
@@ -137,8 +147,6 @@ button {
 <div class="input">
     <input id="input">
     <button onclick="send()">➤</button>
-    <button onclick="toggleMute()">🔇</button>
-    <button onclick="toggleDeaf()">🔊</button>
     <button onclick="voice()">🎤</button>
 </div>
 
@@ -152,94 +160,56 @@ const socket = io();
 
 let name = localStorage.getItem("name");
 if(!name){
-    name = prompt("Ник");
+    name = prompt("Nick");
     localStorage.setItem("name", name);
 }
 
-let room = "general";
-let muted = false;
-let deaf = false;
+let room="general";
+let unread={};
 
-/* комнаты */
-function joinRoom(r){
-    room = r;
-    document.getElementById("messages").innerHTML="";
-    socket.emit("join",{name, room});
+function join(r){
+    room=r;
+    messages.innerHTML="";
+    socket.emit("join",{name,room});
 }
 
-/* отправка */
 function send(){
-    const input = document.getElementById("input");
     if(input.value){
-        socket.emit("chat", input.value);
+        socket.emit("chat",input.value);
         input.value="";
     }
 }
 
-/* ENTER */
-document.getElementById("input").addEventListener("keydown",e=>{
-    if(e.key==="Enter") send();
-});
-
-/* сообщения */
-socket.on("chat", msg=>{
-    const div = document.createElement("div");
-    div.className="msg";
-
-    if(msg.type==="text"){
-        div.innerHTML=`<span class="name">${msg.name}:</span> ${msg.text}`;
-    }
+/* CHAT */
+socket.on("chat",msg=>{
 
     if(msg.type==="voice"){
-        if(!deaf){
-            div.innerHTML=`<span class="name">${msg.name}:</span>
-            <audio controls src="${msg.audio}"></audio>`;
-        }
+        const audio=new Audio(msg.audio);
+        audio.play();
     }
 
-    document.getElementById("messages").appendChild(div);
+    const div=document.createElement("div");
+    div.innerText=`${msg.name}: ${msg.text||""}`;
+    messages.appendChild(div);
+
+    if(room!==msg.room){
+        unread[msg.room]=(unread[msg.room]||0)+1;
+    }
 });
 
-/* 🎤 голос */
-async function voice(){
-    if(muted) return;
+/* ROOM STATS */
+socket.on("room stats",stats=>{
+    c_general.innerText=stats.general||0;
+    c_gaming.innerText=stats.gaming||0;
+    c_music.innerText=stats.music||0;
+});
 
-    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-    const rec = new MediaRecorder(stream);
+/* ONLINE */
+socket.on("online count",n=>{
+    online.innerText=n;
+});
 
-    let chunks=[];
-
-    rec.ondataavailable=e=>chunks.push(e.data);
-
-    rec.onstop=()=>{
-        const blob = new Blob(chunks);
-        const reader = new FileReader();
-
-        reader.onload=()=>{
-            socket.emit("voice", reader.result);
-        };
-
-        reader.readAsDataURL(blob);
-    };
-
-    rec.start();
-    setTimeout(()=>rec.stop(),5000);
-}
-
-/* 🔇 mute */
-function toggleMute(){
-    muted=!muted;
-    alert(muted ? "Микрофон выкл" : "Микрофон вкл");
-}
-
-/* 🔊 deaf */
-function toggleDeaf(){
-    deaf=!deaf;
-    alert(deaf ? "Звук выкл" : "Звук вкл");
-}
-
-/* старт */
-joinRoom("general");
+join("general");
 </script>
 
 </body>
