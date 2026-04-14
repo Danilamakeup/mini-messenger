@@ -2,13 +2,13 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Telegram Mini Chat</title>
+<title>Chat</title>
 
 <style>
 body {
     margin: 0;
     font-family: system-ui;
-    background: #0e1621;
+    background: #0b141a;
     color: white;
 }
 
@@ -19,17 +19,16 @@ body {
 
 /* sidebar */
 .sidebar {
-    width: 260px;
-    background: #17212b;
+    width: 250px;
+    background: #111b21;
     padding: 10px;
-    border-right: 1px solid #0f1a24;
 }
 
-#users li {
-    background: #0f1a24;
+.user {
     padding: 8px;
-    margin-bottom: 6px;
     border-radius: 8px;
+    background: #202c33;
+    margin-bottom: 5px;
 }
 
 /* chat */
@@ -43,251 +42,154 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 15px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
 }
 
 .msg {
+    background: #202c33;
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 8px;
     max-width: 60%;
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: #182533;
 }
 
 .name {
     font-size: 12px;
     opacity: 0.6;
-    margin-bottom: 3px;
 }
 
-/* input */
-.input-bar {
+.input {
     display: flex;
     padding: 10px;
-    background: #17212b;
-    border-top: 1px solid #0f1a24;
+    background: #111b21;
 }
 
-.input-bar input {
+input {
     flex: 1;
     padding: 10px;
-    border: none;
-    outline: none;
     border-radius: 10px;
-    background: #0f1a24;
+    border: none;
+    background: #202c33;
     color: white;
 }
 
 button {
-    margin-left: 8px;
-    padding: 10px 14px;
-    border: none;
-    border-radius: 10px;
-    background: #2b5278;
-    color: white;
-    cursor: pointer;
-}
-
-button:hover {
-    background: #37608c;
-}
-
-.topbar {
-    background: #17212b;
+    margin-left: 5px;
     padding: 10px;
-    border-bottom: 1px solid #0f1a24;
+    border: none;
+    background: #00a884;
+    color: white;
+    border-radius: 10px;
+    cursor: pointer;
 }
 </style>
 </head>
 
 <body>
 
-<div class="topbar">
-    <input id="nickname" placeholder="Ник...">
-    <button onclick="setNick()">OK</button>
-    <button onclick="toggleVoice()">🎤</button>
-    <button onclick="startVoiceChat()">📞</button>
-</div>
-
 <div class="app">
 
-    <div class="sidebar">
-        <h3>👥 Онлайн</h3>
-        <ul id="users"></ul>
-    </div>
+<div class="sidebar">
+    <h3>Онлайн</h3>
+    <div id="users"></div>
+</div>
 
-    <div class="chat">
+<div class="chat">
 
-        <div id="messages" class="messages"></div>
+<div id="messages" class="messages"></div>
 
-        <div class="input-bar">
-            <input id="input" placeholder="Сообщение...">
-            <button onclick="sendMessage()">➤</button>
-        </div>
+<div class="input">
+    <input id="input" placeholder="Сообщение">
+    <button onclick="send()">➤</button>
+    <button onclick="voice()">🎤</button>
+</div>
 
-    </div>
-
+</div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io();
 
-/* ENTER */
-document.getElementById("input").addEventListener("keydown", e => {
-    if (e.key === "Enter") sendMessage();
-});
+/* 💾 НИК СОХРАНЕНИЕ */
+let name = localStorage.getItem("name");
 
-function setNick() {
-    const nick = document.getElementById("nickname").value;
-    if (nick) socket.emit("set nickname", nick);
+if (!name) {
+    name = prompt("Введите ник");
+    localStorage.setItem("name", name);
 }
 
-function sendMessage() {
+socket.emit("set name", name);
+
+/* 💬 SEND */
+function send() {
     const input = document.getElementById("input");
     if (input.value) {
-        socket.emit("chat message", input.value);
+        socket.emit("chat", input.value);
         input.value = "";
     }
 }
 
-/* messages */
-function addMessage(msg) {
-    const div = document.createElement("div");
-    div.classList.add("msg");
+/* ENTER */
+document.getElementById("input").addEventListener("keydown", e=>{
+    if(e.key==="Enter") send();
+});
 
-    if (msg.type === "text") {
+/* 🎤 VOICE FIX (BASE64) */
+async function voice() {
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    const rec = new MediaRecorder(stream);
+    let chunks = [];
+
+    rec.ondataavailable = e => chunks.push(e.data);
+
+    rec.onstop = () => {
+        const blob = new Blob(chunks);
+        const reader = new FileReader();
+
+        reader.onload = () => {
+            socket.emit("voice", reader.result);
+        };
+
+        reader.readAsDataURL(blob);
+    };
+
+    rec.start();
+
+    setTimeout(()=>rec.stop(), 5000); // 5 сек
+}
+
+/* 📥 MESSAGES */
+function add(msg){
+    const div = document.createElement("div");
+    div.className = "msg";
+
+    if(msg.type==="text"){
         div.innerHTML = `<div class="name">${msg.name}</div>${msg.text}`;
     }
 
-    if (msg.type === "voice") {
-        div.innerHTML = `<div class="name">${msg.name}</div><audio controls src="${msg.audio}"></audio>`;
+    if(msg.type==="voice"){
+        div.innerHTML = `<div class="name">${msg.name}</div>
+        <audio controls src="${msg.audio}"></audio>`;
     }
 
     document.getElementById("messages").appendChild(div);
-    document.getElementById("messages").scrollTop = 999999;
 }
 
-socket.on("chat history", data => data.forEach(addMessage));
-socket.on("chat message", msg => addMessage(msg));
+socket.on("history", data => data.forEach(add));
+socket.on("chat", msg => add(msg));
 
-socket.on("users list", users => {
-    const ul = document.getElementById("users");
-    ul.innerHTML = "";
-    users.forEach(u => {
-        const li = document.createElement("li");
-        li.textContent = u;
-        ul.appendChild(li);
+/* 👥 USERS */
+socket.on("users", users => {
+    const div = document.getElementById("users");
+    div.innerHTML = "";
+
+    Object.values(users).forEach(u=>{
+        const el = document.createElement("div");
+        el.className="user";
+        el.innerText = "🟢 " + u.name;
+        div.appendChild(el);
     });
 });
-
-/* 🎤 voice file (10 sec) */
-let recorder;
-let chunks = [];
-let isRecording = false;
-
-async function toggleVoice() {
-    if (!isRecording) {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-        recorder = new MediaRecorder(stream, {
-            mimeType: "audio/webm;codecs=opus"
-        });
-
-        chunks = [];
-
-        recorder.ondataavailable = e => chunks.push(e.data);
-
-        recorder.onstop = () => {
-            const blob = new Blob(chunks, { type: "audio/webm" });
-            const url = URL.createObjectURL(blob);
-            socket.emit("voice message", url);
-        };
-
-        recorder.start();
-        isRecording = true;
-
-        setTimeout(() => {
-            if (isRecording) {
-                recorder.stop();
-                isRecording = false;
-            }
-        }, 10000); // 10 sec max
-
-    } else {
-        recorder.stop();
-        isRecording = false;
-    }
-}
-
-/* 🔊 REAL VOICE CHAT (WEBRTC) */
-let localStream;
-let peers = {};
-
-async function startVoiceChat() {
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-    socket.emit("join voice");
-
-    socket.on("user-joined-voice", async (id) => {
-        const pc = createPeer(id);
-
-        localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-
-        socket.emit("offer", { to: id, offer });
-    });
-
-    socket.on("offer", async (data) => {
-        const pc = createPeer(data.from);
-
-        await pc.setRemoteDescription(data.offer);
-
-        localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-
-        socket.emit("answer", { to: data.from, answer });
-    });
-
-    socket.on("answer", async (data) => {
-        await peers[data.from].setRemoteDescription(data.answer);
-    });
-
-    socket.on("ice-candidate", (data) => {
-        if (peers[data.from]) {
-            peers[data.from].addIceCandidate(data.candidate);
-        }
-    });
-}
-
-function createPeer(id) {
-    const pc = new RTCPeerConnection({
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-    });
-
-    pc.onicecandidate = e => {
-        if (e.candidate) {
-            socket.emit("ice-candidate", {
-                to: id,
-                candidate: e.candidate
-            });
-        }
-    };
-
-    pc.ontrack = e => {
-        const audio = new Audio();
-        audio.srcObject = e.streams[0];
-        audio.play();
-    };
-
-    peers[id] = pc;
-    return pc;
-}
 </script>
 
 </body>
