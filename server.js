@@ -16,79 +16,53 @@ if (fs.existsSync("messages.json")) {
     messages = JSON.parse(fs.readFileSync("messages.json"));
 }
 
-function saveMessages() {
+function save() {
     fs.writeFileSync("messages.json", JSON.stringify(messages, null, 2));
 }
 
 function updateUsers() {
-    io.emit("users list", Object.values(users));
+    io.emit("users", users);
 }
 
 io.on("connection", (socket) => {
 
-    socket.emit("chat history", messages);
+    socket.emit("history", messages);
 
-    socket.on("set nickname", (name) => {
-        users[socket.id] = name;
+    socket.on("set name", (name) => {
+        users[socket.id] = {
+            name,
+            online: true
+        };
         updateUsers();
     });
 
-    // 💬 text
-    socket.on("chat message", (text) => {
-        const name = users[socket.id] || "Аноним";
+    socket.on("chat", (text) => {
+        const user = users[socket.id];
 
         const msg = {
             type: "text",
-            name,
+            name: user?.name || "Аноним",
             text
         };
 
         messages.push(msg);
-        saveMessages();
-
-        io.emit("chat message", msg);
+        save();
+        io.emit("chat", msg);
     });
 
-    // 🎤 voice file (10 sec)
-    socket.on("voice message", (audioUrl) => {
-        const name = users[socket.id] || "Аноним";
+    // 🎤 ГОЛОС (FIX: base64)
+    socket.on("voice", (audioBase64) => {
+        const user = users[socket.id];
 
         const msg = {
             type: "voice",
-            name,
-            audio: audioUrl
+            name: user?.name || "Аноним",
+            audio: audioBase64
         };
 
         messages.push(msg);
-        saveMessages();
-
-        io.emit("chat message", msg);
-    });
-
-    // 🔊 WEBRTC VOICE CHAT
-    socket.on("join voice", () => {
-        socket.broadcast.emit("user-joined-voice", socket.id);
-    });
-
-    socket.on("offer", (data) => {
-        socket.to(data.to).emit("offer", {
-            offer: data.offer,
-            from: socket.id
-        });
-    });
-
-    socket.on("answer", (data) => {
-        socket.to(data.to).emit("answer", {
-            answer: data.answer,
-            from: socket.id
-        });
-    });
-
-    socket.on("ice-candidate", (data) => {
-        socket.to(data.to).emit("ice-candidate", {
-            candidate: data.candidate,
-            from: socket.id
-        });
+        save();
+        io.emit("chat", msg);
     });
 
     socket.on("disconnect", () => {
@@ -97,6 +71,4 @@ io.on("connection", (socket) => {
     });
 });
 
-server.listen(process.env.PORT || 3000, () => {
-    console.log("Server started");
-});
+server.listen(process.env.PORT || 3000);
