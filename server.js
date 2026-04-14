@@ -18,53 +18,28 @@ const upload = multer({ dest: "public/voices/" });
 
 const users = {};
 const rooms = {
-    general: { messages: [], users: [] },
-    gaming: { messages: [], users: [] },
-    music: { messages: [], users: [] }
+    general: [],
+    gaming: [],
+    music: []
 };
 
-const voiceRooms = {}; // голосовые комнаты
-
-function updateRooms() {
-    const stats = {};
-
-    for (let r in rooms) {
-        stats[r] = rooms[r].users.length;
-    }
-
-    io.emit("room stats", stats);
-}
-
-function updateGlobalOnline() {
-    io.emit("online count", Object.keys(users).length);
-}
-
+// ---------------- SOCKET ----------------
 io.on("connection", (socket) => {
 
     socket.on("join", ({ name, room }) => {
 
         const prev = users[socket.id]?.room;
-        if (prev) {
-            socket.leave(prev);
 
-            rooms[prev].users =
-                rooms[prev].users.filter(u => u.id !== socket.id);
-        }
+        if (prev) socket.leave(prev);
 
         socket.join(room);
 
         users[socket.id] = { name, room };
 
-        if (!rooms[room]) rooms[room] = { messages: [], users: [] };
+        socket.emit("room history", rooms[room] || []);
 
-        rooms[room].users.push({ id: socket.id, name });
-
-        socket.emit("room history", rooms[room].messages);
-
-        io.to(room).emit("users in room", rooms[room].users);
-
-        updateRooms();
-        updateGlobalOnline();
+        io.emit("room stats", getStats());
+        io.emit("online", Object.keys(users).length);
     });
 
     socket.on("chat", (text) => {
@@ -77,22 +52,9 @@ io.on("connection", (socket) => {
             text
         };
 
-        rooms[u.room].messages.push(msg);
+        rooms[u.room].push(msg);
 
         io.to(u.room).emit("chat", msg);
-    });
-
-    // 🎤 voice file FIX
-    app.post("/upload", upload.single("audio"), (req, res) => {
-
-        const file = "/voices/" + req.file.filename + ".webm";
-
-        fs.renameSync(
-            req.file.path,
-            "public" + file
-        );
-
-        res.json({ url: file });
     });
 
     socket.on("voice", (url) => {
@@ -105,33 +67,47 @@ io.on("connection", (socket) => {
             audio: url
         };
 
-        rooms[u.room].messages.push(msg);
+        rooms[u.room].push(msg);
 
         io.to(u.room).emit("chat", msg);
     });
 
-    // 🔊 VOICE ROOMS (discord style)
-    socket.on("join voice room", (room) => {
-        socket.join("voice-" + room);
-        if (!voiceRooms[room]) voiceRooms[room] = [];
+    // WebRTC signaling
+    socket.on("voice-join", (room) => {
+        socket.join("voice:" + room);
+        socket.to("voice:" + room).emit("user-joined", socket.id);
+    });
 
-        voiceRooms[room].push(socket.id);
+    socket.on("signal", ({ to, data }) => {
+        io.to(to).emit("signal", {
+            from: socket.id,
+            data
+        });
     });
 
     socket.on("disconnect", () => {
-
-        const u = users[socket.id];
-
-        if (u) {
-            rooms[u.room].users =
-                rooms[u.room].users.filter(x => x.id !== socket.id);
-        }
-
         delete users[socket.id];
 
-        updateRooms();
-        updateGlobalOnline();
+        io.emit("online", Object.keys(users).length);
+        io.emit("room stats", getStats());
     });
 });
 
-server.listen(process.env.PORT || 3000);
+function getStats() {
+    const stats = {};
+    for (let r in rooms) {
+        stats[r] = rooms[r].length;
+    }
+    return stats;
+}
+
+// voice upload
+app.post("/upload", upload.single("audio"), (req, res) => {
+    const file = "/voices/" + req.file.filename + ".webm";
+
+    fs.renameSync(req.file.path, "public" + file);
+
+    res.json({ url: file });
+});
+
+server.listen(3000, () => console.log("Server started"));
