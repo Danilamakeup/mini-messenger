@@ -2,33 +2,59 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Chat</title>
+<title>Discord Clone</title>
 
 <style>
 body {
     margin: 0;
-    font-family: system-ui;
-    background: #0b141a;
+    font-family: Arial;
+    background: #313338;
     color: white;
 }
 
+/* layout */
 .app {
     display: flex;
     height: 100vh;
 }
 
-/* sidebar */
-.sidebar {
-    width: 250px;
-    background: #111b21;
+/* servers (левая полоса) */
+.servers {
+    width: 70px;
+    background: #1e1f22;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 10px;
+}
+
+.server {
+    width: 50px;
+    height: 50px;
+    background: #5865f2;
+    border-radius: 50%;
+    margin-bottom: 10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+}
+
+/* channels */
+.channels {
+    width: 220px;
+    background: #2b2d31;
     padding: 10px;
 }
 
-.user {
+.channel {
     padding: 8px;
-    border-radius: 8px;
-    background: #202c33;
-    margin-bottom: 5px;
+    border-radius: 6px;
+    cursor:pointer;
+}
+
+.channel:hover {
+    background: #404249;
 }
 
 /* chat */
@@ -40,35 +66,31 @@ body {
 
 .messages {
     flex: 1;
+    padding: 10px;
     overflow-y: auto;
-    padding: 15px;
 }
 
 .msg {
-    background: #202c33;
-    padding: 10px;
-    border-radius: 10px;
-    margin-bottom: 8px;
-    max-width: 60%;
+    margin-bottom: 10px;
 }
 
 .name {
-    font-size: 12px;
-    opacity: 0.6;
+    font-weight: bold;
 }
 
+/* input */
 .input {
     display: flex;
     padding: 10px;
-    background: #111b21;
+    background: #383a40;
 }
 
 input {
     flex: 1;
     padding: 10px;
-    border-radius: 10px;
+    border-radius: 8px;
     border: none;
-    background: #202c33;
+    background: #1e1f22;
     color: white;
 }
 
@@ -76,10 +98,17 @@ button {
     margin-left: 5px;
     padding: 10px;
     border: none;
-    background: #00a884;
+    border-radius: 8px;
+    background: #5865f2;
     color: white;
-    border-radius: 10px;
-    cursor: pointer;
+    cursor:pointer;
+}
+
+/* mobile */
+@media (max-width: 700px) {
+    .channels {
+        display: none;
+    }
 }
 </style>
 </head>
@@ -88,9 +117,17 @@ button {
 
 <div class="app">
 
-<div class="sidebar">
-    <h3>Онлайн</h3>
-    <div id="users"></div>
+<div class="servers">
+    <div class="server" onclick="joinRoom('general')">G</div>
+    <div class="server" onclick="joinRoom('gaming')">🎮</div>
+    <div class="server" onclick="joinRoom('music')">🎵</div>
+</div>
+
+<div class="channels">
+    <h3>Комнаты</h3>
+    <div class="channel" onclick="joinRoom('general')"># general</div>
+    <div class="channel" onclick="joinRoom('gaming')"># gaming</div>
+    <div class="channel" onclick="joinRoom('music')"># music</div>
 </div>
 
 <div class="chat">
@@ -98,55 +135,87 @@ button {
 <div id="messages" class="messages"></div>
 
 <div class="input">
-    <input id="input" placeholder="Сообщение">
+    <input id="input">
     <button onclick="send()">➤</button>
+    <button onclick="toggleMute()">🔇</button>
+    <button onclick="toggleDeaf()">🔊</button>
     <button onclick="voice()">🎤</button>
 </div>
 
 </div>
+
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io();
 
-/* 💾 НИК СОХРАНЕНИЕ */
 let name = localStorage.getItem("name");
-
-if (!name) {
-    name = prompt("Введите ник");
+if(!name){
+    name = prompt("Ник");
     localStorage.setItem("name", name);
 }
 
-socket.emit("set name", name);
+let room = "general";
+let muted = false;
+let deaf = false;
 
-/* 💬 SEND */
-function send() {
+/* комнаты */
+function joinRoom(r){
+    room = r;
+    document.getElementById("messages").innerHTML="";
+    socket.emit("join",{name, room});
+}
+
+/* отправка */
+function send(){
     const input = document.getElementById("input");
-    if (input.value) {
+    if(input.value){
         socket.emit("chat", input.value);
-        input.value = "";
+        input.value="";
     }
 }
 
 /* ENTER */
-document.getElementById("input").addEventListener("keydown", e=>{
+document.getElementById("input").addEventListener("keydown",e=>{
     if(e.key==="Enter") send();
 });
 
-/* 🎤 VOICE FIX (BASE64) */
-async function voice() {
+/* сообщения */
+socket.on("chat", msg=>{
+    const div = document.createElement("div");
+    div.className="msg";
+
+    if(msg.type==="text"){
+        div.innerHTML=`<span class="name">${msg.name}:</span> ${msg.text}`;
+    }
+
+    if(msg.type==="voice"){
+        if(!deaf){
+            div.innerHTML=`<span class="name">${msg.name}:</span>
+            <audio controls src="${msg.audio}"></audio>`;
+        }
+    }
+
+    document.getElementById("messages").appendChild(div);
+});
+
+/* 🎤 голос */
+async function voice(){
+    if(muted) return;
+
     const stream = await navigator.mediaDevices.getUserMedia({audio:true});
     const rec = new MediaRecorder(stream);
-    let chunks = [];
 
-    rec.ondataavailable = e => chunks.push(e.data);
+    let chunks=[];
 
-    rec.onstop = () => {
+    rec.ondataavailable=e=>chunks.push(e.data);
+
+    rec.onstop=()=>{
         const blob = new Blob(chunks);
         const reader = new FileReader();
 
-        reader.onload = () => {
+        reader.onload=()=>{
             socket.emit("voice", reader.result);
         };
 
@@ -154,42 +223,23 @@ async function voice() {
     };
 
     rec.start();
-
-    setTimeout(()=>rec.stop(), 5000); // 5 сек
+    setTimeout(()=>rec.stop(),5000);
 }
 
-/* 📥 MESSAGES */
-function add(msg){
-    const div = document.createElement("div");
-    div.className = "msg";
-
-    if(msg.type==="text"){
-        div.innerHTML = `<div class="name">${msg.name}</div>${msg.text}`;
-    }
-
-    if(msg.type==="voice"){
-        div.innerHTML = `<div class="name">${msg.name}</div>
-        <audio controls src="${msg.audio}"></audio>`;
-    }
-
-    document.getElementById("messages").appendChild(div);
+/* 🔇 mute */
+function toggleMute(){
+    muted=!muted;
+    alert(muted ? "Микрофон выкл" : "Микрофон вкл");
 }
 
-socket.on("history", data => data.forEach(add));
-socket.on("chat", msg => add(msg));
+/* 🔊 deaf */
+function toggleDeaf(){
+    deaf=!deaf;
+    alert(deaf ? "Звук выкл" : "Звук вкл");
+}
 
-/* 👥 USERS */
-socket.on("users", users => {
-    const div = document.getElementById("users");
-    div.innerHTML = "";
-
-    Object.values(users).forEach(u=>{
-        const el = document.createElement("div");
-        el.className="user";
-        el.innerText = "🟢 " + u.name;
-        div.appendChild(el);
-    });
-});
+/* старт */
+joinRoom("general");
 </script>
 
 </body>
