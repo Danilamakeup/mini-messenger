@@ -2,142 +2,94 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Discord Clone</title>
+<title>Discord PRO</title>
 
 <style>
-body {
-    margin: 0;
-    font-family: Arial;
-    background: #313338;
-    color: white;
+
+/* THEMES */
+:root{
+    --bg:#313338;
+    --panel:#2b2d31;
+    --text:white;
 }
 
-.app {
-    display: flex;
-    height: 100vh;
+.light{
+    --bg:#f2f3f5;
+    --panel:#ffffff;
+    --text:black;
 }
 
-/* servers */
-.servers {
-    width: 70px;
-    background: #1e1f22;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding-top: 10px;
+body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:Arial;
 }
 
-.server {
-    width: 50px;
-    height: 50px;
-    background: #5865f2;
-    border-radius: 50%;
-    margin-bottom: 10px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-}
+.app{display:flex;height:100vh;}
 
-/* channels */
-.channels {
-    width: 240px;
-    background: #2b2d31;
-    padding: 10px;
-}
-
-.channel {
-    padding: 8px;
-    border-radius: 6px;
-    cursor:pointer;
-    display:flex;
-    justify-content:space-between;
-}
-
-.channel:hover {
-    background:#404249;
-}
-
-/* chat */
-.chat {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.messages {
-    flex: 1;
-    padding: 10px;
-    overflow-y: auto;
-}
-
-.msg {
-    margin-bottom: 10px;
-}
-
-/* input */
-.input {
-    display:flex;
+.sidebar{
+    width:240px;
+    background:var(--panel);
     padding:10px;
-    background:#2b2d31;
-    gap:5px;
 }
 
-input {
+.room{
+    padding:8px;
+    cursor:pointer;
+}
+
+.chat{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+}
+
+.messages{
     flex:1;
     padding:10px;
-    border:none;
-    border-radius:8px;
-    background:#1e1f22;
-    color:white;
+    overflow:auto;
 }
 
-button {
+.msg{margin-bottom:8px;}
+
+.input{
+    display:flex;
     padding:10px;
-    border:none;
-    background:#5865f2;
-    color:white;
-    border-radius:8px;
+    background:var(--panel);
 }
 
-/* notification */
-.badge {
-    background:red;
-    border-radius:10px;
-    padding:2px 6px;
-    font-size:12px;
+input{
+    flex:1;
+    padding:10px;
+}
+
+button{
+    margin-left:5px;
+}
+
+/* theme button */
+.themeBtn{
+    position:absolute;
+    top:10px;
+    right:10px;
 }
 </style>
 </head>
 
 <body>
 
+<button class="themeBtn" onclick="toggleTheme()">🌓</button>
+
 <div class="app">
 
-<div class="servers">
-    <div class="server" onclick="join('general')">G</div>
-    <div class="server" onclick="join('gaming')">🎮</div>
-    <div class="server" onclick="join('music')">🎵</div>
-</div>
-
-<div class="channels">
-    <h3>Комнаты</h3>
-
-    <div class="channel" onclick="join('general')">
-        general <span id="c-general">0</span>
-    </div>
-
-    <div class="channel" onclick="join('gaming')">
-        gaming <span id="c-gaming">0</span>
-    </div>
-
-    <div class="channel" onclick="join('music')">
-        music <span id="c-music">0</span>
-    </div>
+<div class="sidebar">
+    <div onclick="join('general')" class="room"># general</div>
+    <div onclick="join('gaming')" class="room"># gaming</div>
+    <div onclick="join('music')" class="room"># music</div>
 
     <hr>
-
-    <div>🌍 Online: <span id="online">0</span></div>
+    Online: <span id="online">0</span>
 </div>
 
 <div class="chat">
@@ -147,7 +99,8 @@ button {
 <div class="input">
     <input id="input">
     <button onclick="send()">➤</button>
-    <button onclick="voice()">🎤</button>
+    <button onclick="voiceMsg()">🎤</button>
+    <button onclick="joinVoice(room)">🎧</button>
 </div>
 
 </div>
@@ -155,24 +108,31 @@ button {
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/simple-peer/simplepeer.min.js"></script>
+
 <script>
 const socket = io();
 
-let name = localStorage.getItem("name");
-if(!name){
-    name = prompt("Nick");
-    localStorage.setItem("name", name);
-}
+let name = localStorage.getItem("name") || prompt("Nick");
+localStorage.setItem("name", name);
 
 let room="general";
-let unread={};
+let stream;
+let peers={};
 
+// ---------------- THEME FIX ----------------
+function toggleTheme(){
+    document.body.classList.toggle("light");
+}
+
+// ---------------- JOIN ----------------
 function join(r){
     room=r;
     messages.innerHTML="";
     socket.emit("join",{name,room});
 }
 
+// ---------------- CHAT ----------------
 function send(){
     if(input.value){
         socket.emit("chat",input.value);
@@ -180,34 +140,110 @@ function send(){
     }
 }
 
-/* CHAT */
-socket.on("chat",msg=>{
+// ---------------- RENDER (FIXED) ----------------
+function add(m){
+    const d=document.createElement("div");
+    d.className="msg";
 
-    if(msg.type==="voice"){
-        const audio=new Audio(msg.audio);
-        audio.play();
+    if(m.type==="text"){
+        d.innerText=`${m.name}: ${m.text}`;
     }
 
-    const div=document.createElement("div");
-    div.innerText=`${msg.name}: ${msg.text||""}`;
-    messages.appendChild(div);
-
-    if(room!==msg.room){
-        unread[msg.room]=(unread[msg.room]||0)+1;
+    if(m.type==="voice"){
+        const a=new Audio(m.audio);
+        a.controls=true;
+        d.innerText=m.name+": ";
+        d.appendChild(a);
     }
+
+    messages.appendChild(d);
+}
+
+// ---------------- HISTORY FIX (MAIN BUG FIX) ----------------
+socket.on("history",(msgs)=>{
+    messages.innerHTML="";
+    msgs.forEach(add);
 });
 
-/* ROOM STATS */
-socket.on("room stats",stats=>{
-    c_general.innerText=stats.general||0;
-    c_gaming.innerText=stats.gaming||0;
-    c_music.innerText=stats.music||0;
-});
+socket.on("chat",add);
 
-/* ONLINE */
-socket.on("online count",n=>{
+// ---------------- ONLINE ----------------
+socket.on("online",n=>{
     online.innerText=n;
 });
+
+// ---------------- VOICE MSG ----------------
+async function voiceMsg(){
+    const s=await navigator.mediaDevices.getUserMedia({audio:true});
+
+    const r=new MediaRecorder(s);
+    let chunks=[];
+
+    r.ondataavailable=e=>chunks.push(e.data);
+
+    r.onstop=async()=>{
+        const blob=new Blob(chunks,{type:"audio/webm"});
+
+        const fd=new FormData();
+        fd.append("audio",blob);
+
+        const res=await fetch("/upload",{method:"POST",body:fd});
+        const data=await res.json();
+
+        socket.emit("voice-msg",data.url);
+    };
+
+    r.start();
+    setTimeout(()=>r.stop(),4000);
+}
+
+// ---------------- WEBRTC ----------------
+async function joinVoice(room){
+
+    if(!stream){
+        stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    }
+
+    socket.emit("voice-join",room);
+}
+
+// GLOBAL FIX (IMPORTANT)
+socket.on("user-joined",id=>{
+    createPeer(id,true);
+});
+
+socket.on("signal",({from,data})=>{
+    if(!peers[from]) createPeer(from,false);
+    peers[from].signal(data);
+});
+
+// PEER
+function createPeer(id,initiator){
+
+    const peer=new SimplePeer({
+        initiator,
+        trickle:false,
+        stream,
+        config:{
+            iceServers:[
+                {urls:"stun:stun.l.google.com:19302"}
+            ]
+        }
+    });
+
+    peer.on("signal",data=>{
+        socket.emit("signal",{to:id,data});
+    });
+
+    peer.on("stream",remote=>{
+        const a=new Audio();
+        a.srcObject=remote;
+        a.autoplay=true;
+        a.play();
+    });
+
+    peers[id]=peer;
+}
 
 join("general");
 </script>
