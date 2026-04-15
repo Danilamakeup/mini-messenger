@@ -28,6 +28,11 @@
     to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes neonPulse {
+    0% { box-shadow: 0 0 5px #5865f2, 0 0 10px #5865f2; }
+    100% { box-shadow: 0 0 15px #5865f2, 0 0 25px #8f9eff; }
+}
+
 body {
     background: radial-gradient(ellipse at 20% 30%, #0a0c1a, #020308);
     font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -66,7 +71,6 @@ body::before {
 
 .app { display: flex; height: 100vh; backdrop-filter: blur(2px); position: relative; z-index: 1; }
 
-/* стеклянный сайдбар с неоном */
 .sidebar {
     width: 280px;
     background: rgba(10, 14, 23, 0.75);
@@ -455,8 +459,10 @@ let audioChunks = [];
 let recordingStream = null;
 let isRecording = false;
 let recordedBlob = null;
+let recordTimerInterval = null;
+let seconds = 0;
 
-// Функция начала записи
+// Функция начала записи (ФИКС: собираем данные каждую секунду)
 async function startRecording() {
     if (isRecording) return;
     
@@ -464,18 +470,21 @@ async function startRecording() {
         recStatus.innerText = "🎤 Запрос микрофона...";
         recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         
-        // Пробуем разные MIME-типы для лучшей совместимости
-        let mimeType = '';
-        if (MediaRecorder.isTypeSupported('audio/webm')) mimeType = 'audio/webm';
-        if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
-        if (MediaRecorder.isTypeSupported('audio/ogg')) mimeType = 'audio/ogg';
+        // Выбираем поддерживаемый MIME-тип
+        let mimeType = 'audio/webm';
+        if (!MediaRecorder.isTypeSupported('audio/webm')) {
+            if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
+            else if (MediaRecorder.isTypeSupported('audio/ogg')) mimeType = 'audio/ogg';
+        }
         
         mediaRecorder = new MediaRecorder(recordingStream, { mimeType: mimeType });
         audioChunks = [];
         
+        // КЛЮЧЕВОЙ ФИКС: собираем данные каждую секунду, а не только в конце
         mediaRecorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
                 audioChunks.push(event.data);
+                console.log(`Собрано ${audioChunks.length} чанков, общий размер: ${Math.round(event.data.size / 1024)}KB`);
             }
         };
         
@@ -487,33 +496,36 @@ async function startRecording() {
                 recStatus.innerText = `✅ ${sizeKB} KB`;
                 startRecordBtn.style.background = "#2a2f3a";
                 startRecordBtn.style.animation = "none";
+                console.log(`Запись завершена, размер: ${sizeKB}KB, чанков: ${audioChunks.length}`);
             } else {
                 recStatus.innerText = "❌ Пусто";
                 sendVoiceBtn.disabled = true;
             }
             isRecording = false;
+            if (recordTimerInterval) clearInterval(recordTimerInterval);
         };
         
-        mediaRecorder.start(100);
+        // Запускаем запись с сбором данных каждую секунду (важно!)
+        mediaRecorder.start(1000); // <-- ЭТО ГЛАВНЫЙ ФИКС: каждые 1000мс собираем данные
         isRecording = true;
         recordedBlob = null;
         sendVoiceBtn.disabled = true;
         startRecordBtn.style.background = "#e03a3a";
         startRecordBtn.style.animation = "neonPulse 0.8s infinite";
-        recStatus.innerText = "🔴 ЗАПИСЬ 0с";
         
-        // Таймер 20 секунд
-        let seconds = 0;
-        const timer = setInterval(() => {
+        seconds = 0;
+        recStatus.innerText = `🔴 ЗАПИСЬ ${seconds}с / 20с`;
+        
+        // Таймер для отображения и авто-остановки через 20 секунд
+        recordTimerInterval = setInterval(() => {
             if (isRecording) {
                 seconds++;
                 recStatus.innerText = `🔴 ЗАПИСЬ ${seconds}с / 20с`;
                 if (seconds >= 20) {
-                    clearInterval(timer);
                     stopRecording();
                 }
             } else {
-                clearInterval(timer);
+                if (recordTimerInterval) clearInterval(recordTimerInterval);
             }
         }, 1000);
         
@@ -525,6 +537,10 @@ async function startRecording() {
 
 // Функция остановки записи
 function stopRecording() {
+    if (recordTimerInterval) {
+        clearInterval(recordTimerInterval);
+        recordTimerInterval = null;
+    }
     if (mediaRecorder && mediaRecorder.state === "recording") {
         mediaRecorder.stop();
     }
@@ -600,16 +616,13 @@ function addMessage(msg) {
     if (msg.type === "text") {
         div.innerHTML = `<div class="message-name"><span>${escapeHtml(msg.name)}</span></div><div class="message-text">${escapeHtml(msg.text)}</div>`;
     } else if (msg.type === "voice") {
-        // Генерируем уникальный URL для аудио, чтобы браузер точно воспроизвёл
         const audioUrl = msg.audio;
-        div.innerHTML = `<div class="message-name"><span>🎙️ ${escapeHtml(msg.name)}</span></div><div class="voice-bubble"><audio controls preload="auto"><source src="${audioUrl}" type="audio/webm"></audio></div>`;
-        // Принудительно перезагружаем аудио элемент для некоторых браузеров
+        div.innerHTML = `<div class="message-name"><span>🎙️ ${escapeHtml(msg.name)}</span></div><div class="voice-bubble"><audio controls preload="auto" src="${audioUrl}"></audio></div>`;
+        // Принудительно загружаем аудио
         setTimeout(() => {
             const audio = div.querySelector('audio');
-            if (audio) {
-                audio.load();
-            }
-        }, 100);
+            if (audio) audio.load();
+        }, 50);
     }
     messagesDiv.appendChild(div);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
