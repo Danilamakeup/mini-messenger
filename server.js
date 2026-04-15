@@ -23,6 +23,7 @@ const rooms = {
     music: { messages: [], users: new Set() }
 };
 
+// ---------------- CONNECTION ----------------
 io.on("connection", (socket) => {
 
     socket.on("join", ({ name, room }) => {
@@ -37,7 +38,6 @@ io.on("connection", (socket) => {
         socket.join(room);
 
         users[socket.id] = { name, room };
-
         rooms[room].users.add(socket.id);
 
         socket.emit("history", rooms[room].messages);
@@ -45,6 +45,7 @@ io.on("connection", (socket) => {
         io.emit("online", Object.keys(users).length);
     });
 
+    // ---------------- CHAT ----------------
     socket.on("chat", (text) => {
         const u = users[socket.id];
         if (!u) return;
@@ -59,6 +60,7 @@ io.on("connection", (socket) => {
         io.to(u.room).emit("chat", msg);
     });
 
+    // ---------------- VOICE MSG ----------------
     socket.on("voice-msg", (url) => {
         const u = users[socket.id];
         if (!u) return;
@@ -73,9 +75,18 @@ io.on("connection", (socket) => {
         io.to(u.room).emit("chat", msg);
     });
 
-    // WebRTC
+    // ---------------- VOICE ROOMS ----------------
     socket.on("voice-join", (room) => {
         socket.join("voice:" + room);
+
+        const clients = [...io.sockets.adapter.rooms.get("voice:" + room) || []];
+
+        clients.forEach(id => {
+            if (id !== socket.id) {
+                socket.emit("voice-user", id);
+            }
+        });
+
         socket.to("voice:" + room).emit("user-joined", socket.id);
     });
 
@@ -88,18 +99,22 @@ io.on("connection", (socket) => {
 
     socket.on("disconnect", () => {
         const u = users[socket.id];
+
         if (u && rooms[u.room]) {
             rooms[u.room].users.delete(socket.id);
         }
+
         delete users[socket.id];
+
         io.emit("online", Object.keys(users).length);
     });
 });
 
+// ---------------- UPLOAD ----------------
 app.post("/upload", upload.single("audio"), (req, res) => {
     const file = "/voices/" + req.file.filename + ".webm";
     fs.renameSync(req.file.path, "public" + file);
     res.json({ url: file });
 });
 
-server.listen(3000, () => console.log("RUNNING"));
+server.listen(3000, () => console.log("FINAL RUN"));
