@@ -5,34 +5,25 @@
 <title>Discord MAX</title>
 
 <style>
-:root{
-    --bg:#313338;
-    --panel:#2b2d31;
-    --text:#fff;
-}
-
 body{
     margin:0;
-    background:var(--bg);
-    color:var(--text);
+    background:#313338;
+    color:white;
     font-family:Arial;
 }
 
 .app{display:flex;height:100vh;}
 
 .sidebar{
-    width:220px;
-    background:var(--panel);
+    width:200px;
+    background:#2b2d31;
     padding:10px;
 }
 
 .room{
     padding:10px;
-    border-radius:8px;
     cursor:pointer;
 }
-
-.room:hover{background:#404249;}
 
 .chat{
     flex:1;
@@ -46,39 +37,24 @@ body{
     padding:10px;
 }
 
-.msg{margin-bottom:8px;}
-
 .input{
     display:flex;
     padding:10px;
-    background:var(--panel);
+    background:#2b2d31;
 }
 
 input{
     flex:1;
     padding:10px;
-    border:none;
-    border-radius:8px;
-    background:#1e1f22;
-    color:white;
 }
 
 button{
     margin-left:5px;
     padding:10px;
-    border:none;
-    border-radius:8px;
-    background:#5865f2;
-    color:white;
 }
 
-/* speaking effect */
 .speaking{
     box-shadow:0 0 20px lime;
-}
-
-@media(max-width:700px){
-    .sidebar{width:70px;}
 }
 </style>
 </head>
@@ -88,9 +64,9 @@ button{
 <div class="app">
 
 <div class="sidebar">
-    <div class="room" onclick="join('general')">general</div>
-    <div class="room" onclick="join('gaming')">gaming</div>
-    <div class="room" onclick="join('music')">music</div>
+    <div onclick="join('general')">general</div>
+    <div onclick="join('gaming')">gaming</div>
+    <div onclick="join('music')">music</div>
 
     <hr>
     Online: <span id="online">0</span><br>
@@ -129,14 +105,14 @@ let stream=null;
 let peers={};
 let inVoice=false;
 
-// ---------------- JOIN ----------------
+// JOIN
 function join(r){
     room=r;
     messages.innerHTML="";
     socket.emit("join",{name,room});
 }
 
-// ---------------- CHAT ----------------
+// CHAT
 function send(){
     if(input.value){
         socket.emit("chat",input.value);
@@ -144,10 +120,9 @@ function send(){
     }
 }
 
-// ---------------- RENDER ----------------
+// RENDER
 function add(m){
     const d=document.createElement("div");
-    d.className="msg";
 
     if(m.type==="text"){
         d.innerText=m.name+": "+m.text;
@@ -171,8 +146,9 @@ socket.on("history",msgs=>{
 
 socket.on("chat",add);
 
-// ---------------- VOICE MSG ----------------
+// 🔊 VOICE MSG (15 СЕКУНД)
 async function voiceMsg(){
+
     const s=await navigator.mediaDevices.getUserMedia({audio:true});
     const rec=new MediaRecorder(s);
 
@@ -192,10 +168,12 @@ async function voiceMsg(){
     };
 
     rec.start();
-    setTimeout(()=>rec.stop(),4000);
+
+    // 🔥 ВОТ ФИКС
+    setTimeout(()=>rec.stop(),15000);
 }
 
-// ---------------- VOICE CHAT ----------------
+// 🎤 VOICE CHAT
 async function joinVoice(){
 
     if(inVoice) return;
@@ -208,12 +186,10 @@ async function joinVoice(){
     socket.emit("voice-join",room);
 }
 
-// получить существующих
 socket.on("voice-user",id=>{
     createPeer(id,true);
 });
 
-// новые
 socket.on("user-joined",id=>{
     createPeer(id,false);
 });
@@ -243,28 +219,15 @@ function createPeer(id,initiator){
         a.srcObject=remote;
         a.autoplay=true;
         a.play().catch(()=>{});
-
-        updateVoice();
     });
 
-    peer.on("close",()=>{
-        delete peers[id];
-        updateVoice();
-    });
-
-    peer.on("error",()=>{
-        delete peers[id];
-        updateVoice();
-    });
+    peer.on("close",()=>delete peers[id]);
+    peer.on("error",()=>delete peers[id]);
 
     peers[id]=peer;
 }
 
-function updateVoice(){
-    voiceOnline.innerText = Object.keys(peers).length + (inVoice?1:0);
-}
-
-// ---------------- LEAVE ----------------
+// LEAVE
 function leaveVoice(){
     inVoice=false;
 
@@ -275,20 +238,16 @@ function leaveVoice(){
         stream.getTracks().forEach(t=>t.stop());
         stream=null;
     }
-
-    updateVoice();
 }
 
-// ---------------- MUTE ----------------
+// MUTE
 function mute(){
     if(stream){
-        stream.getAudioTracks().forEach(t=>{
-            t.enabled=!t.enabled;
-        });
+        stream.getAudioTracks().forEach(t=>t.enabled=!t.enabled);
     }
 }
 
-// ---------------- SPEAKING ----------------
+// SPEAKING
 function setupSpeaking(stream){
     const ctx=new AudioContext();
     const src=ctx.createMediaStreamSource(stream);
@@ -312,10 +271,9 @@ function setupSpeaking(stream){
     },100);
 }
 
-// ---------------- ONLINE ----------------
-socket.on("online",n=>{
-    online.innerText=n;
-});
+// ONLINE
+socket.on("online",n=>online.innerText=n);
+socket.on("voice-count",n=>voiceOnline.innerText=n);
 
 join("general");
 </script>
