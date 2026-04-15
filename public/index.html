@@ -1,552 +1,219 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Nexus — превосходит Discord</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nexus</title>
 
-        body {
-            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-            background: radial-gradient(circle at 20% 30%, #0a0c12, #030507);
-            height: 100vh;
-            overflow: hidden;
-            color: #f0f3fa;
-        }
+<style>
+body{
+    margin:0;
+    background:#0f1115;
+    color:white;
+    font-family:Arial;
+}
 
-        /* кастомный скролл */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(255,255,255,0.03);
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.2);
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #5865f2;
-        }
+.app{display:flex;height:100vh;}
 
-        .app {
-            display: flex;
-            height: 100vh;
-            backdrop-filter: blur(2px);
-        }
+.sidebar{
+    width:220px;
+    background:#181c24;
+    padding:10px;
+}
 
-        /* ========= САЙДБАР СТЕКЛО ========= */
-        .sidebar {
-            width: 280px;
-            background: rgba(18, 22, 28, 0.75);
-            backdrop-filter: blur(16px);
-            border-right: 1px solid rgba(255,255,255,0.08);
-            padding: 24px 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-            transition: all 0.2s;
-        }
+.chat{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+}
 
-        .logo-area {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 8px;
-        }
+.messages{
+    flex:1;
+    overflow:auto;
+    padding:15px;
+}
 
-        .logo {
-            font-size: 28px;
-            filter: drop-shadow(0 0 6px #5865f2);
-        }
+.message{
+    margin-bottom:10px;
+}
 
-        .logo-text {
-            font-weight: 700;
-            font-size: 20px;
-            background: linear-gradient(135deg, #fff, #b9bbff);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            letter-spacing: -0.3px;
-        }
+.input{
+    display:flex;
+    padding:10px;
+    background:#181c24;
+}
 
-        .rooms-header {
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #a6a9b6;
-            margin-bottom: 12px;
-        }
+input{
+    flex:1;
+    padding:10px;
+}
 
-        .room {
-            padding: 12px 16px;
-            margin: 4px 0;
-            border-radius: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            background: rgba(255,255,255,0.02);
-            border: 1px solid transparent;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+button{
+    margin-left:5px;
+    padding:10px;
+    cursor:pointer;
+}
 
-        .room:hover {
-            background: rgba(88, 101, 242, 0.2);
-            border-color: rgba(88, 101, 242, 0.5);
-            transform: translateX(4px);
-        }
+.recording{
+    background:red;
+}
 
-        .room:active {
-            transform: scale(0.98);
-        }
-
-        .room-icon {
-            font-size: 20px;
-        }
-
-        .stats {
-            margin-top: auto;
-            background: rgba(0,0,0,0.3);
-            border-radius: 20px;
-            padding: 16px;
-            font-size: 13px;
-            backdrop-filter: blur(8px);
-        }
-
-        .stat-line {
-            display: flex;
-            justify-content: space-between;
-            margin: 8px 0;
-        }
-
-        .stat-value {
-            font-weight: bold;
-            color: #5865f2;
-        }
-
-        /* ========= ОСНОВНОЙ ЧАТ ========= */
-        .chat {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: rgba(10, 14, 19, 0.5);
-        }
-
-        .chat-header {
-            padding: 20px 28px;
-            background: rgba(0,0,0,0.2);
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            font-weight: 600;
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 24px 28px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        /* стиль сообщений */
-        .message-bubble {
-            max-width: 80%;
-            width: fit-content;
-            animation: fadeSlideUp 0.2s ease;
-        }
-
-        @keyframes fadeSlideUp {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .message-name {
-            font-size: 13px;
-            font-weight: 600;
-            margin-bottom: 4px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #b5bac1;
-        }
-
-        .message-text {
-            background: rgba(46, 51, 60, 0.8);
-            backdrop-filter: blur(8px);
-            padding: 10px 16px;
-            border-radius: 22px;
-            border-top-left-radius: 6px;
-            font-size: 15px;
-            line-height: 1.4;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            transition: 0.1s linear;
-            border: 0.5px solid rgba(255,255,255,0.05);
-        }
-
-        .message-voice {
-            background: rgba(46, 51, 60, 0.6);
-            backdrop-filter: blur(8px);
-            padding: 12px 18px;
-            border-radius: 28px;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            flex-wrap: wrap;
-        }
-
-        audio {
-            border-radius: 30px;
-            height: 36px;
-            background: #1e1f24;
-        }
-
-        /* поле ввода */
-        .input-area {
-            padding: 18px 28px 28px 28px;
-            background: linear-gradient(to top, rgba(0,0,0,0.4), transparent);
-        }
-
-        .input-wrapper {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            background: rgba(30, 34, 42, 0.8);
-            backdrop-filter: blur(16px);
-            border-radius: 60px;
-            padding: 6px 6px 6px 20px;
-            border: 1px solid rgba(255,255,255,0.1);
-            transition: 0.2s;
-        }
-
-        .input-wrapper:focus-within {
-            border-color: #5865f2;
-            box-shadow: 0 0 12px rgba(88,101,242,0.3);
-        }
-
-        .input-wrapper input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            padding: 14px 0;
-            color: white;
-            font-size: 15px;
-            outline: none;
-        }
-
-        .input-wrapper input::placeholder {
-            color: #7e8293;
-        }
-
-        .btn-icon {
-            background: rgba(255,255,255,0.05);
-            border: none;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            width: 44px;
-            height: 44px;
-            border-radius: 40px;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .btn-icon:hover {
-            background: #5865f2;
-            transform: scale(1.05);
-            box-shadow: 0 0 8px #5865f2;
-        }
-
-        .btn-send {
-            background: #5865f2;
-        }
-
-        .btn-send:hover {
-            background: #4752c4;
-            transform: scale(1.02);
-        }
-
-        .action-group {
-            display: flex;
-            gap: 8px;
-        }
-
-        /* speaking эффект (как у Discord но круче) */
-        .speaking {
-            box-shadow: 0 0 0 3px #5865f2, 0 0 0 6px rgba(88,101,242,0.3);
-            transition: 0.05s linear;
-            border-radius: 0;
-        }
-
-        /* адаптив */
-        @media (max-width: 700px) {
-            .sidebar {
-                width: 80px;
-                padding: 16px 8px;
-            }
-            .logo-text, .rooms-header, .room span:not(.room-icon), .stats {
-                display: none;
-            }
-            .room {
-                justify-content: center;
-            }
-            .messages {
-                padding: 16px;
-            }
-        }
-    </style>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
+/* voice bubble */
+.voice{
+    background:#2a2f3a;
+    padding:10px;
+    border-radius:12px;
+}
+</style>
 </head>
-<body>
-<div class="app">
-    <div class="sidebar">
-        <div class="logo-area">
-            <span class="logo">✨</span>
-            <span class="logo-text">NEXUS</span>
-        </div>
-        <div>
-            <div class="rooms-header">⚡ КАНАЛЫ</div>
-            <div class="room" onclick="join('general')">
-                <span class="room-icon">#️⃣</span> <span>general</span>
-            </div>
-            <div class="room" onclick="join('gaming')">
-                <span class="room-icon">🎮</span> <span>gaming</span>
-            </div>
-            <div class="room" onclick="join('music')">
-                <span class="room-icon">🎵</span> <span>music</span>
-            </div>
-        </div>
-        <div class="stats">
-            <div class="stat-line">🌐 Online: <span class="stat-value" id="online">0</span></div>
-            <div class="stat-line">🎙️ Voice: <span class="stat-value" id="voiceOnline">0</span></div>
-        </div>
-    </div>
 
-    <div class="chat">
-        <div class="chat-header">
-            <span>💬</span> <span id="currentRoom">#general</span>
-        </div>
-        <div id="messages" class="messages"></div>
-        <div class="input-area">
-            <div class="input-wrapper">
-                <input type="text" id="input" placeholder="Сообщение..." onkeydown="if(event.key==='Enter') send()">
-                <div class="action-group">
-                    <button class="btn-icon" onclick="voiceMsg()" title="Голосовое 15с">🎙️</button>
-                    <button class="btn-icon" onclick="joinVoice()" title="Войти в голосовой канал">🔊</button>
-                    <button class="btn-icon" onclick="mute()" title="Заглушить микрофон">🎧</button>
-                    <button class="btn-icon" onclick="leaveVoice()" title="Покинуть войс">❌</button>
-                    <button class="btn-icon btn-send" onclick="send()">➤</button>
-                </div>
-            </div>
-        </div>
-    </div>
+<body>
+
+<div class="app">
+
+<div class="sidebar">
+    <div onclick="join('general')">general</div>
+    <div onclick="join('gaming')">gaming</div>
+    <div onclick="join('music')">music</div>
+
+    <hr>
+    Online: <span id="online">0</span><br>
+    Voice: <span id="voiceOnline">0</span>
 </div>
 
+<div class="chat">
+
+<div id="messages" class="messages"></div>
+
+<div class="input">
+    <input id="input" onkeydown="if(event.key==='Enter') send()">
+
+    <button id="recordBtn">🎙️</button>
+    <span id="time"></span>
+
+    <button onclick="send()">➤</button>
+</div>
+
+</div>
+
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
 <script>
-    const socket = io();
-    let name = localStorage.getItem("name") || prompt("🔮 Введите ваш никнейм:");
-    if(!name) name = "Explorer";
-    localStorage.setItem("name", name);
+const socket = io();
 
-    let room = "general";
-    let stream = null;
-    let peers = {};
-    let inVoice = false;
-    let audioContext = null;
+let name = localStorage.getItem("name") || prompt("Nick");
+localStorage.setItem("name", name);
 
-    function join(r) {
-        room = r;
-        document.getElementById("currentRoom").innerText = `#${r}`;
-        document.getElementById("messages").innerHTML = "";
-        socket.emit("join", { name, room });
+let room="general";
+
+// join
+function join(r){
+    room=r;
+    messages.innerHTML="";
+    socket.emit("join",{name,room});
+}
+
+// chat
+function send(){
+    if(input.value){
+        socket.emit("chat",input.value);
+        input.value="";
+    }
+}
+
+// render
+function add(m){
+    const d=document.createElement("div");
+
+    if(m.type==="text"){
+        d.innerText=m.name+": "+m.text;
     }
 
-    function send() {
-        let input = document.getElementById("input");
-        if(input.value.trim()) {
-            socket.emit("chat", input.value);
-            input.value = "";
-        }
+    if(m.type==="voice"){
+        d.innerHTML=`
+            <div>${m.name}</div>
+            <div class="voice">
+                <audio controls src="${m.audio}"></audio>
+            </div>
+        `;
     }
 
-    function addMessageToUI(m) {
-        const container = document.getElementById("messages");
-        const div = document.createElement("div");
-        div.className = "message-bubble";
+    messages.appendChild(d);
+}
 
-        if(m.type === "text") {
-            div.innerHTML = `
-                <div class="message-name">
-                    <span>👤 ${escapeHtml(m.name)}</span>
-                </div>
-                <div class="message-text">${escapeHtml(m.text)}</div>
-            `;
-        }
-        else if(m.type === "voice") {
-            div.innerHTML = `
-                <div class="message-name">
-                    <span>🎙️ ${escapeHtml(m.name)} • голосовое</span>
-                </div>
-                <div class="message-voice">
-                    <audio controls src="${m.audio}" style="max-width: 260px;"></audio>
-                </div>
-            `;
-        }
-        container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
+socket.on("history",msgs=>{
+    messages.innerHTML="";
+    msgs.forEach(add);
+});
+
+socket.on("chat",add);
+
+// 🎙 TELEGRAM VOICE
+let rec;
+let chunks=[];
+let timer;
+let seconds=0;
+
+const btn=document.getElementById("recordBtn");
+const time=document.getElementById("time");
+
+btn.onmousedown=start;
+btn.onmouseup=stop;
+btn.ontouchstart=start;
+btn.ontouchend=stop;
+
+async function start(e){
+    e.preventDefault();
+
+    const s=await navigator.mediaDevices.getUserMedia({audio:true});
+    rec=new MediaRecorder(s);
+
+    chunks=[];
+
+    rec.ondataavailable=e=>chunks.push(e.data);
+
+    rec.onstop=async()=>{
+        const blob=new Blob(chunks,{type:"audio/webm"});
+        const fd=new FormData();
+        fd.append("audio",blob);
+
+        const res=await fetch("/upload",{method:"POST",body:fd});
+        const data=await res.json();
+
+        socket.emit("voice-msg",data.url);
+    };
+
+    rec.start();
+
+    seconds=0;
+    btn.classList.add("recording");
+
+    timer=setInterval(()=>{
+        seconds++;
+        time.innerText=seconds+"s";
+        if(seconds>=20) stop();
+    },1000);
+}
+
+function stop(e){
+    if(e) e.preventDefault();
+
+    clearInterval(timer);
+    btn.classList.remove("recording");
+    time.innerText="";
+
+    if(rec && rec.state==="recording"){
+        rec.stop();
     }
+}
 
-    function escapeHtml(str) {
-        if(!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
-            if(m === '&') return '&amp;';
-            if(m === '<') return '&lt;';
-            if(m === '>') return '&gt;';
-            return m;
-        });
-    }
+// online
+socket.on("online",n=>online.innerText=n);
+socket.on("voice-count",n=>voiceOnline.innerText=n);
 
-    socket.on("history", (msgs) => {
-        document.getElementById("messages").innerHTML = "";
-        msgs.forEach(addMessageToUI);
-    });
-
-    socket.on("chat", addMessageToUI);
-
-    // ========= VOICE MSG (15 sec) with better UX =========
-    async function voiceMsg() {
-        try {
-            const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mediaRecorder = new MediaRecorder(tempStream);
-            let chunks = [];
-
-            mediaRecorder.ondataavailable = e => chunks.push(e.data);
-            mediaRecorder.onstop = async () => {
-                const blob = new Blob(chunks, { type: "audio/webm" });
-                const formData = new FormData();
-                formData.append("audio", blob);
-                const res = await fetch("/upload", { method: "POST", body: formData });
-                const data = await res.json();
-                socket.emit("voice-msg", data.url);
-                tempStream.getTracks().forEach(t => t.stop());
-            };
-            mediaRecorder.start();
-            setTimeout(() => {
-                if(mediaRecorder.state === "recording") mediaRecorder.stop();
-            }, 15000);
-        } catch(e) { console.warn(e); }
-    }
-
-    // ========= VOICE CHAT WITH SPECTRUM VIS =========
-    async function joinVoice() {
-        if(inVoice) return;
-        inVoice = true;
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            setupSpeakingDetection(stream);
-            socket.emit("voice-join", room);
-        } catch(e) { inVoice = false; }
-    }
-
-    function setupSpeakingDetection(stream) {
-        if(audioContext) audioContext.close();
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const source = audioContext.createMediaStreamSource(stream);
-        const analyser = audioContext.createAnalyser();
-        analyser.fftSize = 256;
-        source.connect(analyser);
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-        function checkVolume() {
-            if(!inVoice) return;
-            analyser.getByteFrequencyData(dataArray);
-            let avg = dataArray.reduce((a,b)=>a+b,0) / dataArray.length;
-            if(avg > 18) document.body.classList.add("speaking");
-            else document.body.classList.remove("speaking");
-            requestAnimationFrame(checkVolume);
-        }
-        checkVolume();
-    }
-
-    socket.on("voice-user", (userId) => { if(stream) createPeer(userId, true); });
-    socket.on("user-joined", (userId) => { if(stream) createPeer(userId, false); });
-    socket.on("signal", ({ from, data }) => {
-        if(!peers[from]) createPeer(from, false);
-        if(peers[from]) peers[from].signal(data);
-    });
-
-    function createPeer(userId, initiator) {
-        if(!stream) return;
-        const peer = new SimplePeer({
-            initiator: initiator,
-            trickle: false,
-            stream: stream,
-            config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] }
-        });
-        peer.on("signal", (signalData) => {
-            socket.emit("signal", { to: userId, data: signalData });
-        });
-        peer.on("stream", (remoteStream) => {
-            const audioEl = new Audio();
-            audioEl.srcObject = remoteStream;
-            audioEl.autoplay = true;
-            audioEl.volume = 0.8;
-        });
-        peer.on("close", () => delete peers[userId]);
-        peer.on("error", () => delete peers[userId]);
-        peers[userId] = peer;
-    }
-
-    function leaveVoice() {
-        inVoice = false;
-        Object.values(peers).forEach(p => p.destroy());
-        peers = {};
-        if(stream) {
-            stream.getTracks().forEach(t => t.stop());
-            stream = null;
-        }
-        if(audioContext) audioContext.close();
-        document.body.classList.remove("speaking");
-        socket.emit("voice-leave", room);
-    }
-
-    function mute() {
-        if(stream) {
-            const enabled = stream.getAudioTracks()[0].enabled;
-            stream.getAudioTracks().forEach(t => t.enabled = !enabled);
-        }
-    }
-
-    socket.on("online", (count) => document.getElementById("online").innerText = count);
-    socket.on("voice-count", (count) => document.getElementById("voiceOnline").innerText = count);
-
-    join("general");
-    window.onbeforeunload = () => leaveVoice();
+join("general");
 </script>
+
 </body>
 </html>
