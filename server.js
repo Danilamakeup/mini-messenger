@@ -23,6 +23,8 @@ const rooms = {
     music: { messages: [], users: new Set() }
 };
 
+const voiceRooms = {};
+
 // ---------------- CONNECTION ----------------
 io.on("connection", (socket) => {
 
@@ -50,11 +52,7 @@ io.on("connection", (socket) => {
         const u = users[socket.id];
         if (!u) return;
 
-        const msg = {
-            type: "text",
-            name: u.name,
-            text
-        };
+        const msg = { type:"text", name:u.name, text };
 
         rooms[u.room].messages.push(msg);
         io.to(u.room).emit("chat", msg);
@@ -65,11 +63,7 @@ io.on("connection", (socket) => {
         const u = users[socket.id];
         if (!u) return;
 
-        const msg = {
-            type: "voice",
-            name: u.name,
-            audio: url
-        };
+        const msg = { type:"voice", name:u.name, audio:url };
 
         rooms[u.room].messages.push(msg);
         io.to(u.room).emit("chat", msg);
@@ -77,31 +71,47 @@ io.on("connection", (socket) => {
 
     // ---------------- VOICE ROOMS ----------------
     socket.on("voice-join", (room) => {
-        socket.join("voice:" + room);
 
-        const clients = [...io.sockets.adapter.rooms.get("voice:" + room) || []];
+        const vr = "voice:" + room;
 
-        clients.forEach(id => {
+        socket.join(vr);
+
+        if (!voiceRooms[room]) {
+            voiceRooms[room] = new Set();
+        }
+
+        voiceRooms[room].add(socket.id);
+
+        // старые пользователи
+        voiceRooms[room].forEach(id => {
             if (id !== socket.id) {
                 socket.emit("voice-user", id);
             }
         });
 
-        socket.to("voice:" + room).emit("user-joined", socket.id);
+        socket.to(vr).emit("user-joined", socket.id);
+
+        io.to(vr).emit("voice-count", voiceRooms[room].size);
     });
 
     socket.on("signal", ({ to, data }) => {
-        io.to(to).emit("signal", {
-            from: socket.id,
-            data
-        });
+        io.to(to).emit("signal", { from: socket.id, data });
     });
 
     socket.on("disconnect", () => {
+
         const u = users[socket.id];
 
         if (u && rooms[u.room]) {
             rooms[u.room].users.delete(socket.id);
+        }
+
+        // удалить из voice
+        for (let r in voiceRooms) {
+            if (voiceRooms[r].has(socket.id)) {
+                voiceRooms[r].delete(socket.id);
+                io.to("voice:" + r).emit("voice-count", voiceRooms[r].size);
+            }
         }
 
         delete users[socket.id];
@@ -117,4 +127,4 @@ app.post("/upload", upload.single("audio"), (req, res) => {
     res.json({ url: file });
 });
 
-server.listen(3000, () => console.log("FINAL RUN"));
+server.listen(3000, () => console.log("FINAL WORKING"));
