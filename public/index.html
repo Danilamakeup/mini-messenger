@@ -2,21 +2,19 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Discord PRO</title>
+<title>Discord MAX</title>
 
 <style>
-
-/* THEMES */
 :root{
     --bg:#313338;
     --panel:#2b2d31;
-    --text:white;
+    --text:#fff;
 }
 
 .light{
     --bg:#f2f3f5;
-    --panel:#ffffff;
-    --text:black;
+    --panel:#fff;
+    --text:#000;
 }
 
 body{
@@ -26,19 +24,29 @@ body{
     font-family:Arial;
 }
 
-.app{display:flex;height:100vh;}
+.app{
+    display:flex;
+    height:100vh;
+}
 
+/* sidebar */
 .sidebar{
-    width:240px;
+    width:220px;
     background:var(--panel);
     padding:10px;
 }
 
 .room{
-    padding:8px;
+    padding:10px;
+    border-radius:8px;
     cursor:pointer;
 }
 
+.room:hover{
+    background:#404249;
+}
+
+/* chat */
 .chat{
     flex:1;
     display:flex;
@@ -51,8 +59,11 @@ body{
     overflow:auto;
 }
 
-.msg{margin-bottom:8px;}
+.msg{
+    margin-bottom:8px;
+}
 
+/* input */
 .input{
     display:flex;
     padding:10px;
@@ -62,31 +73,45 @@ body{
 input{
     flex:1;
     padding:10px;
+    border:none;
+    border-radius:8px;
+    background:#1e1f22;
+    color:white;
 }
 
 button{
     margin-left:5px;
+    padding:10px;
+    border:none;
+    border-radius:8px;
+    background:#5865f2;
+    color:white;
 }
 
-/* theme button */
-.themeBtn{
-    position:absolute;
-    top:10px;
-    right:10px;
+/* MOBILE */
+@media(max-width:700px){
+    .sidebar{
+        width:70px;
+    }
+
+    .room{
+        font-size:12px;
+        padding:6px;
+    }
 }
 </style>
 </head>
 
 <body>
 
-<button class="themeBtn" onclick="toggleTheme()">🌓</button>
+<button onclick="toggleTheme()">🌓</button>
 
 <div class="app">
 
 <div class="sidebar">
-    <div onclick="join('general')" class="room"># general</div>
-    <div onclick="join('gaming')" class="room"># gaming</div>
-    <div onclick="join('music')" class="room"># music</div>
+    <div class="room" onclick="join('general')">general</div>
+    <div class="room" onclick="join('gaming')">gaming</div>
+    <div class="room" onclick="join('music')">music</div>
 
     <hr>
     Online: <span id="online">0</span>
@@ -97,10 +122,12 @@ button{
 <div id="messages" class="messages"></div>
 
 <div class="input">
-    <input id="input">
+    <input id="input" placeholder="Сообщение..." onkeydown="if(event.key==='Enter') send()">
     <button onclick="send()">➤</button>
     <button onclick="voiceMsg()">🎤</button>
-    <button onclick="joinVoice(room)">🎧</button>
+    <button onclick="joinVoice()">🎧</button>
+    <button onclick="leaveVoice()">❌</button>
+    <button onclick="mute()">🔇</button>
 </div>
 
 </div>
@@ -117,22 +144,29 @@ let name = localStorage.getItem("name") || prompt("Nick");
 localStorage.setItem("name", name);
 
 let room="general";
-let stream;
+let stream=null;
 let peers={};
+let inVoice=false;
 
-// ---------------- THEME FIX ----------------
-function toggleTheme(){
-    document.body.classList.toggle("light");
+// THEME SAVE
+if(localStorage.getItem("theme")==="light"){
+    document.body.classList.add("light");
 }
 
-// ---------------- JOIN ----------------
+function toggleTheme(){
+    document.body.classList.toggle("light");
+    localStorage.setItem("theme",
+        document.body.classList.contains("light")?"light":"dark");
+}
+
+// JOIN
 function join(r){
     room=r;
     messages.innerHTML="";
     socket.emit("join",{name,room});
 }
 
-// ---------------- CHAT ----------------
+// CHAT
 function send(){
     if(input.value){
         socket.emit("chat",input.value);
@@ -140,17 +174,18 @@ function send(){
     }
 }
 
-// ---------------- RENDER (FIXED) ----------------
+// RENDER
 function add(m){
     const d=document.createElement("div");
     d.className="msg";
 
     if(m.type==="text"){
-        d.innerText=`${m.name}: ${m.text}`;
+        d.innerText=m.name+": "+m.text;
     }
 
     if(m.type==="voice"){
-        const a=new Audio(m.audio);
+        const a=document.createElement("audio");
+        a.src=m.audio;
         a.controls=true;
         d.innerText=m.name+": ";
         d.appendChild(a);
@@ -159,31 +194,24 @@ function add(m){
     messages.appendChild(d);
 }
 
-// ---------------- HISTORY FIX (MAIN BUG FIX) ----------------
-socket.on("history",(msgs)=>{
+// HISTORY
+socket.on("history",msgs=>{
     messages.innerHTML="";
     msgs.forEach(add);
 });
 
 socket.on("chat",add);
 
-// ---------------- ONLINE ----------------
-socket.on("online",n=>{
-    online.innerText=n;
-});
-
-// ---------------- VOICE MSG ----------------
+// VOICE MSG
 async function voiceMsg(){
     const s=await navigator.mediaDevices.getUserMedia({audio:true});
-
-    const r=new MediaRecorder(s);
+    const rec=new MediaRecorder(s);
     let chunks=[];
 
-    r.ondataavailable=e=>chunks.push(e.data);
+    rec.ondataavailable=e=>chunks.push(e.data);
 
-    r.onstop=async()=>{
+    rec.onstop=async()=>{
         const blob=new Blob(chunks,{type:"audio/webm"});
-
         const fd=new FormData();
         fd.append("audio",blob);
 
@@ -193,21 +221,32 @@ async function voiceMsg(){
         socket.emit("voice-msg",data.url);
     };
 
-    r.start();
-    setTimeout(()=>r.stop(),4000);
+    rec.start();
+    setTimeout(()=>rec.stop(),4000);
 }
 
-// ---------------- WEBRTC ----------------
-async function joinVoice(room){
+// VOICE CHAT
+async function joinVoice(){
+    if(inVoice) return;
 
-    if(!stream){
-        stream=await navigator.mediaDevices.getUserMedia({audio:true});
-    }
+    inVoice=true;
 
+    stream=await navigator.mediaDevices.getUserMedia({audio:true});
     socket.emit("voice-join",room);
 }
 
-// GLOBAL FIX (IMPORTANT)
+function leaveVoice(){
+    inVoice=false;
+
+    Object.values(peers).forEach(p=>p.destroy());
+    peers={};
+
+    if(stream){
+        stream.getTracks().forEach(t=>t.stop());
+        stream=null;
+    }
+}
+
 socket.on("user-joined",id=>{
     createPeer(id,true);
 });
@@ -217,7 +256,6 @@ socket.on("signal",({from,data})=>{
     peers[from].signal(data);
 });
 
-// PEER
 function createPeer(id,initiator){
 
     const peer=new SimplePeer({
@@ -239,11 +277,19 @@ function createPeer(id,initiator){
         const a=new Audio();
         a.srcObject=remote;
         a.autoplay=true;
-        a.play();
+        a.play().catch(()=>{});
     });
+
+    peer.on("close",()=>delete peers[id]);
+    peer.on("error",()=>delete peers[id]);
 
     peers[id]=peer;
 }
+
+// ONLINE
+socket.on("online",n=>{
+    online.innerText=n;
+});
 
 join("general");
 </script>
