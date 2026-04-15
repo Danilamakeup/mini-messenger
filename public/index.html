@@ -180,7 +180,7 @@ audio { border-radius: 40px; height: 36px; background: #10121c; }
 }
 .btn-icon:hover { background: #5865f2; transform: scale(1.05); }
 .btn-send { background: #5865f2; }
-.recording-btn { background: #e03a3a; animation: pulse 0.8s infinite; }
+.recording-active { background: #e03a3a; animation: pulse 0.8s infinite; }
 @keyframes pulse {
     0% { box-shadow: 0 0 0 0 rgba(224,58,58,0.7); }
     100% { box-shadow: 0 0 0 10px rgba(224,58,58,0); }
@@ -188,7 +188,6 @@ audio { border-radius: 40px; height: 36px; background: #10121c; }
 .speaking { box-shadow: 0 0 0 3px #5865f2, 0 0 0 8px rgba(88,101,242,0.3); transition: 0.06s linear; }
 #recTime { font-size: 14px; font-weight: bold; color: #ff8c8c; background: #1e1f2a; padding: 6px 12px; border-radius: 40px; }
 
-/* модалка настроек */
 .modal {
     display: none;
     position: fixed;
@@ -269,7 +268,6 @@ audio { border-radius: 40px; height: 36px; background: #10121c; }
     </div>
 </div>
 
-<!-- Модалка настроек -->
 <div id="settingsModal" class="modal">
     <div class="modal-content">
         <h3>⚙️ Настройки</h3>
@@ -289,7 +287,6 @@ let currentRoom = "general";
 let stream = null;
 let peers = {};
 let inVoice = false;
-let audioContext = null;
 
 const messagesDiv = document.getElementById("messages");
 const onlineSpan = document.getElementById("online");
@@ -336,80 +333,133 @@ socket.on("online", n => onlineSpan.innerText = n);
 socket.on("voice-count", n => voiceOnlineSpan.innerText = n);
 socket.on("room-users", list => { roomUsersList.innerText = "👥 " + list.join(", "); });
 
-// ========== ГОЛОСОВЫЕ СООБЩЕНИЯ (ФИКС + 20 СЕКУНД) ==========
-let mediaRec = null;
+// ========== ГОЛОСОВЫЕ СООБЩЕНИЯ (ПОЛНОСТЬЮ ПЕРЕПИСАНО) ==========
+let mediaRecorder = null;
 let audioChunks = [];
 let recordTimer = null;
 let recordSeconds = 0;
-let currentStream = null;
+let recordingStream = null;
+let isRecording = false;
 
 const voiceBtn = document.getElementById("voiceMsgBtn");
 const recTimeSpan = document.getElementById("recTime");
 
-async function startRecording() {
-    if (mediaRec && mediaRec.state === "recording") return;
+// Функция начала записи
+async function startVoiceRecording() {
+    if (isRecording) return;
+    
     try {
-        currentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRec = new MediaRecorder(currentStream);
+        recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(recordingStream);
         audioChunks = [];
         
-        mediaRec.ondataavailable = (e) => {
-            if (e.data.size > 0) audioChunks.push(e.data);
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
         };
         
-        mediaRec.onstop = async () => {
+        mediaRecorder.onstop = async () => {
             if (audioChunks.length === 0) {
-                if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+                cleanRecording();
                 return;
             }
-            const blob = new Blob(audioChunks, { type: "audio/webm" });
-            const fd = new FormData();
-            fd.append("audio", blob);
+            
+            const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+            const formData = new FormData();
+            formData.append("audio", audioBlob);
+            
             try {
-                const res = await fetch("/upload", { method: "POST", body: fd });
-                const data = await res.json();
+                const response = await fetch("/upload", { method: "POST", body: formData });
+                const data = await response.json();
                 socket.emit("voice-msg", data.url);
-            } catch(e) { console.warn("Ошибка загрузки:", e); }
-            if (currentStream) currentStream.getTracks().forEach(t => t.stop());
-            currentStream = null;
-            recTimeSpan.innerText = "";
-            voiceBtn.classList.remove("recording-btn");
+            } catch (err) {
+                console.error("Ошибка загрузки:", err);
+            }
+            
+            cleanRecording();
         };
         
-        mediaRec.start();
+        mediaRecorder.start(100);
+        isRecording = true;
         recordSeconds = 0;
-        recTimeSpan.innerText = "🔴 0s";
-        voiceBtn.classList.add("recording-btn");
+        recTimeSpan.innerText = "🔴 0с";
+        voiceBtn.classList.add("recording-active");
         
         recordTimer = setInterval(() => {
-            recordSeconds++;
-            const remaining = 20 - recordSeconds;
-            recTimeSpan.innerText = `🔴 ${recordSeconds}s / ${remaining}s осталось`;
-            if (recordSeconds >= 20) {
-                stopRecording();
+            if (isRecording) {
+                recordSeconds++;
+                const remaining = 20 - recordSeconds;
+                if (remaining <= 0) {
+                    stopVoiceRecording();
+                } else {
+                    recTimeSpan.innerText = `🔴 ${recordSeconds}с / ${remaining}с`;
+                }
             }
         }, 1000);
-    } catch(e) { console.warn("Микрофон недоступен:", e); }
+        
+    } catch (err) {
+        console.error("Ошибка доступа к микрофону:", err);
+    }
 }
 
-function stopRecording() {
+// Функция остановки записи
+function stopVoiceRecording() {
+    if (!isRecording) return;
+    
     if (recordTimer) {
         clearInterval(recordTimer);
         recordTimer = null;
     }
-    if (mediaRec && mediaRec.state === "recording") {
-        mediaRec.stop();
-        mediaRec = null;
+    
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
     }
 }
 
-voiceBtn.addEventListener("mousedown", startRecording);
-voiceBtn.addEventListener("mouseup", stopRecording);
-voiceBtn.addEventListener("mouseleave", stopRecording);
-voiceBtn.addEventListener("touchstart", startRecording);
-voiceBtn.addEventListener("touchend", stopRecording);
+// Очистка после записи
+function cleanRecording() {
+    isRecording = false;
+    if (recordTimer) {
+        clearInterval(recordTimer);
+        recordTimer = null;
+    }
+    if (recordingStream) {
+        recordingStream.getTracks().forEach(track => track.stop());
+        recordingStream = null;
+    }
+    mediaRecorder = null;
+    recTimeSpan.innerText = "";
+    voiceBtn.classList.remove("recording-active");
+}
 
-// ========== НАСТРОЙКИ (СМЕНА НИКА) ==========
+// События мыши и касания
+voiceBtn.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    startVoiceRecording();
+});
+
+voiceBtn.addEventListener("mouseup", (e) => {
+    e.preventDefault();
+    if (isRecording) stopVoiceRecording();
+});
+
+voiceBtn.addEventListener("mouseleave", (e) => {
+    if (isRecording) stopVoiceRecording();
+});
+
+// Для мобильных устройств
+voiceBtn.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    startVoiceRecording();
+});
+
+voiceBtn.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    if (isRecording) stopVoiceRecording();
+});
+
+// ========== НАСТРОЙКИ ==========
 function openSettings() {
     document.getElementById("settingsModal").style.display = "flex";
     document.getElementById("newNickInput").value = name;
@@ -425,7 +475,6 @@ function changeNickname() {
         name = newNick;
         localStorage.setItem("name", name);
         updateNickDisplay();
-        // переподключаемся к текущей комнате с новым ником
         socket.emit("join", { name, room: currentRoom });
         closeSettings();
     }
