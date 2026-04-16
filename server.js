@@ -38,11 +38,7 @@ const uploadMedia = multer({
     }),
     limits: { fileSize: 15 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
-        const allowed = [
-            'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-            'video/mp4', 'video/webm',
-            'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/webm'
-        ];
+        const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg'];
         if (allowed.includes(file.mimetype)) cb(null, true);
         else cb(new Error('Неподдерживаемый формат'), false);
     }
@@ -112,7 +108,6 @@ function saveRooms() {
     fs.writeFileSync(roomsFile, JSON.stringify(roomsData, null, 2));
 }
 
-// ========== ФУНКЦИИ ==========
 function getUserByUsername(username) {
     for (let [socketId, session] of Object.entries(activeSessions)) {
         if (session.username === username) return { socketId, session };
@@ -135,7 +130,6 @@ function sendSystemMessage(room, text) {
     io.to(room).emit("chat", msg);
 }
 
-// Очистка старых мутов
 setInterval(() => {
     const now = Date.now();
     let changed = false;
@@ -156,12 +150,7 @@ app.post("/register", (req, res) => {
     if (usersDB[username]) return res.status(400).json({ error: "НИК ЗАНЯТ ИДИ НАХУЙ!!" });
     if (bansDB[username]) return res.status(403).json({ error: "ТЫ В БАНЕ, ПИЗДУЙ!" });
     
-    usersDB[username] = {
-        password,
-        role: "новичок",
-        createdAt: Date.now(),
-        avatar: null
-    };
+    usersDB[username] = { password, role: "новичок", createdAt: Date.now(), avatar: null };
     saveUsers();
     res.json({ success: true, role: "новичок" });
 });
@@ -173,12 +162,7 @@ app.post("/login", (req, res) => {
     if (username === OWNER_USERNAME) {
         if (password === OWNER_PASSWORD) {
             if (!usersDB[OWNER_USERNAME]) {
-                usersDB[OWNER_USERNAME] = {
-                    password: OWNER_PASSWORD,
-                    role: "владелец",
-                    createdAt: Date.now(),
-                    avatar: null
-                };
+                usersDB[OWNER_USERNAME] = { password: OWNER_PASSWORD, role: "владелец", createdAt: Date.now(), avatar: null };
                 saveUsers();
             }
             return res.json({ success: true, role: "владелец", avatar: usersDB[OWNER_USERNAME]?.avatar || null });
@@ -196,7 +180,6 @@ app.post("/login", (req, res) => {
         user.role = "олд";
         saveUsers();
     }
-    
     res.json({ success: true, role: user.role, avatar: user.avatar });
 });
 
@@ -226,36 +209,22 @@ app.post("/upload-avatar", uploadAvatar.single("avatar"), (req, res) => {
     }
 });
 
-// ========== SOCKET.IO ==========
+// ========== SOCKET ==========
 io.on("connection", (socket) => {
     console.log("✅ Подключился:", socket.id);
 
     socket.on("auth", ({ username, room }) => {
-        if (bansDB[username]) {
-            socket.emit("auth-error", "ТЫ В БАНЕ, ПИЗДУЙ!");
-            return;
-        }
-        
+        if (bansDB[username]) { socket.emit("auth-error", "ТЫ В БАНЕ, ПИЗДУЙ!"); return; }
         const user = usersDB[username];
-        if (!user) {
-            socket.emit("auth-error", "Пользователь не найден");
-            return;
-        }
-        
+        if (!user) { socket.emit("auth-error", "Пользователь не найден"); return; }
         if (mutesDB[username] && mutesDB[username] > Date.now()) {
             const remaining = Math.ceil((mutesDB[username] - Date.now()) / 1000 / 60);
             socket.emit("auth-error", `ТЫ В МУТЕ ЕЩЁ ${remaining} МИНУТ!`);
             return;
-        } else if (mutesDB[username]) {
-            delete mutesDB[username];
-            saveMutes();
-        }
+        } else if (mutesDB[username]) { delete mutesDB[username]; saveMutes(); }
 
         const prev = activeSessions[socket.id]?.room;
-        if (prev && rooms[prev]) {
-            rooms[prev].users.delete(socket.id);
-            socket.leave(prev);
-        }
+        if (prev && rooms[prev]) { rooms[prev].users.delete(socket.id); socket.leave(prev); }
 
         activeSessions[socket.id] = { username, room };
         socket.join(room);
@@ -263,7 +232,6 @@ io.on("connection", (socket) => {
 
         socket.emit("history", rooms[room].messages);
         socket.emit("user-data", { username, role: user.role, avatar: user.avatar });
-
         io.emit("online", Object.keys(activeSessions).length);
         io.to(room).emit("room-users", Array.from(rooms[room].users).map(id => activeSessions[id]?.username));
     });
@@ -271,20 +239,35 @@ io.on("connection", (socket) => {
     socket.on("chat", (text) => {
         const session = activeSessions[socket.id];
         if (!session) return;
-        
         if (mutesDB[session.username] && mutesDB[session.username] > Date.now()) {
             socket.emit("auth-error", "ТЫ В МУТЕ, ПИШИ ПОТОМ!");
             return;
         }
-        
         const user = usersDB[session.username];
         
-        // Команды владельца
         if (text.startsWith("/") && user.role === "владелец") {
             const parts = text.split(" ");
             const cmd = parts[0].toLowerCase();
             
-            if (cmd === "/give" && parts[1] && parts[2]) {
+            if ((cmd === "/create-room" || cmd === "/create") && parts[1]) {
+                let newRoom = parts[1].replace("#", "").toLowerCase();
+                if (!rooms[newRoom]) {
+                    rooms[newRoom] = { messages: [], users: new Set() };
+                    io.emit("new-room", newRoom);
+                    sendSystemMessage(session.room, `📁 Создана комната #${newRoom}`);
+                    saveRooms();
+                } else { sendSystemMessage(session.room, `❌ Комната #${newRoom} уже существует`); }
+            }
+            else if ((cmd === "/delete-room" || cmd === "/delete") && parts[1]) {
+                let delRoom = parts[1].replace("#", "").toLowerCase();
+                if (delRoom !== "general" && rooms[delRoom]) {
+                    delete rooms[delRoom];
+                    io.emit("delete-room", delRoom);
+                    sendSystemMessage(session.room, `🗑️ Удалена комната #${delRoom}`);
+                    saveRooms();
+                } else { sendSystemMessage(session.room, `❌ Нельзя удалить general`); }
+            }
+            else if (cmd === "/give" && parts[1] && parts[2]) {
                 const targetUser = parts[1].replace("@", "");
                 const role = parts[2].toLowerCase();
                 if (usersDB[targetUser]) {
@@ -293,9 +276,7 @@ io.on("connection", (socket) => {
                     sendSystemMessage(session.room, `✅ ${targetUser} теперь ${role}!`);
                     const target = getUserByUsername(targetUser);
                     if (target) io.to(target.socketId).emit("user-data", { username: targetUser, role, avatar: usersDB[targetUser].avatar });
-                } else {
-                    sendSystemMessage(session.room, `❌ Не могу дать роль ${targetUser}`);
-                }
+                } else { sendSystemMessage(session.room, `❌ Не могу дать роль ${targetUser}`); }
             }
             else if (cmd === "/kick" && parts[1]) {
                 const targetUser = parts[1].replace("@", "");
@@ -304,20 +285,27 @@ io.on("connection", (socket) => {
                     io.to(target.socketId).emit("kick", "Тебя кикнули!");
                     target.session.socket.disconnect();
                     sendSystemMessage(session.room, `👢 ${targetUser} был кикнут!`);
-                }
+                } else { sendSystemMessage(session.room, `❌ ${targetUser} не найден`); }
             }
             else if (cmd === "/ban" && parts[1]) {
                 const targetUser = parts[1].replace("@", "");
-                if (targetUser !== OWNER_USERNAME) {
+                if (targetUser === OWNER_USERNAME) { sendSystemMessage(session.room, `❌ НЕЛЬЗЯ ЗАБАНИТЬ ВЛАДЕЛЬЦА!`); }
+                else if (targetUser === session.username) { sendSystemMessage(session.room, `❌ СЕБЯ НЕЛЬЗЯ ЗАБАНИТЬ!`); }
+                else {
                     bansDB[targetUser] = true;
                     saveBans();
                     const target = getUserByUsername(targetUser);
-                    if (target) {
-                        io.to(target.socketId).emit("ban", "ТЫ В БАНЕ, ПИЗДУЙ!");
-                        target.session.socket.disconnect();
-                    }
-                    sendSystemMessage(session.room, `🔨 ${targetUser} ЗАБАНЕН!`);
+                    if (target) { io.to(target.socketId).emit("ban", "ТЫ В БАНЕ, ПИЗДУЙ!"); target.session.socket.disconnect(); }
+                    sendSystemMessage(session.room, `🔨 ${targetUser} ЗАБАНЕН НАВСЕГДА!`);
                 }
+            }
+            else if (cmd === "/unban" && parts[1]) {
+                const targetUser = parts[1].replace("@", "");
+                if (bansDB[targetUser]) {
+                    delete bansDB[targetUser];
+                    saveBans();
+                    sendSystemMessage(session.room, `✅ ${targetUser} РАЗБАНЕН!`);
+                } else { sendSystemMessage(session.room, `❌ ${targetUser} НЕ В БАНЕ.`); }
             }
             else if (cmd === "/clear" && parts[1]) {
                 const count = parseInt(parts[1]);
@@ -349,10 +337,7 @@ io.on("connection", (socket) => {
                     bansDB[targetUser] = true;
                     saveBans();
                     const target = getUserByUsername(targetUser);
-                    if (target) {
-                        io.to(target.socketId).emit("ban", "3 варна = БАН!");
-                        target.session.socket.disconnect();
-                    }
+                    if (target) { io.to(target.socketId).emit("ban", "3 варна = БАН!"); target.session.socket.disconnect(); }
                 }
             }
             else if (cmd === "/stats") {
@@ -366,51 +351,24 @@ io.on("connection", (socket) => {
                 for (let r in rooms) io.to(r).emit("clear-chat");
                 sendSystemMessage(session.room, "💀 ПОЛНАЯ АННИГИЛЯЦИЯ! 💀");
             }
-            else if (cmd === "/create-room" && parts[1]) {
-                let newRoom = parts[1].replace("#", "").toLowerCase();
-                if (!rooms[newRoom]) {
-                    rooms[newRoom] = { messages: [], users: new Set() };
-                    io.emit("new-room", newRoom);
-                    sendSystemMessage(session.room, `📁 Создана комната #${newRoom}`);
-                    saveRooms();
-                }
-            }
-            else if (cmd === "/delete-room" && parts[1]) {
-                let delRoom = parts[1].replace("#", "").toLowerCase();
-                if (delRoom !== "general" && rooms[delRoom]) {
-                    delete rooms[delRoom];
-                    io.emit("delete-room", delRoom);
-                    sendSystemMessage(session.room, `🗑️ Удалена комната #${delRoom}`);
-                    saveRooms();
-                }
+            else if (cmd === "/resetpass" && parts[1]) {
+                const targetUser = parts[1].replace("@", "");
+                if (usersDB[targetUser]) {
+                    const newPass = Math.random().toString(36).slice(-8);
+                    usersDB[targetUser].password = newPass;
+                    saveUsers();
+                    sendSystemMessage(session.room, `🔑 Новый пароль для ${targetUser}: ${newPass}`);
+                } else { sendSystemMessage(session.room, `❌ ${targetUser} не найден`); }
             }
             else {
-                const msg = {
-                    id: Date.now() + "_" + Math.random(),
-                    type: "text",
-                    author: session.username,
-                    role: user.role,
-                    avatar: user.avatar,
-                    text,
-                    time: Date.now(),
-                    reactions: {}
-                };
+                const msg = { id: Date.now() + "_" + Math.random(), type: "text", author: session.username, role: user.role, avatar: user.avatar, text, time: Date.now(), reactions: {} };
                 rooms[session.room].messages.push(msg);
                 io.to(session.room).emit("chat", msg);
             }
             return;
         }
         
-        const msg = {
-            id: Date.now() + "_" + Math.random(),
-            type: "text",
-            author: session.username,
-            role: user.role,
-            avatar: user.avatar,
-            text,
-            time: Date.now(),
-            reactions: {}
-        };
+        const msg = { id: Date.now() + "_" + Math.random(), type: "text", author: session.username, role: user.role, avatar: user.avatar, text, time: Date.now(), reactions: {} };
         rooms[session.room].messages.push(msg);
         io.to(session.room).emit("chat", msg);
     });
@@ -420,17 +378,7 @@ io.on("connection", (socket) => {
         if (!session) return;
         if (mutesDB[session.username] && mutesDB[session.username] > Date.now()) return;
         const user = usersDB[session.username];
-        const msg = {
-            id: Date.now() + "_" + Math.random(),
-            type: "media",
-            author: session.username,
-            role: user.role,
-            avatar: user.avatar,
-            mediaUrl: url,
-            mediaType: fileType,
-            time: Date.now(),
-            reactions: {}
-        };
+        const msg = { id: Date.now() + "_" + Math.random(), type: "media", author: session.username, role: user.role, avatar: user.avatar, mediaUrl: url, mediaType: fileType, time: Date.now(), reactions: {} };
         rooms[session.room].messages.push(msg);
         io.to(session.room).emit("chat", msg);
     });
@@ -440,16 +388,7 @@ io.on("connection", (socket) => {
         if (!session) return;
         if (mutesDB[session.username] && mutesDB[session.username] > Date.now()) return;
         const user = usersDB[session.username];
-        const msg = {
-            id: Date.now() + "_" + Math.random(),
-            type: "voice",
-            author: session.username,
-            role: user.role,
-            avatar: user.avatar,
-            audio: url,
-            time: Date.now(),
-            reactions: {}
-        };
+        const msg = { id: Date.now() + "_" + Math.random(), type: "voice", author: session.username, role: user.role, avatar: user.avatar, audio: url, time: Date.now(), reactions: {} };
         rooms[session.room].messages.push(msg);
         io.to(session.room).emit("chat", msg);
     });
@@ -462,10 +401,7 @@ io.on("connection", (socket) => {
         if (msgIndex !== -1) {
             const msg = rooms[room].messages[msgIndex];
             const canDelete = user.role === "владелец" || user.role === "админ" || user.role === "модер" || msg.author === session.username;
-            if (canDelete) {
-                rooms[room].messages.splice(msgIndex, 1);
-                io.to(room).emit("message-deleted", { msgId });
-            }
+            if (canDelete) { rooms[room].messages.splice(msgIndex, 1); io.to(room).emit("message-deleted", { msgId }); }
         }
     });
 
@@ -491,10 +427,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on("voice-leave", (room) => {
-        if (voiceRooms[room]) {
-            voiceRooms[room].delete(socket.id);
-            io.to("voice:" + room).emit("voice-count", voiceRooms[room].size);
-        }
+        if (voiceRooms[room]) { voiceRooms[room].delete(socket.id); io.to("voice:" + room).emit("voice-count", voiceRooms[room].size); }
     });
 
     socket.on("signal", ({ to, data }) => { io.to(to).emit("signal", { from: socket.id, data }); });
@@ -511,12 +444,7 @@ io.on("connection", (socket) => {
     });
 });
 
-// ========== ЭНДПОИНТЫ ==========
-app.post("/upload-audio", uploadAudio.single("audio"), (req, res) => {
-    if (!req.file) return res.status(400).json({ error: "Нет файла" });
-    res.json({ url: "/voices/" + req.file.filename });
-});
-
+app.post("/upload-audio", uploadAudio.single("audio"), (req, res) => { res.json({ url: "/voices/" + req.file.filename }); });
 app.post("/upload-media", uploadMedia.single("file"), (req, res) => {
     if (!req.file) return res.status(400).json({ error: "Файл больше 15 МБ или неподдерживаемый формат" });
     let fileType = "image";
