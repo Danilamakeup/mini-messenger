@@ -9,114 +9,212 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-// папки
+// ========== ПАПКИ ==========
 const publicDir = path.join(__dirname, "public");
 const voicesDir = path.join(publicDir, "voices");
-if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true });
+const uploadsDir = path.join(publicDir, "uploads");
+const avatarsDir = path.join(publicDir, "avatars");
+
+if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir);
 if (!fs.existsSync(voicesDir)) fs.mkdirSync(voicesDir, { recursive: true });
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+if (!fs.existsSync(avatarsDir)) fs.mkdirSync(avatarsDir, { recursive: true });
 
 app.use(express.static(publicDir));
+app.use(express.json());
 
-const upload = multer({
+// ========== ЗАГРУЗКИ ==========
+const uploadAudio = multer({
     storage: multer.diskStorage({
         destination: voicesDir,
         filename: (req, file, cb) => cb(null, Date.now() + ".mp3")
-    })
+    }),
+    limits: { fileSize: 15 * 1024 * 1024 }
 });
 
-// Данные
-const users = {}; // socket.id -> { name, room, joinedAt, role }
+const uploadMedia = multer({
+    storage: multer.diskStorage({
+        destination: uploadsDir,
+        filename: (req, file, cb) => {
+            const ext = path.extname(file.originalname);
+            cb(null, Date.now() + ext);
+        }
+    }),
+    limits: { fileSize: 15 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'];
+        if (allowed.includes(file.mimetype)) cb(null, true);
+        else cb(new Error('Неподдерживаемый формат'), false);
+    }
+});
+
+const uploadAvatar = multer({
+    storage: multer.diskStorage({
+        destination: avatarsDir,
+        filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
+    }),
+    limits: { fileSize: 5 * 1024 * 1024 }
+});
+
+// ========== БАЗА ПОЛЬЗОВАТЕЛЕЙ ==========
+const usersFile = path.join(__dirname, "users.json");
+let usersDB = {};
+
+if (fs.existsSync(usersFile)) {
+    usersDB = JSON.parse(fs.readFileSync(usersFile));
+}
+
+function saveUsers() {
+    fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2));
+}
+
+// ВЛАДЕЛЕЦ (замени на свой username)
+const OWNER_USERNAME = "bigheaven3569";
+
+// ========== ДАННЫЕ КОМНАТ ==========
 const rooms = {
     general: { messages: [], users: new Set() },
     gaming: { messages: [], users: new Set() },
     music: { messages: [], users: new Set() }
 };
 const voiceRooms = {};
+const activeSessions = {}; // socket.id -> { username, room }
 
-// ЗАЩИЩЁННЫЙ НИК ВЛАДЕЛЬЦА
-const OWNER_NAME = "bigheaven3569";
+// ========== API РЕГИСТРАЦИИ ==========
+app.post("/register", (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: "Заполните все поля" });
+    if (usersDB[username]) return res.status(400).json({ error: "Пользователь уже существует" });
+    
+    usersDB[username] = {
+        password,
+        role: username === OWNER_USERNAME ? "владелец" : "новичок",
+        createdAt: Date.now(),
+        avatar: null
+    };
+    saveUsers();
+    res.json({ success: true, role: usersDB[username].role });
+});
 
-// Функция определения роли
-function getUserRole(name, joinedAt) {
-    if (name === OWNER_NAME) return "владелец";
-    const days = Math.floor((Date.now() - joinedAt) / (1000 * 60 * 60 * 24));
-    if (days >= 7) return "олд";
-    return "новичок";
-}
+app.post("/login", (req, res) => {
+    const { username, password } = req.body;
+    if (!usersDB[username] || usersDB[username].password !== password) {
+        return res.status(401).json({ error: "Неверный логин или пароль" });
+    }
+    res.json({ success: true, role: usersDB[username].role, avatar: usersDB[username].avatar });
+});
 
+app.post("/upload-avatar", uploadAvatar.single("avatar"), (req, res) => {
+    const { username } = req.body;
+    if (usersDB[username]) {
+        usersDB[username].avatar = "/avatars/" + req.file.filename;
+        saveUsers();
+        res.json({ url: usersDB[username].avatar });
+    } else {
+        res.status(404).json({ error: "Пользователь не найден" });
+    }
+});
+
+// ========== SOCKET.IO ==========
 io.on("connection", (socket) => {
     console.log("✅ Подключился:", socket.id);
 
-    socket.on("join", ({ name, room }) => {
-        // Защита: если кто-то пытается зайти с ником владельца, но это не владелец — меняем ник
-        let finalName = name;
-        if (name === OWNER_NAME) {
-            const isOwnerAlreadyOnline = Object.values(users).some(u => u.name === OWNER_NAME && u.name !== finalName);
-            if (isOwnerAlreadyOnline || (users[socket.id]?.name !== OWNER_NAME && !isOwnerAlreadyOnline && Object.keys(users).length > 0)) {
-                finalName = name + "_" + Math.floor(Math.random() * 1000);
-            }
-        }
+    socket.on("auth", ({ username, room }) => {
+        const user = usersDB[username];
+        if (!user) return;
 
-        const prev = users[socket.id]?.room;
+        const prev = activeSessions[socket.id]?.room;
         if (prev && rooms[prev]) {
             rooms[prev].users.delete(socket.id);
             socket.leave(prev);
         }
 
-        let joinedAt = users[socket.id]?.joinedAt || Date.now();
-        let role = getUserRole(finalName, joinedAt);
-
-        users[socket.id] = { name: finalName, room, joinedAt, role };
+        activeSessions[socket.id] = { username, room };
         socket.join(room);
         rooms[room].users.add(socket.id);
 
-        socket.emit("history", rooms[room].messages);
-        socket.emit("user-role", { role, name: finalName });
+        // Обновляем роль (если прошло 7 дней и не владелец)
+        if (user.role !== "владелец") {
+            const days = Math.floor((Date.now() - user.createdAt) / (1000 * 60 * 60 * 24));
+            if (days >= 7 && user.role !== "олд") {
+                user.role = "олд";
+                saveUsers();
+            }
+        }
 
-        io.emit("online", Object.keys(users).length);
-        io.to(room).emit("room-users", Array.from(rooms[room].users).map(id => users[id]?.name));
+        socket.emit("history", rooms[room].messages);
+        socket.emit("user-data", { username: user.username, role: user.role, avatar: user.avatar });
+
+        io.emit("online", Object.keys(activeSessions).length);
+        io.to(room).emit("room-users", Array.from(rooms[room].users).map(id => activeSessions[id]?.username));
     });
 
     socket.on("chat", (text) => {
-        const u = users[socket.id];
-        if (!u) return;
+        const session = activeSessions[socket.id];
+        if (!session) return;
+        const user = usersDB[session.username];
         const msg = {
             id: Date.now() + "_" + Math.random(),
             type: "text",
-            author: u.name,
-            role: u.role,
+            author: session.username,
+            role: user.role,
+            avatar: user.avatar,
             text,
             time: Date.now(),
             reactions: {}
         };
-        rooms[u.room].messages.push(msg);
-        io.to(u.room).emit("chat", msg);
+        rooms[session.room].messages.push(msg);
+        io.to(session.room).emit("chat", msg);
+        
+        // Уведомление для других комнат (через broadcast)
+        socket.broadcast.emit("notification", { room: session.room, author: session.username });
+    });
+
+    socket.on("media", (url) => {
+        const session = activeSessions[socket.id];
+        if (!session) return;
+        const user = usersDB[session.username];
+        const msg = {
+            id: Date.now() + "_" + Math.random(),
+            type: "media",
+            author: session.username,
+            role: user.role,
+            avatar: user.avatar,
+            mediaUrl: url,
+            time: Date.now(),
+            reactions: {}
+        };
+        rooms[session.room].messages.push(msg);
+        io.to(session.room).emit("chat", msg);
     });
 
     socket.on("voice-msg", (url) => {
-        const u = users[socket.id];
-        if (!u) return;
+        const session = activeSessions[socket.id];
+        if (!session) return;
+        const user = usersDB[session.username];
         const msg = {
             id: Date.now() + "_" + Math.random(),
             type: "voice",
-            author: u.name,
-            role: u.role,
+            author: session.username,
+            role: user.role,
+            avatar: user.avatar,
             audio: url,
             time: Date.now(),
             reactions: {}
         };
-        rooms[u.room].messages.push(msg);
-        io.to(u.room).emit("chat", msg);
+        rooms[session.room].messages.push(msg);
+        io.to(session.room).emit("chat", msg);
     });
 
     // Удаление сообщения
     socket.on("delete-message", ({ room, msgId }) => {
-        const u = users[socket.id];
-        if (!u) return;
+        const session = activeSessions[socket.id];
+        if (!session) return;
+        const user = usersDB[session.username];
         const msgIndex = rooms[room].messages.findIndex(m => m.id == msgId);
         if (msgIndex !== -1) {
             const msg = rooms[room].messages[msgIndex];
-            const canDelete = u.role === "владелец" || u.role === "админ" || u.role === "модер" || msg.author === u.name;
+            const canDelete = user.role === "владелец" || user.role === "админ" || user.role === "модер" || msg.author === session.username;
             if (canDelete) {
                 rooms[room].messages.splice(msgIndex, 1);
                 io.to(room).emit("message-deleted", { msgId });
@@ -126,12 +224,12 @@ io.on("connection", (socket) => {
 
     // Реакции
     socket.on("add-reaction", ({ room, msgId, emoji }) => {
-        const u = users[socket.id];
-        if (!u) return;
+        const session = activeSessions[socket.id];
+        if (!session) return;
         const msg = rooms[room].messages.find(m => m.id == msgId);
         if (msg) {
             if (!msg.reactions[emoji]) msg.reactions[emoji] = [];
-            if (!msg.reactions[emoji].includes(u.name)) msg.reactions[emoji].push(u.name);
+            if (!msg.reactions[emoji].includes(session.username)) msg.reactions[emoji].push(session.username);
             io.to(room).emit("reaction-updated", { msgId, reactions: msg.reactions });
         }
     });
@@ -157,20 +255,25 @@ io.on("connection", (socket) => {
     socket.on("signal", ({ to, data }) => { io.to(to).emit("signal", { from: socket.id, data }); });
 
     socket.on("disconnect", () => {
-        const u = users[socket.id];
-        if (u) {
-            const room = u.room;
+        const session = activeSessions[socket.id];
+        if (session) {
+            const room = session.room;
             rooms[room]?.users.delete(socket.id);
-            io.to(room).emit("room-users", Array.from(rooms[room].users).map(id => users[id]?.name));
+            io.to(room).emit("room-users", Array.from(rooms[room].users).map(id => activeSessions[id]?.username));
         }
-        delete users[socket.id];
-        for (let r in voiceRooms) voiceRooms[r].delete(socket.id);
-        io.emit("online", Object.keys(users).length);
+        delete activeSessions[socket.id];
+        io.emit("online", Object.keys(activeSessions).length);
     });
 });
 
-app.post("/upload", upload.single("audio"), (req, res) => {
+// ========== ЭНДПОИНТЫ ==========
+app.post("/upload-audio", uploadAudio.single("audio"), (req, res) => {
     res.json({ url: "/voices/" + req.file.filename });
+});
+
+app.post("/upload-media", uploadMedia.single("file"), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: "Файл слишком большой или неподдерживаемый формат" });
+    res.json({ url: "/uploads/" + req.file.filename });
 });
 
 const PORT = process.env.PORT || 3000;
