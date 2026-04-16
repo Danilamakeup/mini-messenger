@@ -23,7 +23,7 @@ if (!fs.existsSync(avatarsDir)) fs.mkdirSync(avatarsDir, { recursive: true });
 app.use(express.static(publicDir));
 app.use(express.json());
 
-// ========== ЗАГРУЗКИ ==========
+// ========== ЗАГРУЗКА АУДИО (ГОЛОСОВЫЕ) ==========
 const uploadAudio = multer({
     storage: multer.diskStorage({
         destination: voicesDir,
@@ -32,6 +32,7 @@ const uploadAudio = multer({
     limits: { fileSize: 15 * 1024 * 1024 }
 });
 
+// ========== ЗАГРУЗКА МЕДИА (КАРТИНКИ/ВИДЕО/АУДИО) ==========
 const uploadMedia = multer({
     storage: multer.diskStorage({
         destination: uploadsDir,
@@ -42,18 +43,28 @@ const uploadMedia = multer({
     }),
     limits: { fileSize: 15 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
-        const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'];
+        const allowed = [
+            'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+            'video/mp4', 'video/webm', 'video/quicktime',
+            'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/webm'
+        ];
         if (allowed.includes(file.mimetype)) cb(null, true);
         else cb(new Error('Неподдерживаемый формат'), false);
     }
 });
 
+// ========== ЗАГРУЗКА АВАТАРКИ (ТОЛЬКО КАРТИНКИ) ==========
 const uploadAvatar = multer({
     storage: multer.diskStorage({
         destination: avatarsDir,
         filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
     }),
-    limits: { fileSize: 5 * 1024 * 1024 }
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (allowed.includes(file.mimetype)) cb(null, true);
+        else cb(new Error('Можно только PNG, JPG, GIF, WEBP!'), false);
+    }
 });
 
 // ========== БАЗА ПОЛЬЗОВАТЕЛЕЙ ==========
@@ -68,9 +79,9 @@ function saveUsers() {
     fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2));
 }
 
-// ========== ВЛАДЕЛЕЦ (ЗАЩИЩЁННЫЙ НИК) ==========
+// ========== ВЛАДЕЛЕЦ ==========
 const OWNER_USERNAME = "bigheaven3569";
-const OWNER_PASSWORD = "swill1337"; // <- ПАРОЛЬ ВЛАДЕЛЬЦА (поменяй на свой)
+const OWNER_PASSWORD = "swill1337";
 
 // ========== ДАННЫЕ КОМНАТ ==========
 const rooms = {
@@ -79,19 +90,20 @@ const rooms = {
     music: { messages: [], users: new Set() }
 };
 const voiceRooms = {};
-const activeSessions = {}; // socket.id -> { username, room }
+const activeSessions = {};
 
-// ========== API РЕГИСТРАЦИИ (С ЗАЩИТОЙ НИКА) ==========
+// ========== API РЕГИСТРАЦИИ ==========
 app.post("/register", (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: "Заполните все поля" });
     
-    // ЗАЩИТА: ник владельца нельзя зарегистрировать
     if (username === OWNER_USERNAME) {
-        return res.status(403).json({ error: "Этот ник занят навсегда. Не пытайся." });
+        return res.status(403).json({ error: "НИК ЗАНЯТ ИДИ НАХУЙ!!" });
     }
     
-    if (usersDB[username]) return res.status(400).json({ error: "Пользователь уже существует" });
+    if (usersDB[username]) {
+        return res.status(400).json({ error: "НИК ЗАНЯТ ИДИ НАХУЙ!!" });
+    }
     
     usersDB[username] = {
         password,
@@ -106,10 +118,8 @@ app.post("/register", (req, res) => {
 app.post("/login", (req, res) => {
     const { username, password } = req.body;
     
-    // ОСОБАЯ ПРОВЕРКА ДЛЯ ВЛАДЕЛЬЦА
     if (username === OWNER_USERNAME) {
         if (password === OWNER_PASSWORD) {
-            // Создаём или обновляем владельца в базе
             if (!usersDB[OWNER_USERNAME]) {
                 usersDB[OWNER_USERNAME] = {
                     password: OWNER_PASSWORD,
@@ -125,12 +135,14 @@ app.post("/login", (req, res) => {
         }
     }
     
-    // Обычный пользователь
-    if (!usersDB[username] || usersDB[username].password !== password) {
-        return res.status(401).json({ error: "Неверный логин или пароль" });
+    if (!usersDB[username]) {
+        return res.status(401).json({ error: "НИК НЕ НАЙДЕН, ЗАРЕГИСТРИРУЙСЯ!" });
     }
     
-    // Обновляем роль (олд через 7 дней)
+    if (usersDB[username].password !== password) {
+        return res.status(401).json({ error: "НЕПРАВИЛЬНЫЙ ПАРОЛЬ, ПИЗДА!" });
+    }
+    
     const user = usersDB[username];
     const days = Math.floor((Date.now() - user.createdAt) / (1000 * 60 * 60 * 24));
     if (days >= 7 && user.role === "новичок") {
@@ -144,23 +156,19 @@ app.post("/login", (req, res) => {
 app.post("/change-nick", (req, res) => {
     const { oldUsername, newUsername, password } = req.body;
     
-    // Проверка пароля
     const user = usersDB[oldUsername];
     if (!user || user.password !== password) {
         return res.status(401).json({ error: "Неверный пароль" });
     }
     
-    // ЗАЩИТА: нельзя сменить ник на ник владельца
     if (newUsername === OWNER_USERNAME) {
-        return res.status(403).json({ error: "Этот ник принадлежит владельцу. Нельзя." });
+        return res.status(403).json({ error: "ЭТО НИК ВЛАДЕЛЬЦА, НЕ ЛЕЗЬ!" });
     }
     
-    // Проверка, что новый ник не занят
     if (usersDB[newUsername] && newUsername !== oldUsername) {
-        return res.status(400).json({ error: "Ник уже занят" });
+        return res.status(400).json({ error: "НИК ЗАНЯТ ИДИ НАХУЙ!!" });
     }
     
-    // Меняем ник в базе
     usersDB[newUsername] = { ...user };
     delete usersDB[oldUsername];
     saveUsers();
@@ -169,6 +177,9 @@ app.post("/change-nick", (req, res) => {
 });
 
 app.post("/upload-avatar", uploadAvatar.single("avatar"), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: "Можно только PNG, JPG, GIF, WEBP! Не больше 5 МБ" });
+    }
     const { username } = req.body;
     if (usersDB[username]) {
         usersDB[username].avatar = "/avatars/" + req.file.filename;
@@ -225,7 +236,7 @@ io.on("connection", (socket) => {
         io.to(session.room).emit("chat", msg);
     });
 
-    socket.on("media", (url) => {
+    socket.on("media", (url, fileType) => {
         const session = activeSessions[socket.id];
         if (!session) return;
         const user = usersDB[session.username];
@@ -236,6 +247,7 @@ io.on("connection", (socket) => {
             role: user.role,
             avatar: user.avatar,
             mediaUrl: url,
+            mediaType: fileType,
             time: Date.now(),
             reactions: {}
         };
@@ -324,8 +336,11 @@ app.post("/upload-audio", uploadAudio.single("audio"), (req, res) => {
 });
 
 app.post("/upload-media", uploadMedia.single("file"), (req, res) => {
-    if (!req.file) return res.status(400).json({ error: "Файл слишком большой или неподдерживаемый формат" });
-    res.json({ url: "/uploads/" + req.file.filename });
+    if (!req.file) return res.status(400).json({ error: "Файл больше 15 МБ или неподдерживаемый формат" });
+    let fileType = "image";
+    if (req.file.mimetype.startsWith("video")) fileType = "video";
+    if (req.file.mimetype.startsWith("audio")) fileType = "audio";
+    res.json({ url: "/uploads/" + req.file.filename, fileType });
 });
 
 const PORT = process.env.PORT || 3000;
