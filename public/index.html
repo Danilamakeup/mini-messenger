@@ -1,387 +1,710 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NEXUS — MP3 Voice</title>
-<script src="/socket.io/socket.io.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.js"></script>
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>NEXUS — Владелец bigheaven3569</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
 
-body {
-    background: radial-gradient(circle at 20% 30%, #0a0c14, #020308);
-    font-family: 'Inter', system-ui, sans-serif;
-    height: 100vh;
-    overflow: hidden;
-    color: #fff;
-}
+        body {
+            background: #1e1f22;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            color: #dbdee1;
+        }
 
-/* остальной CSS такой же как в прошлый раз, но я сокращу для читаемости */
-.app { display: flex; height: 100vh; }
-.sidebar {
-    width: 260px;
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(16px);
-    padding: 20px;
-    border-right: 1px solid rgba(255,255,255,0.1);
-}
-.room {
-    padding: 12px;
-    margin: 8px 0;
-    background: rgba(255,255,255,0.05);
-    border-radius: 12px;
-    cursor: pointer;
-    transition: 0.2s;
-}
-.room:hover { background: #5865f2; transform: translateX(5px); }
-.chat { flex: 1; display: flex; flex-direction: column; }
-.messages { flex: 1; overflow-y: auto; padding: 20px; }
-.input-panel { padding: 20px; background: rgba(0,0,0,0.5); }
-.input-wrapper {
-    display: flex;
-    gap: 10px;
-    background: #1e1f28;
-    border-radius: 40px;
-    padding: 5px 15px;
-}
-.input-wrapper input {
-    flex: 1;
-    background: none;
-    border: none;
-    color: white;
-    padding: 12px;
-    outline: none;
-}
-button {
-    background: #5865f2;
-    border: none;
-    color: white;
-    padding: 10px 16px;
-    border-radius: 30px;
-    cursor: pointer;
-    font-size: 16px;
-}
-button:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-icon {
-    background: #2c2f3a;
-    width: 42px;
-    padding: 8px;
-}
-.recording-active { background: #e03a3a; animation: pulse 1s infinite; }
-@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-.message { margin-bottom: 16px; }
-.message-name { font-size: 12px; color: #aaa; margin-bottom: 4px; }
-.message-text {
-    background: #2c2f3a;
-    padding: 8px 14px;
-    border-radius: 18px;
-    display: inline-block;
-}
-.voice-bubble {
-    background: #2c2f3a;
-    padding: 12px 20px;
-    border-radius: 28px;
-    display: inline-block;
-}
-audio { border-radius: 30px; height: 36px; }
-.speaking { box-shadow: 0 0 0 3px #5865f2; transition: 0.05s; }
-</style>
+        @keyframes rgbText {
+            0% { color: #ff0000; text-shadow: 0 0 3px #ff0000; }
+            17% { color: #ff8800; text-shadow: 0 0 3px #ff8800; }
+            33% { color: #ffff00; text-shadow: 0 0 3px #ffff00; }
+            50% { color: #00ff00; text-shadow: 0 0 3px #00ff00; }
+            67% { color: #0088ff; text-shadow: 0 0 3px #0088ff; }
+            83% { color: #8800ff; text-shadow: 0 0 3px #8800ff; }
+            100% { color: #ff0000; text-shadow: 0 0 3px #ff0000; }
+        }
+
+        @keyframes waveAnim {
+            from { transform: scaleY(0.5); }
+            to { transform: scaleY(1.5); }
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #2b2d31; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #1e1f22; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3b3f48; }
+
+        .app {
+            display: flex;
+            height: 100%;
+        }
+
+        /* ========== САЙДБАР (как Discord) ========== */
+        .sidebar {
+            width: 260px;
+            background: #2b2d31;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s;
+            z-index: 10;
+        }
+
+        .server-header {
+            padding: 16px;
+            border-bottom: 1px solid #1e1f22;
+            font-weight: 700;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #313338;
+            cursor: pointer;
+        }
+
+        .rooms-list {
+            flex: 1;
+            padding: 12px;
+        }
+
+        .room {
+            padding: 8px 12px;
+            margin: 2px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            color: #949ba4;
+            transition: 0.1s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .room:hover { background: #3b3f48; color: #dbdee1; }
+        .room.active { background: #3b3f48; color: #fff; }
+
+        .user-section {
+            padding: 16px;
+            background: #232428;
+            border-top: 1px solid #1e1f22;
+            font-size: 13px;
+        }
+
+        .stats {
+            background: #2b2d31;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+
+        .current-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #1e1f22;
+            padding: 8px 12px;
+            border-radius: 10px;
+        }
+
+        .role-tag {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        /* RGB роль */
+        .rgb-role {
+            animation: rgbText 1.5s infinite linear;
+            font-weight: bold;
+        }
+
+        /* ========== ОСНОВНОЙ ЧАТ ========== */
+        .chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #313338;
+        }
+
+        .chat-header {
+            padding: 16px 20px;
+            background: #2b2d31;
+            border-bottom: 1px solid #1e1f22;
+            font-weight: 600;
+            font-size: 16px;
+            box-shadow: 0 1px 0 #1e1f22;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 0;
+        }
+
+        .message-group {
+            padding: 8px 20px;
+            display: flex;
+            gap: 16px;
+            transition: background 0.1s;
+            position: relative;
+        }
+
+        .message-group:hover { background: #2b2d31; }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            background: #5865f2;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .message-content {
+            flex: 1;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 4px;
+        }
+
+        .message-author {
+            font-weight: 600;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #949ba4;
+        }
+
+        .message-text {
+            font-size: 15px;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        .voice-bubble {
+            background: #2b2d31;
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 4px;
+        }
+
+        audio {
+            border-radius: 30px;
+            height: 34px;
+            background: #1e1f22;
+        }
+
+        /* реакции */
+        .reactions {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+        .reaction {
+            background: #2b2d31;
+            border-radius: 20px;
+            padding: 2px 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: 0.1s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .reaction:hover { background: #3b3f48; transform: scale(1.02); }
+        .reaction-count { font-size: 12px; color: #949ba4; }
+
+        /* меню удаления */
+        .message-menu {
+            position: absolute;
+            right: 20px;
+            top: 8px;
+            background: #1e1f22;
+            border-radius: 8px;
+            padding: 4px;
+            display: none;
+            gap: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 20;
+        }
+        .message-group:hover .message-menu { display: flex; }
+        .menu-btn {
+            background: none;
+            border: none;
+            color: #dbdee1;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .menu-btn:hover { background: #e03a3a; color: white; }
+
+        /* ========== ПАНЕЛЬ ВВОДА ========== */
+        .input-panel {
+            padding: 16px 20px 24px;
+            background: #2b2d31;
+        }
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+            background: #383a40;
+            border-radius: 30px;
+            padding: 6px 6px 6px 18px;
+        }
+        .input-wrapper input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 12px 0;
+            color: white;
+            font-size: 15px;
+            outline: none;
+        }
+        .btn-icon {
+            background: #4e5058;
+            border: none;
+            color: white;
+            font-size: 18px;
+            width: 40px;
+            height: 40px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .btn-icon:active { transform: scale(0.95); }
+        .btn-send { background: #5865f2; }
+        .recording-active { background: #e03a3a; animation: pulse 1s infinite; }
+
+        .voice-controls { display: flex; gap: 6px; align-items: center; }
+        #recTimer { font-size: 11px; background: #1e1f22; padding: 4px 10px; border-radius: 30px; }
+
+        /* эффект говорящего */
+        .speaking { box-shadow: 0 0 0 2px #5865f2, 0 0 0 4px rgba(88,101,242,0.3); transition: 0.05s; }
+
+        /* модалка */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: #2b2d31;
+            border-radius: 16px;
+            padding: 24px;
+            width: 300px;
+            text-align: center;
+        }
+        .modal-content input {
+            width: 100%;
+            padding: 12px;
+            margin: 16px 0;
+            background: #1e1f22;
+            border: none;
+            border-radius: 8px;
+            color: white;
+        }
+        .modal-content button {
+            background: #5865f2;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 8px;
+            color: white;
+            margin: 5px;
+            cursor: pointer;
+        }
+
+        /* мобилка */
+        @media (max-width: 700px) {
+            .sidebar {
+                position: fixed;
+                left: -260px;
+                top: 0;
+                bottom: 0;
+                z-index: 100;
+            }
+            .sidebar.open { left: 0; }
+            .menu-toggle {
+                display: flex;
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                z-index: 101;
+                background: #5865f2;
+                border: none;
+                width: 48px;
+                height: 48px;
+                border-radius: 30px;
+                align-items: center;
+                justify-content: center;
+                font-size: 24px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            }
+            .message-group { padding: 8px 12px; }
+            .message-menu { display: flex; position: static; margin-top: 6px; background: none; box-shadow: none; padding: 0; gap: 8px; }
+            .message-group:hover .message-menu { display: flex; }
+        }
+        @media (min-width: 701px) { .menu-toggle { display: none; } }
+
+        .wave-container { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; }
+        .wave { width: 3px; height: 12px; background: #ff6666; border-radius: 2px; animation: waveAnim 0.5s infinite alternate; }
+        .wave:nth-child(1) { animation-delay: 0s; height: 8px; }
+        .wave:nth-child(2) { animation-delay: 0.1s; height: 14px; }
+        .wave:nth-child(3) { animation-delay: 0.2s; height: 10px; }
+        .wave:nth-child(4) { animation-delay: 0.3s; height: 16px; }
+    </style>
 </head>
 <body>
+
 <div class="app">
-    <div class="sidebar">
-        <h3>✨ NEXUS</h3>
-        <div class="room" onclick="join('general')"># general</div>
-        <div class="room" onclick="join('gaming')">🎮 gaming</div>
-        <div class="room" onclick="join('music')">🎵 music</div>
-        <hr style="margin: 20px 0; border-color:#333;">
-        <div>🌐 Online: <span id="online">0</span></div>
-        <div>🎙️ Voice: <span id="voiceOnline">0</span></div>
-        <div id="roomUsersList" style="font-size:12px; margin-top:10px;"></div>
-        <div style="margin-top:20px;">👤 <span id="currentNickDisplay"></span></div>
-        <button onclick="openSettings()" style="margin-top:20px; background:#444;">⚙️ Сменить ник</button>
+    <div class="sidebar" id="sidebar">
+        <div class="server-header">✨ NEXUS <span style="font-size:12px;">▼</span></div>
+        <div class="rooms-list">
+            <div class="room" data-room="general" onclick="join('general')">#️⃣ general</div>
+            <div class="room" data-room="gaming" onclick="join('gaming')">🎮 gaming</div>
+            <div class="room" data-room="music" onclick="join('music')">🎵 music</div>
+        </div>
+        <div class="user-section">
+            <div class="stats">
+                <div>🌐 Online: <span id="online">0</span></div>
+                <div>🎙️ Voice: <span id="voiceOnline">0</span></div>
+                <div id="roomUsersList" style="font-size:11px; margin-top:6px;"></div>
+            </div>
+            <div class="current-user" id="currentUserCard">
+                <div class="message-avatar" style="width:32px; height:32px; font-size:14px;">👤</div>
+                <div>
+                    <div id="currentNickDisplay" style="font-weight:600;"></div>
+                    <div id="currentRoleDisplay" style="font-size:10px;"></div>
+                </div>
+                <button class="settings-btn" onclick="openSettings()" style="margin-left:auto; background:#4e5058; border:none; width:28px; height:28px; border-radius:8px;">⚙️</button>
+            </div>
+        </div>
     </div>
+
     <div class="chat">
+        <div class="chat-header"># <span id="currentRoomName">general</span></div>
         <div id="messages" class="messages"></div>
         <div class="input-panel">
             <div class="input-wrapper">
                 <input id="input" placeholder="Сообщение..." onkeydown="if(event.key==='Enter') send()">
-                <button id="recordBtn" class="btn-icon">🎙️</button>
-                <span id="recTimer" style="color:#ff8888; font-size:13px;"></span>
-                <button onclick="sendVoiceNow()" id="sendVoiceBtn" disabled>📤</button>
-                <button onclick="joinVoiceChat()">🔊</button>
-                <button onclick="muteMic()">🎧</button>
-                <button onclick="leaveVoiceChat()">❌</button>
-                <button onclick="send()" style="background:#5865f2;">➤</button>
+                <div class="voice-controls">
+                    <button class="btn-icon" id="recordBtn">🎙️</button>
+                    <button class="btn-icon" id="cancelVoiceBtn" style="display:none; background:#e03a3a;">❌</button>
+                    <span id="recTimer"></span>
+                    <div id="waveVisual" class="wave-container" style="display:none;">
+                        <div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div>
+                    </div>
+                </div>
+                <button class="btn-icon" onclick="joinVoiceChat()">🔊</button>
+                <button class="btn-icon" onclick="muteMic()">🎧</button>
+                <button class="btn-icon" onclick="leaveVoiceChat()">❌</button>
+                <button class="btn-icon btn-send" onclick="send()">➤</button>
             </div>
         </div>
     </div>
 </div>
 
-<div id="settingsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); justify-content:center; align-items:center; z-index:1000;">
-    <div style="background:#1e1f28; padding:30px; border-radius:24px; width:300px; text-align:center;">
-        <h3>Сменить ник</h3>
-        <input type="text" id="newNickInput" style="width:100%; margin:15px 0; padding:10px; border-radius:20px; border:none;">
+<button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
+<div id="settingsModal" class="modal">
+    <div class="modal-content">
+        <h3>⚙️ Настройки</h3>
+        <input type="text" id="newNickInput" placeholder="Новый никнейм">
         <button onclick="changeNickname()">Сохранить</button>
         <button onclick="closeSettings()">Отмена</button>
     </div>
 </div>
 
 <script>
-// ==================== НАСТРОЙКИ ====================
-let name = localStorage.getItem("name") || prompt("Твой ник:");
-if (!name) name = "User";
-localStorage.setItem("name", name);
-document.getElementById("currentNickDisplay").innerText = name;
+    // ========== ДАННЫЕ ПОЛЬЗОВАТЕЛЯ ==========
+    let name = localStorage.getItem("name") || prompt("Твой ник:");
+    if (!name) name = "Explorer";
+    localStorage.setItem("name", name);
 
-let currentRoom = "general";
-const socket = io();
+    const PROTECTED_NAME = "bigheaven3569";
+    const RICKROLL_URL = "https://www.youtube.com/watch?v=OZRxrJIArgc";
 
-// ==================== MP3 ЗАПИСЬ ====================
-let mediaStream = null;
-let isRecording = false;
-let audioContext = null;
-let sourceNode = null;
-let processorNode = null;
-let recordedSamples = [];
-let recordStartTime = 0;
-let recordTimerInterval = null;
-let recordedBlob = null;
+    let currentUserRole = "новичок";
+    let currentRoom = "general";
+    const socket = io();
 
-const recordBtn = document.getElementById("recordBtn");
-const sendVoiceBtn = document.getElementById("sendVoiceBtn");
-const recTimer = document.getElementById("recTimer");
-
-// Конвертация Float32 в Int16 для MP3
-function floatToInt16(buffer) {
-    let l = buffer.length;
-    let buf = new Int16Array(l);
-    for (let i = 0; i < l; i++) {
-        let s = Math.max(-1, Math.min(1, buffer[i]));
-        buf[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-    }
-    return buf;
-}
-
-// Кодирование в MP3 через lamejs
-function encodeToMP3(samples, sampleRate = 44100) {
-    let int16Samples = floatToInt16(samples);
-    let mp3Data = [];
-    let mp3encoder = new lamejs.Mp3Encoder(1, sampleRate, 128);
-    let remaining = int16Samples.length;
-    let maxSamples = 1152;
-    for (let i = 0; i < int16Samples.length; i += maxSamples) {
-        let chunk = int16Samples.subarray(i, i + maxSamples);
-        let mp3buf = mp3encoder.encodeBuffer(chunk);
-        if (mp3buf.length > 0) mp3Data.push(mp3buf);
-    }
-    let endBuf = mp3encoder.flush();
-    if (endBuf.length > 0) mp3Data.push(endBuf);
-    return new Blob(mp3Data, { type: "audio/mp3" });
-}
-
-// Старт записи
-async function startRecording() {
-    if (isRecording) return;
-    try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        sourceNode = audioContext.createMediaStreamSource(mediaStream);
-        processorNode = audioContext.createScriptProcessor(4096, 1, 1);
-        
-        recordedSamples = [];
-        processorNode.onaudioprocess = (event) => {
-            if (!isRecording) return;
-            let inputData = event.inputBuffer.getChannelData(0);
-            let copy = new Float32Array(inputData.length);
-            copy.set(inputData);
-            recordedSamples.push(copy);
+    // ========== ФУНКЦИИ РОЛЕЙ И RGB ==========
+    function getRoleBadge(role) {
+        const colors = {
+            'владелец': '#ff5555',
+            'админ': '#ffaa44',
+            'модер': '#44ffaa',
+            'олд': '#44aaff',
+            'новичок': '#88aaff'
         };
-        
-        sourceNode.connect(processorNode);
-        processorNode.connect(audioContext.destination);
-        
-        isRecording = true;
-        recordStartTime = Date.now();
-        recordBtn.classList.add("recording-active");
-        recordBtn.innerText = "⏹️";
-        
-        let seconds = 0;
-        recordTimerInterval = setInterval(() => {
-            if (isRecording) {
-                seconds = Math.floor((Date.now() - recordStartTime) / 1000);
-                recTimer.innerText = `🔴 ${seconds}с / 20с`;
-                if (seconds >= 20) stopRecording();
-            }
-        }, 1000);
-        
-    } catch(e) {
-        console.error("Микрофон не доступен", e);
-        recTimer.innerText = "❌ Ошибка микрофона";
+        const isOwner = (role === 'владелец');
+        return `<span class="role-tag" style="background:${colors[role] || '#5865f2'}20; color:${colors[role] || '#dbdee1'}; ${isOwner ? 'animation: rgbText 1.5s infinite linear;' : ''}">${role}</span>`;
     }
-}
 
-// Стоп записи
-function stopRecording() {
-    if (!isRecording) return;
-    isRecording = false;
-    if (recordTimerInterval) clearInterval(recordTimerInterval);
-    
-    if (processorNode) processorNode.disconnect();
-    if (sourceNode) sourceNode.disconnect();
-    if (audioContext) audioContext.close();
-    if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
-    
-    // Объединяем все сэмплы в один массив
-    let totalLength = recordedSamples.reduce((acc, arr) => acc + arr.length, 0);
-    let combined = new Float32Array(totalLength);
-    let offset = 0;
-    for (let arr of recordedSamples) {
-        combined.set(arr, offset);
-        offset += arr.length;
+    function updateUIForRole(role) {
+        document.getElementById("currentRoleDisplay").innerHTML = getRoleBadge(role);
+        if (role === "владелец") {
+            document.getElementById("currentRoleDisplay").classList.add("rgb-role");
+        }
     }
-    
-    if (combined.length > 1000) {
-        let mp3Blob = encodeToMP3(combined, audioContext ? audioContext.sampleRate : 44100);
-        recordedBlob = mp3Blob;
-        sendVoiceBtn.disabled = false;
-        recTimer.innerText = `✅ ${Math.round(mp3Blob.size / 1024)}KB`;
-    } else {
-        recTimer.innerText = "❌ Слишком коротко";
-        sendVoiceBtn.disabled = true;
-    }
-    
-    recordBtn.classList.remove("recording-active");
-    recordBtn.innerText = "🎙️";
-}
 
-// Отправка MP3
-async function sendVoiceNow() {
-    if (!recordedBlob) return;
-    recTimer.innerText = "📤 Отправка...";
-    const fd = new FormData();
-    fd.append("audio", recordedBlob, "voice.mp3");
-    try {
+    // ========== MP3 ЗАПИСЬ ==========
+    let mediaStream = null, isRecording = false, audioContext = null, sourceNode = null, processorNode = null, recordedSamples = [], recordStartTime = 0, recordTimerInterval = null, recordedBlob = null;
+    const recordBtn = document.getElementById("recordBtn"), cancelVoiceBtn = document.getElementById("cancelVoiceBtn"), recTimer = document.getElementById("recTimer"), waveVisual = document.getElementById("waveVisual");
+
+    function floatToInt16(buffer) {
+        let buf = new Int16Array(buffer.length);
+        for (let i = 0; i < buffer.length; i++) {
+            let s = Math.max(-1, Math.min(1, buffer[i]));
+            buf[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        return buf;
+    }
+    function encodeToMP3(samples, sampleRate = 44100) {
+        let int16Samples = floatToInt16(samples);
+        let mp3encoder = new lamejs.Mp3Encoder(1, sampleRate, 128);
+        let mp3Data = [], maxSamples = 1152;
+        for (let i = 0; i < int16Samples.length; i += maxSamples) {
+            let chunk = int16Samples.subarray(i, i + maxSamples);
+            let mp3buf = mp3encoder.encodeBuffer(chunk);
+            if (mp3buf.length) mp3Data.push(mp3buf);
+        }
+        let endBuf = mp3encoder.flush();
+        if (endBuf.length) mp3Data.push(endBuf);
+        return new Blob(mp3Data, { type: "audio/mp3" });
+    }
+    async function startRecording() {
+        if (isRecording) return;
+        try {
+            mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            sourceNode = audioContext.createMediaStreamSource(mediaStream);
+            processorNode = audioContext.createScriptProcessor(4096, 1, 1);
+            recordedSamples = [];
+            processorNode.onaudioprocess = (e) => { if (isRecording) recordedSamples.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
+            sourceNode.connect(processorNode); processorNode.connect(audioContext.destination);
+            isRecording = true; recordStartTime = Date.now();
+            recordBtn.classList.add("recording-active"); recordBtn.innerText = "⏹️";
+            cancelVoiceBtn.style.display = "inline-flex"; waveVisual.style.display = "inline-flex";
+            let seconds = 0;
+            recordTimerInterval = setInterval(() => {
+                if (isRecording) { seconds = Math.floor((Date.now() - recordStartTime) / 1000); recTimer.innerText = `🔴 ${seconds}s / 20s`; if (seconds >= 20) stopAndSend(); }
+            }, 1000);
+            if (navigator.vibrate) navigator.vibrate(100);
+        } catch(e) { recTimer.innerText = "❌ Микрофон"; }
+    }
+    function finishAndGetBlob(isCancel = false) {
+        if (!isRecording) return null;
+        isRecording = false;
+        if (recordTimerInterval) clearInterval(recordTimerInterval);
+        if (processorNode) processorNode.disconnect(); if (sourceNode) sourceNode.disconnect();
+        if (audioContext) audioContext.close(); if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+        recordBtn.classList.remove("recording-active"); recordBtn.innerText = "🎙️";
+        cancelVoiceBtn.style.display = "none"; waveVisual.style.display = "none";
+        if (!isCancel && recordedSamples.length) {
+            let total = recordedSamples.reduce((a,b)=>a+b.length,0), combined = new Float32Array(total), off=0;
+            for (let arr of recordedSamples) { combined.set(arr, off); off += arr.length; }
+            if (combined.length > 3000) return encodeToMP3(combined, audioContext ? audioContext.sampleRate : 44100);
+        }
+        return null;
+    }
+    function stopAndSend() { let blob = finishAndGetBlob(false); if (blob && blob.size > 5000) sendVoiceNow(blob); else recTimer.innerText = "❌ Коротко"; }
+    function cancelRecording() { finishAndGetBlob(true); recTimer.innerText = "🗑 Отменено"; setTimeout(() => { if (recTimer.innerText === "🗑 Отменено") recTimer.innerText = ""; }, 1500); if (navigator.vibrate) navigator.vibrate(50); }
+    async function sendVoiceNow(blob) {
+        recTimer.innerText = "📤 Отправка...";
+        let fd = new FormData(); fd.append("audio", blob, "voice.mp3");
         let res = await fetch("/upload", { method: "POST", body: fd });
         let data = await res.json();
         socket.emit("voice-msg", data.url);
         recTimer.innerText = "✅ Отправлено!";
-        sendVoiceBtn.disabled = true;
-        recordedBlob = null;
         setTimeout(() => { if (recTimer.innerText === "✅ Отправлено!") recTimer.innerText = ""; }, 2000);
-    } catch(e) {
-        recTimer.innerText = "❌ Ошибка";
     }
-}
+    recordBtn.onclick = () => { if (isRecording) stopAndSend(); else startRecording(); };
+    cancelVoiceBtn.onclick = cancelRecording;
 
-recordBtn.onclick = () => {
-    if (isRecording) stopRecording();
-    else startRecording();
-};
-
-// ==================== ОБЫЧНЫЙ ЧАТ ====================
-function join(room) {
-    currentRoom = room;
-    document.getElementById("messages").innerHTML = "";
-    socket.emit("join", { name, room });
-}
-
-function send() {
-    let input = document.getElementById("input");
-    if (input.value.trim()) {
-        socket.emit("chat", input.value);
-        input.value = "";
+    // ========== ЧАТ С РОЛЯМИ ==========
+    function join(room) {
+        currentRoom = room;
+        document.getElementById("currentRoomName").innerText = room;
+        document.querySelectorAll(".room").forEach(r => r.classList.remove("active"));
+        document.querySelector(`.room[data-room="${room}"]`).classList.add("active");
+        document.getElementById("messages").innerHTML = "";
+        socket.emit("join", { name, room });
+        if (window.innerWidth <= 700) toggleSidebar();
     }
-}
 
-function addMessage(msg) {
-    let div = document.createElement("div");
-    div.className = "message";
-    if (msg.type === "text") {
-        div.innerHTML = `<div class="message-name">${escapeHtml(msg.name)}</div><div class="message-text">${escapeHtml(msg.text)}</div>`;
-    } else if (msg.type === "voice") {
-        div.innerHTML = `<div class="message-name">🎙️ ${escapeHtml(msg.name)}</div><div class="voice-bubble"><audio controls src="${msg.audio}"></audio></div>`;
+    function send() {
+        let input = document.getElementById("input");
+        if (input.value.trim()) { socket.emit("chat", input.value); input.value = ""; }
     }
-    document.getElementById("messages").appendChild(div);
-    div.scrollIntoView();
-}
 
-function escapeHtml(str) { return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
-
-socket.on("history", msgs => { document.getElementById("messages").innerHTML = ""; msgs.forEach(addMessage); });
-socket.on("chat", addMessage);
-socket.on("online", n => document.getElementById("online").innerText = n);
-socket.on("voice-count", n => document.getElementById("voiceOnline").innerText = n);
-socket.on("room-users", list => document.getElementById("roomUsersList").innerText = "👥 " + (list ? list.join(", ") : ""));
-
-// ==================== НИКНЕЙМ ====================
-function openSettings() { document.getElementById("settingsModal").style.display = "flex"; }
-function closeSettings() { document.getElementById("settingsModal").style.display = "none"; }
-function changeNickname() {
-    let newNick = document.getElementById("newNickInput").value.trim();
-    if (newNick && newNick !== name) {
-        name = newNick;
-        localStorage.setItem("name", name);
-        document.getElementById("currentNickDisplay").innerText = name;
-        socket.emit("join", { name, room: currentRoom });
-        closeSettings();
+    function deleteMessage(msgId, msgAuthor) {
+        let canDelete = false;
+        if (currentUserRole === 'владелец') canDelete = true;
+        if (currentUserRole === 'админ') canDelete = true;
+        if (currentUserRole === 'модер') canDelete = true;
+        if (name === msgAuthor) canDelete = true;
+        if (canDelete) socket.emit("delete-message", { room: currentRoom, msgId });
     }
-}
 
-// ==================== ГОЛОСОВОЙ ЧАТ ====================
-let voiceStream = null;
-let voicePeers = {};
-let inVoice = false;
+    function addReaction(msgId, emoji) { socket.emit("add-reaction", { room: currentRoom, msgId, emoji }); }
 
-async function joinVoiceChat() {
-    if (inVoice) return;
-    inVoice = true;
-    voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    let ctx = new AudioContext();
-    let src = ctx.createMediaStreamSource(voiceStream);
-    let analyser = ctx.createAnalyser();
-    src.connect(analyser);
-    let data = new Uint8Array(analyser.frequencyBinCount);
-    setInterval(() => {
-        if (!inVoice) return;
-        analyser.getByteFrequencyData(data);
-        let vol = data.reduce((a,b)=>a+b,0)/data.length;
-        if (vol > 20) document.body.classList.add("speaking");
-        else document.body.classList.remove("speaking");
-    }, 100);
-    socket.emit("voice-join", currentRoom);
-}
+    function renderMessage(msg, msgId) {
+        let roleTag = getRoleBadge(msg.role || 'новичок');
+        let reactionsHtml = '';
+        if (msg.reactions) {
+            for (let [emoji, users] of Object.entries(msg.reactions)) {
+                reactionsHtml += `<div class="reaction" onclick="addReaction('${msgId}','${emoji}')">${emoji} <span class="reaction-count">${users.length}</span></div>`;
+            }
+        }
+        let contentHtml = msg.type === 'text' ? `<div class="message-text">${escapeHtml(msg.text)}</div>` : `<div class="voice-bubble"><audio controls src="${msg.audio}"></audio></div>`;
+        let menuHtml = `<div class="message-menu"><button class="menu-btn delete" onclick="deleteMessage('${msgId}','${msg.author}')">🗑️ Удалить</button></div>`;
+        return `
+            <div class="message-group" data-msg-id="${msgId}">
+                <div class="message-avatar">${msg.author.charAt(0).toUpperCase()}</div>
+                <div class="message-content">
+                    <div class="message-header">
+                        <div class="message-author">${escapeHtml(msg.author)} ${roleTag}</div>
+                        <div class="message-time">${new Date(msg.time).toLocaleTimeString()}</div>
+                    </div>
+                    ${contentHtml}
+                    <div class="reactions">${reactionsHtml}</div>
+                </div>
+                ${menuHtml}
+            </div>
+        `;
+    }
 
-socket.on("voice-user", id => { if (voiceStream) createPeer(id, true); });
-socket.on("user-joined", id => { if (voiceStream) createPeer(id, false); });
-socket.on("signal", ({ from, data }) => {
-    if (!voicePeers[from]) createPeer(from, false);
-    voicePeers[from]?.signal(data);
-});
+    function addMessageToUI(msg, msgId) {
+        let container = document.getElementById("messages");
+        let div = document.createElement("div");
+        div.innerHTML = renderMessage(msg, msgId);
+        container.appendChild(div.firstElementChild);
+        container.scrollTop = container.scrollHeight;
+    }
 
-function createPeer(id, init) {
-    let peer = new SimplePeer({ initiator: init, trickle: false, stream: voiceStream, config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] } });
-    peer.on("signal", data => socket.emit("signal", { to: id, data }));
-    peer.on("stream", remote => { let a = new Audio(); a.srcObject = remote; a.autoplay = true; });
-    peer.on("close", () => delete voicePeers[id]);
-    voicePeers[id] = peer;
-}
+    function escapeHtml(str) { return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
 
-function leaveVoiceChat() {
-    inVoice = false;
-    Object.values(voicePeers).forEach(p => p.destroy());
-    voicePeers = {};
-    if (voiceStream) voiceStream.getTracks().forEach(t => t.stop());
-    voiceStream = null;
-    document.body.classList.remove("speaking");
-    socket.emit("voice-leave", currentRoom);
-}
+    socket.on("history", (msgs) => {
+        let container = document.getElementById("messages");
+        container.innerHTML = "";
+        msgs.forEach(msg => { addMessageToUI(msg, msg.id); });
+    });
+    socket.on("chat", (msg) => { addMessageToUI(msg, msg.id); });
+    socket.on("message-deleted", ({ msgId }) => { document.querySelector(`.message-group[data-msg-id="${msgId}"]`)?.remove(); });
+    socket.on("reaction-updated", ({ msgId, reactions }) => {
+        let msgDiv = document.querySelector(`.message-group[data-msg-id="${msgId}"]`);
+        if (msgDiv) {
+            let reactionsDiv = msgDiv.querySelector('.reactions');
+            if (reactionsDiv) {
+                let html = '';
+                for (let [emoji, users] of Object.entries(reactions)) { html += `<div class="reaction" onclick="addReaction('${msgId}','${emoji}')">${emoji} <span class="reaction-count">${users.length}</span></div>`; }
+                reactionsDiv.innerHTML = html;
+            }
+        }
+    });
 
-function muteMic() { if (voiceStream) voiceStream.getAudioTracks().forEach(t => t.enabled = !t.enabled); }
+    socket.on("online", n => document.getElementById("online").innerText = n);
+    socket.on("voice-count", n => document.getElementById("voiceOnline").innerText = n);
+    socket.on("room-users", list => document.getElementById("roomUsersList").innerHTML = "👥 " + (list ? list.join(", ") : ""));
+    socket.on("user-role", ({ role, name: serverName }) => {
+        currentUserRole = role;
+        updateUIForRole(role);
+        if (serverName) document.getElementById("currentNickDisplay").innerText = serverName;
+    });
 
-join("general");
+    // ========== ЗАЩИТА НИКА ==========
+    function openSettings() { document.getElementById("settingsModal").style.display = "flex"; document.getElementById("newNickInput").value = name; }
+    function closeSettings() { document.getElementById("settingsModal").style.display = "none"; }
+    function changeNickname() {
+        let newNick = document.getElementById("newNickInput").value.trim();
+        if (!newNick) return;
+        
+        // ЗАЩИТА: нельзя сменить ник на bigheaven3569
+        if (newNick.toLowerCase() === PROTECTED_NAME.toLowerCase() && name !== PROTECTED_NAME) {
+            recTimer.innerText = "🚫 ЗАНЯТО НАХУЙ!";
+            setTimeout(() => {
+                window.open(RICKROLL_URL, "_blank");
+                recTimer.innerText = "";
+            }, 500);
+            closeSettings();
+            return;
+        }
+        
+        if (newNick !== name) {
+            name = newNick;
+            localStorage.setItem("name", name);
+            document.getElementById("currentNickDisplay").innerText = name;
+            socket.emit("join", { name, room: currentRoom });
+            closeSettings();
+        }
+    }
+
+    // ========== ГОЛОСОВОЙ ЧАТ ==========
+    let voiceStream = null, voicePeers = {}, inVoice = false;
+    async function joinVoiceChat() {
+        if (inVoice) return; inVoice = true;
+        try {
+            voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            let ctx = new AudioContext(), src = ctx.createMediaStreamSource(voiceStream), analyser = ctx.createAnalyser();
+            src.connect(analyser);
+            let data = new Uint8Array(analyser.frequencyBinCount);
+            setInterval(() => { if (inVoice) { analyser.getByteFrequencyData(data); let vol = data.reduce((a,b)=>a+b,0)/data.length; if (vol > 20) document.body.classList.add("speaking"); else document.body.classList.remove("speaking"); } }, 100);
+            socket.emit("voice-join", currentRoom);
+        } catch(e) { inVoice = false; }
+    }
+    socket.on("voice-user", id => { if (voiceStream) createPeer(id, true); });
+    socket.on("user-joined", id => { if (voiceStream) createPeer(id, false); });
+    socket.on("signal", ({ from, data }) => { if (!voicePeers[from]) createPeer(from, false); voicePeers[from]?.signal(data); });
+    function createPeer(id, init) {
+        let peer = new SimplePeer({ initiator: init, trickle: false, stream: voiceStream, config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] } });
+        peer.on("signal", data => socket.emit("signal", { to: id, data }));
+        peer.on("stream", remote => { let a = new Audio(); a.srcObject = remote; a.autoplay = true; });
+        peer.on("close", () => delete voicePeers[id]);
+        voicePeers[id] = peer;
+    }
+    function leaveVoiceChat() { inVoice = false; Object.values(voicePeers).forEach(p => p.destroy()); voicePeers = {}; if (voiceStream) voiceStream.getTracks().forEach(t => t.stop()); voiceStream = null; document.body.classList.remove("speaking"); socket.emit("voice-leave", currentRoom); }
+    function muteMic() { if (voiceStream) voiceStream.getAudioTracks().forEach(t => t.enabled = !t.enabled); }
+    function toggleSidebar() { document.getElementById("sidebar").classList.toggle("open"); }
+
+    document.getElementById("currentNickDisplay").innerText = name;
+    join("general");
 </script>
 </body>
 </html>
