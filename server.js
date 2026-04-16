@@ -68,8 +68,9 @@ function saveUsers() {
     fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2));
 }
 
-// ВЛАДЕЛЕЦ (замени на свой username)
+// ========== ВЛАДЕЛЕЦ (ЗАЩИЩЁННЫЙ НИК) ==========
 const OWNER_USERNAME = "bigheaven3569";
+const OWNER_PASSWORD = "swill1337"; // <- ПАРОЛЬ ВЛАДЕЛЬЦА (поменяй на свой)
 
 // ========== ДАННЫЕ КОМНАТ ==========
 const rooms = {
@@ -80,28 +81,91 @@ const rooms = {
 const voiceRooms = {};
 const activeSessions = {}; // socket.id -> { username, room }
 
-// ========== API РЕГИСТРАЦИИ ==========
+// ========== API РЕГИСТРАЦИИ (С ЗАЩИТОЙ НИКА) ==========
 app.post("/register", (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: "Заполните все поля" });
+    
+    // ЗАЩИТА: ник владельца нельзя зарегистрировать
+    if (username === OWNER_USERNAME) {
+        return res.status(403).json({ error: "Этот ник занят навсегда. Не пытайся." });
+    }
+    
     if (usersDB[username]) return res.status(400).json({ error: "Пользователь уже существует" });
     
     usersDB[username] = {
         password,
-        role: username === OWNER_USERNAME ? "владелец" : "новичок",
+        role: "новичок",
         createdAt: Date.now(),
         avatar: null
     };
     saveUsers();
-    res.json({ success: true, role: usersDB[username].role });
+    res.json({ success: true, role: "новичок" });
 });
 
 app.post("/login", (req, res) => {
     const { username, password } = req.body;
+    
+    // ОСОБАЯ ПРОВЕРКА ДЛЯ ВЛАДЕЛЬЦА
+    if (username === OWNER_USERNAME) {
+        if (password === OWNER_PASSWORD) {
+            // Создаём или обновляем владельца в базе
+            if (!usersDB[OWNER_USERNAME]) {
+                usersDB[OWNER_USERNAME] = {
+                    password: OWNER_PASSWORD,
+                    role: "владелец",
+                    createdAt: Date.now(),
+                    avatar: null
+                };
+                saveUsers();
+            }
+            return res.json({ success: true, role: "владелец", avatar: usersDB[OWNER_USERNAME]?.avatar || null });
+        } else {
+            return res.status(401).json({ error: "Неверный пароль владельца" });
+        }
+    }
+    
+    // Обычный пользователь
     if (!usersDB[username] || usersDB[username].password !== password) {
         return res.status(401).json({ error: "Неверный логин или пароль" });
     }
-    res.json({ success: true, role: usersDB[username].role, avatar: usersDB[username].avatar });
+    
+    // Обновляем роль (олд через 7 дней)
+    const user = usersDB[username];
+    const days = Math.floor((Date.now() - user.createdAt) / (1000 * 60 * 60 * 24));
+    if (days >= 7 && user.role === "новичок") {
+        user.role = "олд";
+        saveUsers();
+    }
+    
+    res.json({ success: true, role: user.role, avatar: user.avatar });
+});
+
+app.post("/change-nick", (req, res) => {
+    const { oldUsername, newUsername, password } = req.body;
+    
+    // Проверка пароля
+    const user = usersDB[oldUsername];
+    if (!user || user.password !== password) {
+        return res.status(401).json({ error: "Неверный пароль" });
+    }
+    
+    // ЗАЩИТА: нельзя сменить ник на ник владельца
+    if (newUsername === OWNER_USERNAME) {
+        return res.status(403).json({ error: "Этот ник принадлежит владельцу. Нельзя." });
+    }
+    
+    // Проверка, что новый ник не занят
+    if (usersDB[newUsername] && newUsername !== oldUsername) {
+        return res.status(400).json({ error: "Ник уже занят" });
+    }
+    
+    // Меняем ник в базе
+    usersDB[newUsername] = { ...user };
+    delete usersDB[oldUsername];
+    saveUsers();
+    
+    res.json({ success: true, newUsername });
 });
 
 app.post("/upload-avatar", uploadAvatar.single("avatar"), (req, res) => {
@@ -121,7 +185,10 @@ io.on("connection", (socket) => {
 
     socket.on("auth", ({ username, room }) => {
         const user = usersDB[username];
-        if (!user) return;
+        if (!user) {
+            socket.emit("auth-error", "Пользователь не найден");
+            return;
+        }
 
         const prev = activeSessions[socket.id]?.room;
         if (prev && rooms[prev]) {
@@ -133,17 +200,8 @@ io.on("connection", (socket) => {
         socket.join(room);
         rooms[room].users.add(socket.id);
 
-        // Обновляем роль (если прошло 7 дней и не владелец)
-        if (user.role !== "владелец") {
-            const days = Math.floor((Date.now() - user.createdAt) / (1000 * 60 * 60 * 24));
-            if (days >= 7 && user.role !== "олд") {
-                user.role = "олд";
-                saveUsers();
-            }
-        }
-
         socket.emit("history", rooms[room].messages);
-        socket.emit("user-data", { username: user.username, role: user.role, avatar: user.avatar });
+        socket.emit("user-data", { username, role: user.role, avatar: user.avatar });
 
         io.emit("online", Object.keys(activeSessions).length);
         io.to(room).emit("room-users", Array.from(rooms[room].users).map(id => activeSessions[id]?.username));
@@ -165,9 +223,6 @@ io.on("connection", (socket) => {
         };
         rooms[session.room].messages.push(msg);
         io.to(session.room).emit("chat", msg);
-        
-        // Уведомление для других комнат (через broadcast)
-        socket.broadcast.emit("notification", { room: session.room, author: session.username });
     });
 
     socket.on("media", (url) => {
@@ -206,7 +261,6 @@ io.on("connection", (socket) => {
         io.to(session.room).emit("chat", msg);
     });
 
-    // Удаление сообщения
     socket.on("delete-message", ({ room, msgId }) => {
         const session = activeSessions[socket.id];
         if (!session) return;
@@ -222,7 +276,6 @@ io.on("connection", (socket) => {
         }
     });
 
-    // Реакции
     socket.on("add-reaction", ({ room, msgId, emoji }) => {
         const session = activeSessions[socket.id];
         if (!session) return;
@@ -234,7 +287,6 @@ io.on("connection", (socket) => {
         }
     });
 
-    // Голосовой чат
     socket.on("voice-join", (room) => {
         const vr = "voice:" + room;
         socket.join(vr);
