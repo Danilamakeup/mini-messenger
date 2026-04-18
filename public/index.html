@@ -14,7 +14,6 @@
         body.dark { background: #1e1f22; color: #dbdee1; }
         body.light { background: #f2f3f5; color: #2c2f33; }
         
-        /* Тёмная тема */
         body.dark .sidebar { background: #2b2d31; border-right: 1px solid #1e1f22; }
         body.dark .server-header { background: #313338; border-bottom: 1px solid #1e1f22; }
         body.dark .room { color: #949ba4; }
@@ -43,7 +42,6 @@
         body.dark .online-user { background: #1e1f22; }
         body.dark .online-user:hover { background: #3b3f48; }
         
-        /* Светлая тема */
         body.light .sidebar { background: #ffffff; border-right: 1px solid #e3e5e8; }
         body.light .server-header { background: #f6f6f7; border-bottom: 1px solid #e3e5e8; color: #2c2f33; }
         body.light .room { color: #4f545c; }
@@ -77,7 +75,6 @@
         body.light ::-webkit-scrollbar-track { background: #e3e5e8; }
         ::-webkit-scrollbar-thumb { background: #5865f2; border-radius: 10px; }
         
-        /* Логин модалка */
         .login-modal {
             position: fixed;
             inset: 0;
@@ -122,10 +119,8 @@
         }
         .login-error { color: #e03a3a; margin-top: 12px; font-size: 13px; }
         
-        /* Основной интерфейс */
         .app { display: flex; height: 100vh; }
         
-        /* Левый сайдбар (комнаты) */
         .sidebar {
             width: 260px;
             display: flex;
@@ -190,7 +185,6 @@
         }
         .voice-user-name { font-size: 13px; font-weight: 500; }
         
-        /* Панель пользователя снизу */
         .user-section {
             padding: 16px;
         }
@@ -233,7 +227,6 @@
         .status-loading { background: #f09b42; }
         .status-offline { background: #80848e; }
         
-        /* Правый сайдбар (онлайн-пользователи) */
         .right-sidebar {
             width: 260px;
             display: flex;
@@ -271,24 +264,11 @@
             object-fit: cover;
             position: relative;
         }
-        .online-user-info {
-            flex: 1;
-        }
-        .online-user-name {
-            font-size: 14px;
-            font-weight: 500;
-        }
-        .online-user-role {
-            font-size: 10px;
-            opacity: 0.7;
-        }
+        .online-user-info { flex: 1; }
+        .online-user-name { font-size: 14px; font-weight: 500; }
+        .online-user-role { font-size: 10px; opacity: 0.7; }
         
-        /* Чат */
-        .chat {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
+        .chat { flex: 1; display: flex; flex-direction: column; }
         .chat-header {
             padding: 16px 20px;
             font-weight: 600;
@@ -351,7 +331,6 @@
         }
         .menu-btn:hover { background: #e03a3a; color: white; }
         
-        /* Панель ввода */
         .input-panel { padding: 16px 20px 24px; }
         .input-wrapper {
             display: flex;
@@ -378,7 +357,6 @@
         .btn-send { background: #5865f2; color: white; }
         .btn-send:hover { background: #4752c4; }
         
-        /* Кнопки управления в профиле */
         .profile-controls {
             display: flex;
             gap: 8px;
@@ -407,7 +385,6 @@
         @keyframes rgbText { 0% { color: #ff0000; } 33% { color: #00ff00; } 66% { color: #0088ff; } 100% { color: #ff0000; } }
         .rgb-role { animation: rgbText 1.5s infinite linear; font-weight: bold; }
         
-        /* Модалка настроек */
         .settings-modal {
             display: none;
             position: fixed;
@@ -481,7 +458,6 @@
         input:checked + .slider { background-color: #5865f2; }
         input:checked + .slider:before { transform: translateX(24px); }
         
-        /* Выбор статуса */
         .status-select {
             display: flex;
             gap: 8px;
@@ -489,8 +465,8 @@
             margin: 10px 0;
         }
         .status-option {
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
             cursor: pointer;
             border: 2px solid transparent;
@@ -558,7 +534,6 @@
 </div>
 
 <div class="app" style="display: none;" id="app">
-    <!-- Левый сайдбар (комнаты) -->
     <div class="sidebar" id="sidebar">
         <div class="server-header">✨ NEXUS</div>
         <div class="rooms-list" id="roomsList">
@@ -574,11 +549,11 @@
             </div>
         </div>
         
-        <!-- Панель пользователя снизу с кнопками микрофона и звука -->
         <div class="user-section">
             <div class="stats">
                 <div>🌐 Online: <span class="stat-value" id="online">0</span></div>
                 <div>🎙️ Voice: <span class="stat-value" id="voiceOnline">0</span></div>
+                <div>💰 Монет: <span class="stat-value" id="userCoins">0</span></div>
             </div>
             <div class="current-user">
                 <div style="position: relative;">
@@ -591,12 +566,10 @@
                 </div>
                 <button onclick="openSettings()" style="background:#3b3f48; border:none; width:32px; height:32px; border-radius:50%; cursor:pointer;">⚙️</button>
             </div>
-            <!-- Кнопки управления микрофоном и звуком (в профиле) -->
             <div class="profile-controls">
                 <button id="profileMicBtn" class="profile-btn" onclick="toggleMic()">🎤 Микрофон</button>
                 <button id="profileSpeakerBtn" class="profile-btn" onclick="toggleSpeaker()">🔊 Звук</button>
             </div>
-            <!-- Выбор статуса -->
             <div class="status-select" id="statusSelect">
                 <div class="status-option status-online-bg" data-status="online" title="В сети"></div>
                 <div class="status-option status-idle-bg" data-status="idle" title="Отошёл"></div>
@@ -607,7 +580,6 @@
         </div>
     </div>
 
-    <!-- Чат -->
     <div class="chat">
         <div class="chat-header"># <span id="currentRoomName">general</span></div>
         <div id="messages" class="messages"></div>
@@ -626,7 +598,6 @@
         </div>
     </div>
 
-    <!-- Правый сайдбар (онлайн-пользователи) -->
     <div class="right-sidebar" id="rightSidebar">
         <div class="right-sidebar-title">👥 ПОЛЬЗОВАТЕЛИ — <span id="onlineCount">0</span></div>
         <div class="online-users-list" id="onlineUsersList"></div>
@@ -663,22 +634,19 @@
 </div>
 
 <script>
-    // ========== ЗАЩИТА НИКА ВЛАДЕЛЬЦА ==========
     const PROTECTED_NAME = "bigheaven3569";
-    const OWNER_PASSWORD = "swill1337";
     
-    // ========== ПЕРЕМЕННЫЕ ==========
     let currentUser = null, currentRole = null, currentAvatar = null, currentRoom = "general", socket = null;
     let roomNotifications = {};
     let voiceStream = null, voicePeers = {}, inVoiceChannel = false, currentVoiceChannel = null;
     let isMicMuted = false, isSpeakerMuted = false;
     let currentStatus = "online";
+    let userCoins = 0;
     
     const loginModal = document.getElementById("loginModal");
     const appDiv = document.getElementById("app");
     const loginError = document.getElementById("loginError");
     
-    // ========== ЗВУКИ ==========
     const audioCtxSounds = new (window.AudioContext || window.webkitAudioContext)();
     function playBeep(frequency = 800, duration = 0.1, volume = 0.15) {
         try {
@@ -700,7 +668,6 @@
     function playRecordStartSound() { playBeep(880, 0.1, 0.2); }
     function playRecordEndSound() { playBeep(440, 0.2, 0.2); }
     
-    // ========== ТЕМА ==========
     let isDarkTheme = localStorage.getItem("theme") !== "light";
     function applyTheme() {
         const body = document.body;
@@ -723,7 +690,6 @@
     }
     applyTheme();
     
-    // ========== АВТОЛОГИН ==========
     const savedSession = localStorage.getItem("nexus_session");
     if (savedSession) {
         try {
@@ -758,7 +724,6 @@
         else dot.classList.add("status-offline");
     }
     
-    // ========== ЛОГИН/РЕГИСТРАЦИЯ ==========
     let isLoginMode = true;
     const formTitle = document.getElementById("formTitle");
     const submitBtn = document.getElementById("submitBtn");
@@ -796,7 +761,6 @@
         } else { loginError.innerText = data.error; }
     };
     
-    // ========== СМЕНА АВАТАРКИ В НАСТРОЙКАХ ==========
     document.getElementById("settingsAvatarInput").onchange = async (e) => {
         const file = e.target.files[0];
         if (!file || !file.type.match(/image\/(jpeg|png|gif|webp)/)) { alert("Можно только PNG, JPG, GIF, WEBP!"); return; }
@@ -806,7 +770,6 @@
         if (data.url) { currentAvatar = data.url; updateAvatar(); }
     };
     
-    // ========== МЕДИА ==========
     document.getElementById("mediaInput").onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -818,7 +781,6 @@
         else alert("Ошибка загрузки");
     };
     
-    // ========== УПРАВЛЕНИЕ МИКРОФОНОМ И ЗВУКОМ (В ПРОФИЛЕ) ==========
     function toggleMic() {
         if (!voiceStream) { alert("Сначала зайдите в голосовой канал"); return; }
         isMicMuted = !isMicMuted;
@@ -844,7 +806,6 @@
         });
     }
     
-    // ========== ВЫБОР СТАТУСА ==========
     function setupStatusSelect() {
         const options = document.querySelectorAll(".status-option");
         options.forEach(opt => {
@@ -859,7 +820,6 @@
         });
     }
     
-    // ========== ОБНОВЛЕНИЕ СПИСКА ПОЛЬЗОВАТЕЛЕЙ ==========
     function updateOnlineUsers(users) {
         const container = document.getElementById("onlineUsersList");
         if (!container) return;
@@ -882,7 +842,7 @@
         document.getElementById("onlineCount").innerText = users.length;
     }
     
-    // ========== ГОЛОСОВАЯ КОМНАТА ==========
+    // ========== ГОЛОСОВОЙ ЧАТ (FIX) ==========
     async function joinVoiceChannel(channelName) {
         if (inVoiceChannel && currentVoiceChannel === channelName) {
             leaveVoiceChannel();
@@ -898,8 +858,14 @@
             socket.emit("join-voice-channel", channelName);
             playJoinSound();
             
-            socket.on("voice-user", (userId) => { if (voiceStream) createVoicePeer(userId, true); });
-            socket.on("user-joined", (userId) => { if (voiceStream) createVoicePeer(userId, false); playJoinSound(); });
+            // Очищаем старые обработчики
+            socket.off("voice-user");
+            socket.off("user-joined");
+            socket.off("voice-users-update");
+            socket.off("voice-count");
+            
+            socket.on("voice-user", (userId) => { if (voiceStream && inVoiceChannel) createVoicePeer(userId, true); });
+            socket.on("user-joined", (userId) => { if (voiceStream && inVoiceChannel) createVoicePeer(userId, false); playJoinSound(); });
             
             socket.on("voice-users-update", (users) => {
                 const container = document.getElementById("voiceUsersList");
@@ -923,7 +889,7 @@
     }
     
     function createVoicePeer(id, init) {
-        if (!voiceStream) return;
+        if (!voiceStream || !inVoiceChannel) return;
         let peer = new SimplePeer({
             initiator: init,
             trickle: false,
@@ -953,13 +919,10 @@
         voiceStream = null;
         document.body.classList.remove("speaking");
         socket.emit("leave-voice-channel");
-        socket.off("voice-users-update");
-        socket.off("voice-count");
         document.getElementById("voiceUsersList").innerHTML = "";
         document.getElementById("voiceOnline").innerText = "0";
     }
     
-    // ========== SOCKET ==========
     function initSocket() {
         socket = io();
         socket.on("connect", () => socket.emit("auth", { username: currentUser, room: currentRoom }));
@@ -968,11 +931,13 @@
         socket.on("ban", (msg) => { alert(msg); localStorage.removeItem("nexus_session"); location.reload(); });
         socket.on("mute", (msg) => alert(msg));
         
-        socket.on("user-data", ({ username, role, avatar, status }) => {
+        socket.on("user-data", ({ username, role, avatar, status, coins }) => {
             currentUser = username;
             currentRole = role;
             if (avatar) currentAvatar = avatar;
+            userCoins = coins || 0;
             document.getElementById("currentNickDisplay").innerText = username;
+            document.getElementById("userCoins").innerText = userCoins;
             updateRoleUI(role);
             updateAvatar();
             if (status) updateStatusDot(status);
@@ -984,8 +949,6 @@
         
         socket.on("user-status-update", ({ username, status }) => {
             if (username === currentUser) updateStatusDot(status);
-            // обновляем список пользователей
-            fetch("/users-list").catch(() => {});
         });
         
         socket.on("history", (msgs) => {
@@ -998,7 +961,7 @@
         
         socket.on("chat", (msg) => {
             addMessageToUI(msg);
-            if (msg.author !== currentUser && msg.author !== "🛡️ СИСТЕМА") {
+            if (msg.author !== currentUser && msg.author !== "🛡️ СИСТЕМА" && msg.author !== "🛒 МАГАЗИН") {
                 playMessageSound();
             }
             if (msg.author !== currentUser && msg.room !== currentRoom) {
@@ -1050,7 +1013,7 @@
         });
         
         socket.on("signal", ({ from, data }) => {
-            if (!voicePeers[from]) createVoicePeer(from, false);
+            if (!voicePeers[from] && inVoiceChannel) createVoicePeer(from, false);
             voicePeers[from]?.signal(data);
         });
     }
@@ -1230,7 +1193,6 @@
         alert(`Ник изменён на ${newNick}`);
     }
     
-    // Запускаем выбор статуса после загрузки
     setTimeout(() => {
         setupStatusSelect();
     }, 100);
