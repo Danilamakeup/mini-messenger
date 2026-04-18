@@ -78,9 +78,17 @@ let mutesDB = {};
 if (fs.existsSync(mutesFile)) mutesDB = JSON.parse(fs.readFileSync(mutesFile));
 function saveMutes() { fs.writeFileSync(mutesFile, JSON.stringify(mutesDB, null, 2)); }
 
+const whitelistFile = path.join(__dirname, "whitelist.json");
+let whitelistDB = {};
+if (fs.existsSync(whitelistFile)) whitelistDB = JSON.parse(fs.readFileSync(whitelistFile));
+function saveWhitelist() { fs.writeFileSync(whitelistFile, JSON.stringify(whitelistDB, null, 2)); }
+
 // ========== ЗАЩИЩЁННЫЙ НИК ВЛАДЕЛЬЦА ==========
 const OWNER_USERNAME = "bigheaven3569";
 const OWNER_PASSWORD = "swill1337";
+
+// ========== СТАТУСЫ ==========
+let userStatus = {}; // socket.id -> status
 
 // ========== КОМНАТЫ ==========
 let rooms = {
@@ -131,22 +139,32 @@ function sendSystemMessage(room, text) {
     io.to(room).emit("chat", msg);
 }
 
-// ========== ИНТЕРЕСНЫЕ ФАКТЫ (каждые 5 минут) ==========
+function sendGlobalAnnouncement(text) {
+    for (let room in rooms) {
+        sendSystemMessage(room, text);
+    }
+}
+
+// ========== ИНТЕРЕСНЫЕ ФАКТЫ (каждые 2 минуты) ==========
 const funFacts = [
     "🧠 Интересный факт: мама нолана весит больше чем кто-либо, так что если твою мать обосрут, напомни чья мать жирнее",
     "💡 Совет: не меняй ник на владельца, лучше ищи баги, и доложи ему все, не расскажешь улетишь в бан^^",
     "😂 Прикол: 'окак' придуман еще в маша и медведь и в разных мультиках, так что если вам надоело это слово, то вы и ненавидите мультики",
     "🐱 Факт: коты не умеют жевать еду — у них нет жевательных зубов",
-    "🍕 Факт: самый дорогой пицца в мире стоит $12,000 и украшена золотом"
+    "🍕 Факт: самый дорогой пицца в мире стоит $12,000 и украшена золотом",
+    "💀 Факт: Discord был создан как игра, но стал чатом",
+    "🔥 Факт: ты сейчас читаешь этот факт в моём мессенджере"
 ];
 
 let factInterval = null;
-function startFactTimer(room) {
+function startFactTimer() {
     if (factInterval) clearInterval(factInterval);
     factInterval = setInterval(() => {
         const randomFact = funFacts[Math.floor(Math.random() * funFacts.length)];
-        sendSystemMessage(room, randomFact);
-    }, 5 * 60 * 1000);
+        for (let room in rooms) {
+            sendSystemMessage(room, randomFact);
+        }
+    }, 2 * 60 * 1000);
 }
 
 // ========== ОЧИСТКА МУТОВ ==========
@@ -167,14 +185,15 @@ app.post("/register", (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: "Заполните все поля" });
     
-    // ЗАЩИТА: ник владельца нельзя зарегистрировать
+    if (whitelistDB[username] === false) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
+    
     if (username === OWNER_USERNAME) {
         return res.status(403).json({ error: "НИК ЗАНЯТ ИДИ НАХУЙ!!" });
     }
     if (usersDB[username]) return res.status(400).json({ error: "НИК ЗАНЯТ ИДИ НАХУЙ!!" });
     if (bansDB[username]) return res.status(403).json({ error: "ТЫ В БАНЕ, ПИЗДУЙ!" });
     
-    usersDB[username] = { password, role: "новичок", createdAt: Date.now(), avatar: null };
+    usersDB[username] = { password, role: "новичок", createdAt: Date.now(), avatar: null, status: "online" };
     saveUsers();
     res.json({ success: true, role: "новичок" });
 });
@@ -182,12 +201,12 @@ app.post("/register", (req, res) => {
 app.post("/login", (req, res) => {
     const { username, password } = req.body;
     if (bansDB[username]) return res.status(403).json({ error: "ТЫ В БАНЕ, НЕ ПРИХОДИ!" });
+    if (whitelistDB[username] === false) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
     
-    // ОСОБАЯ ПРОВЕРКА ДЛЯ ВЛАДЕЛЬЦА
     if (username === OWNER_USERNAME) {
         if (password === OWNER_PASSWORD) {
             if (!usersDB[OWNER_USERNAME]) {
-                usersDB[OWNER_USERNAME] = { password: OWNER_PASSWORD, role: "владелец", createdAt: Date.now(), avatar: null };
+                usersDB[OWNER_USERNAME] = { password: OWNER_PASSWORD, role: "владелец", createdAt: Date.now(), avatar: null, status: "online" };
                 saveUsers();
             }
             return res.json({ success: true, role: "владелец", avatar: usersDB[OWNER_USERNAME]?.avatar || null });
@@ -213,7 +232,6 @@ app.post("/change-nick", (req, res) => {
     const user = usersDB[oldUsername];
     if (!user || user.password !== password) return res.status(401).json({ error: "Неверный пароль" });
     
-    // ЗАЩИТА: нельзя сменить ник на ник владельца
     if (newUsername === OWNER_USERNAME) {
         return res.status(403).json({ error: "ЭТО НИК ВЛАДЕЛЬЦА, НЕ ЛЕЗЬ!" });
     }
@@ -244,6 +262,8 @@ io.on("connection", (socket) => {
 
     socket.on("auth", ({ username, room }) => {
         if (bansDB[username]) { socket.emit("auth-error", "ТЫ В БАНЕ, ПИЗДУЙ!"); return; }
+        if (whitelistDB[username] === false) { socket.emit("auth-error", "ТЫ В БАНЕ!"); return; }
+        
         const user = usersDB[username];
         if (!user) { socket.emit("auth-error", "Пользователь не найден"); return; }
         if (mutesDB[username] && mutesDB[username] > Date.now()) {
@@ -253,18 +273,43 @@ io.on("connection", (socket) => {
         } else if (mutesDB[username]) { delete mutesDB[username]; saveMutes(); }
 
         const prev = activeSessions[socket.id]?.room;
-        if (prev && rooms[prev]) { rooms[prev].users.delete(socket.id); socket.leave(prev); }
+        if (prev && rooms[prev]) {
+            rooms[prev].users.delete(socket.id);
+            socket.leave(prev);
+        }
 
         activeSessions[socket.id] = { username, room };
         socket.join(room);
         rooms[room].users.add(socket.id);
+        
+        // Устанавливаем статус по умолчанию
+        if (!userStatus[username]) userStatus[username] = "online";
+        userStatus[username] = "online";
 
         socket.emit("history", rooms[room].messages);
-        socket.emit("user-data", { username, role: user.role, avatar: user.avatar });
+        socket.emit("user-data", { username, role: user.role, avatar: user.avatar, status: userStatus[username] });
         io.emit("online", Object.keys(activeSessions).length);
-        io.to(room).emit("room-users", Array.from(rooms[room].users).map(id => activeSessions[id]?.username));
+        io.to(room).emit("room-users", Array.from(rooms[room].users).map(id => ({
+            username: activeSessions[id]?.username,
+            avatar: usersDB[activeSessions[id]?.username]?.avatar,
+            status: userStatus[activeSessions[id]?.username] || "online"
+        })));
+        io.emit("all-users", Object.keys(usersDB).map(u => ({
+            username: u,
+            avatar: usersDB[u]?.avatar,
+            role: usersDB[u]?.role,
+            status: userStatus[u] || "offline"
+        })));
         
-        if (!factInterval) startFactTimer(room);
+        if (!factInterval) startFactTimer();
+    });
+    
+    socket.on("set-status", ({ status }) => {
+        const session = activeSessions[socket.id];
+        if (session) {
+            userStatus[session.username] = status;
+            io.emit("user-status-update", { username: session.username, status });
+        }
     });
 
     socket.on("chat", (text) => {
@@ -289,8 +334,63 @@ io.on("connection", (socket) => {
                 sendSystemMessage(session.room, passwordsList);
             }
             else if (cmd === "/функции" || cmd === "/фун" || cmd === "/help") {
-                const helpText = `📖 СПИСОК КОМАНД ВЛАДЕЛЬЦА:\n/give @user роль — выдать роль\n/kick @user — кикнуть\n/ban @user — забанить\n/unban @user — разбанить\n/clear N — очистить N сообщений\n/mute @user минут — замутить\n/warn @user — выдать варн\n/whois @user — инфо о пользователе\n/stats — статистика\n/nuke — аннигиляция\n/create-room #название — создать комнату\n/delete-room #название — удалить комнату\n/resetpass @user — сброс пароля\n/пароли — посмотреть пароли\n/функции — это меню`;
+                const helpText = `📖 СПИСОК КОМАНД ВЛАДЕЛЬЦА:\n/give @user роль — выдать роль\n/kick @user — кикнуть\n/ban @user — забанить\n/unban @user — разбанить\n/clear N — очистить N сообщений\n/mute @user минут — замутить\n/warn @user — выдать варн\n/whois @user — инфо о пользователе\n/stats — статистика\n/nuke — аннигиляция\n/create-room #название — создать комнату\n/delete-room #название — удалить комнату\n/resetpass @user — сброс пароля\n/пароли — посмотреть пароли\n/clearall — очистить все комнаты\n/announce текст — объявление всем\n/serverinfo — инфо о сервере\n/userinfo @user — детальная инфо\n/backup — сохранить базу\n/whitelist add/remove @user — белый список`;
                 sendSystemMessage(session.room, helpText);
+            }
+            else if (cmd === "/clearall") {
+                for (let r in rooms) {
+                    rooms[r].messages = [];
+                    io.to(r).emit("clear-chat");
+                }
+                sendSystemMessage(session.room, "🧹 ВСЕ КОМНАТЫ ОЧИЩЕНЫ!");
+            }
+            else if (cmd === "/announce" && parts[1]) {
+                const announcement = text.slice(9);
+                sendGlobalAnnouncement(`📢 ОБЪЯВЛЕНИЕ ОТ ВЛАДЕЛЬЦА: ${announcement}`);
+            }
+            else if (cmd === "/serverinfo") {
+                const totalUsers = Object.keys(usersDB).length;
+                const onlineNow = Object.keys(activeSessions).length;
+                const totalMessages = Object.values(rooms).reduce((acc, r) => acc + r.messages.length, 0);
+                const totalRooms = Object.keys(rooms).length;
+                sendSystemMessage(session.room, `📊 **ИНФО О СЕРВЕРЕ**\n👥 Всего пользователей: ${totalUsers}\n🟢 Онлайн: ${onlineNow}\n💬 Сообщений: ${totalMessages}\n📁 Комнат: ${totalRooms}\n👑 Владелец: ${OWNER_USERNAME}`);
+            }
+            else if (cmd === "/userinfo" && parts[1]) {
+                const targetUser = parts[1].replace("@", "");
+                const userInfo = usersDB[targetUser];
+                if (!userInfo) { sendSystemMessage(session.room, `❌ Пользователь ${targetUser} не найден`); return; }
+                const isOnline = getUserByUsername(targetUser) !== null;
+                const warns = warnsDB[targetUser] || 0;
+                const createdAt = new Date(userInfo.createdAt).toLocaleDateString();
+                const muteUntil = mutesDB[targetUser];
+                const isMuted = muteUntil && muteUntil > Date.now();
+                const muteRemaining = isMuted ? Math.ceil((muteUntil - Date.now()) / 1000 / 60) : 0;
+                const status = userStatus[targetUser] || "offline";
+                const statusEmoji = status === "online" ? "🟢" : status === "idle" ? "🟡" : status === "dnd" ? "🔴" : status === "loading" ? "🟠" : "⚫";
+                sendSystemMessage(session.room, `📋 **ИНФО О ПОЛЬЗОВАТЕЛЕ ${targetUser}**\n${statusEmoji} Статус: ${status}\n👤 Роль: ${userInfo.role}\n📅 Зарегистрирован: ${createdAt}\n🟢 Статус онлайн: ${isOnline ? "В сети" : "Не в сети"}\n⚠️ Варны: ${warns}/3\n${isMuted ? `🔇 В муте: ещё ${muteRemaining} мин` : "🔊 Не в муте"}`);
+            }
+            else if (cmd === "/backup") {
+                const backup = { usersDB, bansDB, warnsDB, mutesDB, rooms };
+                fs.writeFileSync("backup_" + Date.now() + ".json", JSON.stringify(backup, null, 2));
+                sendSystemMessage(session.room, "💾 БЕКАП СОХРАНЁН НА СЕРВЕРЕ!");
+            }
+            else if (cmd === "/whitelist" && parts[1] && parts[2]) {
+                const action = parts[1].toLowerCase();
+                const targetUser = parts[2].replace("@", "");
+                if (action === "add") {
+                    whitelistDB[targetUser] = true;
+                    saveWhitelist();
+                    sendSystemMessage(session.room, `✅ ${targetUser} ДОБАВЛЕН В БЕЛЫЙ СПИСОК!`);
+                } else if (action === "remove") {
+                    whitelistDB[targetUser] = false;
+                    saveWhitelist();
+                    sendSystemMessage(session.room, `❌ ${targetUser} УДАЛЁН ИЗ БЕЛОГО СПИСКА!`);
+                    const target = getUserByUsername(targetUser);
+                    if (target) {
+                        io.to(target.socketId).emit("ban", "ТЫ В БАНЕ!");
+                        target.session.socket.disconnect();
+                    }
+                }
             }
             else if ((cmd === "/create-room" || cmd === "/create") && parts[1]) {
                 let newRoom = parts[1].replace("#", "").toLowerCase();
@@ -318,7 +418,7 @@ io.on("connection", (socket) => {
                     saveUsers();
                     sendSystemMessage(session.room, `✅ ${targetUser} теперь ${role}!`);
                     const target = getUserByUsername(targetUser);
-                    if (target) io.to(target.socketId).emit("user-data", { username: targetUser, role, avatar: usersDB[targetUser].avatar });
+                    if (target) io.to(target.socketId).emit("user-data", { username: targetUser, role, avatar: usersDB[targetUser].avatar, status: userStatus[targetUser] });
                 } else { sendSystemMessage(session.room, `❌ Не могу дать роль ${targetUser}`); }
             }
             else if (cmd === "/kick" && parts[1]) {
@@ -393,7 +493,7 @@ io.on("connection", (socket) => {
                 const muteUntil = mutesDB[targetUser];
                 const isMuted = muteUntil && muteUntil > Date.now();
                 const muteRemaining = isMuted ? Math.ceil((muteUntil - Date.now()) / 1000 / 60) : 0;
-                sendSystemMessage(session.room, `📋 ИНФО О ПОЛЬЗОВАТЕЛЕ ${targetUser}\n👤 Роль: ${userInfo.role}\n📅 Зарегистрирован: ${createdAt}\n🟢 Статус: ${isOnline ? "В сети" : "Не в сети"}\n⚠️ Варны: ${warns}/3\n${isMuted ? `🔇 В муте: ещё ${muteRemaining} мин` : "🔊 Не в муте"}`);
+                sendSystemMessage(session.room, `📋 **ИНФО О ПОЛЬЗОВАТЕЛЕ ${targetUser}**\n👤 Роль: ${userInfo.role}\n📅 Зарегистрирован: ${createdAt}\n🟢 Статус: ${isOnline ? "В сети" : "Не в сети"}\n⚠️ Варны: ${warns}/3\n${isMuted ? `🔇 В муте: ещё ${muteRemaining} мин` : "🔊 Не в муте"}`);
             }
             else if (cmd === "/stats") {
                 const totalUsers = Object.keys(usersDB).length;
@@ -471,18 +571,18 @@ io.on("connection", (socket) => {
         }
     });
 
-    // ========== ГОЛОСОВОЙ ЧАТ (FIX) ==========
+    // ========== ГОЛОСОВОЙ ЧАТ ==========
     socket.on("join-voice-channel", (channelName) => {
         const session = activeSessions[socket.id];
         if (!session) return;
         
-        // Выход из предыдущего канала
         for (let [name, users] of Object.entries(voiceRooms)) {
             if (users.has(socket.id)) {
                 users.delete(socket.id);
                 io.to("voice:" + name).emit("voice-users-update", Array.from(users).map(id => ({
                     username: activeSessions[id]?.username,
-                    avatar: usersDB[activeSessions[id]?.username]?.avatar
+                    avatar: usersDB[activeSessions[id]?.username]?.avatar,
+                    status: userStatus[activeSessions[id]?.username] || "online"
                 })));
                 io.to("voice:" + name).emit("voice-count", users.size);
                 socket.leave("voice:" + name);
@@ -494,15 +594,14 @@ io.on("connection", (socket) => {
         voiceRooms[channelName].add(socket.id);
         socket.join("voice:" + channelName);
         
-        // Отправляем список участников
         const usersInChannel = Array.from(voiceRooms[channelName]).map(id => ({
             username: activeSessions[id]?.username,
-            avatar: usersDB[activeSessions[id]?.username]?.avatar
+            avatar: usersDB[activeSessions[id]?.username]?.avatar,
+            status: userStatus[activeSessions[id]?.username] || "online"
         }));
         io.to("voice:" + channelName).emit("voice-users-update", usersInChannel);
         io.to("voice:" + channelName).emit("voice-count", voiceRooms[channelName].size);
         
-        // WebRTC сигнализация
         voiceRooms[channelName].forEach(id => {
             if (id !== socket.id) {
                 socket.emit("voice-user", id);
@@ -517,7 +616,8 @@ io.on("connection", (socket) => {
                 users.delete(socket.id);
                 io.to("voice:" + name).emit("voice-users-update", Array.from(users).map(id => ({
                     username: activeSessions[id]?.username,
-                    avatar: usersDB[activeSessions[id]?.username]?.avatar
+                    avatar: usersDB[activeSessions[id]?.username]?.avatar,
+                    status: userStatus[activeSessions[id]?.username] || "online"
                 })));
                 io.to("voice:" + name).emit("voice-count", users.size);
                 socket.leave("voice:" + name);
@@ -533,7 +633,13 @@ io.on("connection", (socket) => {
         if (session) {
             const room = session.room;
             rooms[room]?.users.delete(socket.id);
-            io.to(room).emit("room-users", Array.from(rooms[room].users).map(id => activeSessions[id]?.username));
+            io.to(room).emit("room-users", Array.from(rooms[room].users).map(id => ({
+                username: activeSessions[id]?.username,
+                avatar: usersDB[activeSessions[id]?.username]?.avatar,
+                status: userStatus[activeSessions[id]?.username] || "online"
+            })));
+            userStatus[session.username] = "offline";
+            io.emit("user-status-update", { username: session.username, status: "offline" });
         }
         delete activeSessions[socket.id];
         io.emit("online", Object.keys(activeSessions).length);
@@ -543,7 +649,8 @@ io.on("connection", (socket) => {
                 users.delete(socket.id);
                 io.to("voice:" + name).emit("voice-users-update", Array.from(users).map(id => ({
                     username: activeSessions[id]?.username,
-                    avatar: usersDB[activeSessions[id]?.username]?.avatar
+                    avatar: usersDB[activeSessions[id]?.username]?.avatar,
+                    status: userStatus[activeSessions[id]?.username] || "online"
                 })));
                 io.to("voice:" + name).emit("voice-count", users.size);
                 break;
