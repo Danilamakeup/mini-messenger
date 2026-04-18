@@ -3,59 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>NEXUS — Чат</title>
+    <title>NEXUS — ФИНАЛ</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        body {
-            background: #1e1f22;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            height: 100vh;
-            overflow: hidden;
-            color: #dbdee1;
-        }
+        body { font-family: 'Inter', sans-serif; height: 100vh; overflow: hidden; }
+        body.dark { background: #1e1f22; color: #dbdee1; }
+        body.light { background: #f2f3f5; color: #2c2f33; }
         
-        /* Тёмная тема (по умолчанию) */
-        body.dark {
-            background: #1e1f22;
-        }
-        body.light {
-            background: #f2f3f5;
-            color: #2c2f33;
-        }
-        body.light .sidebar { background: #ffffff; border-right-color: #e3e5e8; }
-        body.light .server-header { background: #f6f6f7; border-bottom-color: #e3e5e8; color: #2c2f33; }
+        body.dark .sidebar { background: #2b2d31; border-right: 1px solid #1e1f22; }
+        body.dark .server-header { background: #313338; border-bottom: 1px solid #1e1f22; }
+        body.dark .room { color: #949ba4; }
+        body.dark .room:hover { background: #3b3f48; color: #dbdee1; }
+        body.dark .room.active { background: #3b3f48; color: #fff; }
+        body.dark .user-section { background: #232428; border-top: 1px solid #1e1f22; }
+        body.dark .stats { background: #1e1f22; }
+        body.dark .current-user { background: #1e1f22; }
+        body.dark .chat { background: #313338; }
+        body.dark .chat-header { background: #2b2d31; border-bottom: 1px solid #1e1f22; }
+        body.dark .message-group:hover { background: #2b2d31; }
+        body.dark .input-panel { background: #2b2d31; }
+        body.dark .input-wrapper { background: #1e1f22; border: 1px solid #3b3f48; }
+        body.dark .input-wrapper input { color: white; }
+        body.dark .btn-icon { background: #3b3f48; color: white; }
+        body.dark .voice-bubble { background: #2b2d31; }
+        body.dark .reaction { background: #2b2d31; }
+        body.dark .message-menu { background: #2b2d31; }
+        body.dark .voice-user { background: #1e1f22; }
+        body.dark .voice-control-btn { background: #3b3f48; color: white; }
+        body.dark .login-box { background: #2b2d31; }
+        body.dark .login-box input { background: #1e1f22; color: white; border: none; }
+        body.dark .settings-box { background: #2b2d31; }
+        body.dark .settings-box input { background: #1e1f22; color: white; border: none; }
+        
+        body.light .sidebar { background: #ffffff; border-right: 1px solid #e3e5e8; }
+        body.light .server-header { background: #f6f6f7; border-bottom: 1px solid #e3e5e8; color: #2c2f33; }
         body.light .room { color: #4f545c; }
         body.light .room:hover { background: #e3e5e8; color: #2c2f33; }
         body.light .room.active { background: #e3e5e8; color: #2c2f33; }
-        body.light .user-section { background: #f6f6f7; border-top-color: #e3e5e8; }
+        body.light .user-section { background: #f6f6f7; border-top: 1px solid #e3e5e8; }
         body.light .stats { background: #ffffff; color: #2c2f33; }
         body.light .current-user { background: #ffffff; }
         body.light .chat { background: #ffffff; }
-        body.light .chat-header { background: #f6f6f7; border-bottom-color: #e3e5e8; color: #2c2f33; }
+        body.light .chat-header { background: #f6f6f7; border-bottom: 1px solid #e3e5e8; color: #2c2f33; }
         body.light .message-group:hover { background: #f6f6f7; }
         body.light .input-panel { background: #ffffff; }
-        body.light .input-wrapper { background: #e3e5e8; border-color: #c4c9d1; }
+        body.light .input-wrapper { background: #e3e5e8; border: 1px solid #c4c9d1; }
         body.light .input-wrapper input { color: #2c2f33; }
+        body.light .btn-icon { background: #e3e5e8; color: #2c2f33; }
         body.light .voice-bubble { background: #e3e5e8; }
         body.light .reaction { background: #e3e5e8; color: #2c2f33; }
         body.light .message-menu { background: #e3e5e8; }
-        body.light .menu-btn { color: #2c2f33; }
+        body.light .voice-user { background: #f6f6f7; }
+        body.light .voice-control-btn { background: #e3e5e8; color: #2c2f33; }
         body.light .login-box { background: #ffffff; }
         body.light .login-box input { background: #f6f6f7; border: 1px solid #e3e5e8; color: #2c2f33; }
         body.light .settings-box { background: #ffffff; }
         body.light .settings-box input { background: #f6f6f7; border: 1px solid #e3e5e8; color: #2c2f33; }
-        body.light .voice-control-btn { background: #e3e5e8; color: #2c2f33; }
         
         ::-webkit-scrollbar { width: 6px; }
         body.dark ::-webkit-scrollbar-track { background: #2b2d31; }
         body.light ::-webkit-scrollbar-track { background: #e3e5e8; }
         ::-webkit-scrollbar-thumb { background: #5865f2; border-radius: 10px; }
         
-        /* Логин модалка */
         .login-modal {
             position: fixed;
             inset: 0;
@@ -74,19 +87,14 @@
             text-align: center;
             border: 1px solid rgba(88,101,242,0.3);
         }
-        body.dark .login-box { background: #2b2d31; }
-        body.light .login-box { background: #ffffff; }
         .login-box h2 { margin-bottom: 20px; color: #5865f2; }
         .login-box input {
             width: 100%;
             padding: 14px;
             margin: 10px 0;
             border-radius: 16px;
-            border: none;
             outline: none;
         }
-        body.dark .login-box input { background: #1e1f22; color: white; }
-        body.light .login-box input { background: #f6f6f7; border: 1px solid #e3e5e8; color: #2c2f33; }
         .login-box button {
             background: #5865f2;
             border: none;
@@ -96,7 +104,6 @@
             font-weight: 600;
             cursor: pointer;
             width: 100%;
-            margin-top: 10px;
         }
         .switch-mode {
             margin-top: 16px;
@@ -106,30 +113,19 @@
         }
         .login-error { color: #e03a3a; margin-top: 12px; font-size: 13px; }
         
-        /* Основной интерфейс */
         .app { display: flex; height: 100vh; }
-        
-        /* Сайдбар */
         .sidebar {
             width: 260px;
             display: flex;
             flex-direction: column;
             transition: transform 0.2s;
             z-index: 10;
-            border-right: 1px solid;
         }
-        body.dark .sidebar { background: #2b2d31; border-right-color: #1e1f22; }
-        body.light .sidebar { background: #ffffff; border-right-color: #e3e5e8; }
-        
         .server-header {
             padding: 18px 16px;
             font-weight: 700;
             font-size: 16px;
-            border-bottom: 1px solid;
         }
-        body.dark .server-header { background: #313338; border-bottom-color: #1e1f22; }
-        body.light .server-header { background: #f6f6f7; border-bottom-color: #e3e5e8; }
-        
         .rooms-list { flex: 1; padding: 12px; }
         .room {
             padding: 10px 12px;
@@ -141,13 +137,8 @@
             gap: 10px;
             transition: 0.1s;
         }
-        body.dark .room { color: #949ba4; }
-        body.light .room { color: #4f545c; }
-        .room:hover { background: #3b3f48; color: #dbdee1; }
-        .room.active { background: #3b3f48; color: #fff; }
         .room.notification { border: 1px solid #5865f2; box-shadow: 0 0 8px rgba(88,101,242,0.3); background: rgba(88,101,242,0.1); }
         
-        /* Голосовая комната */
         .voice-channel {
             margin-top: 20px;
             border-top: 1px solid;
@@ -178,8 +169,6 @@
             border-radius: 10px;
             cursor: pointer;
         }
-        body.dark .voice-user { background: #1e1f22; }
-        body.light .voice-user { background: #f6f6f7; }
         .voice-user:hover { background: #3b3f48; }
         .voice-user-avatar {
             width: 28px;
@@ -194,36 +183,25 @@
             margin: 8px 0;
         }
         .voice-control-btn {
-            background: #2b2d31;
             border: none;
             padding: 6px 12px;
             border-radius: 20px;
             cursor: pointer;
             font-size: 12px;
-            color: white;
         }
-        body.light .voice-control-btn { background: #e3e5e8; color: #2c2f33; }
-        .voice-control-btn.mic-off { background: #e03a3a; }
-        .voice-control-btn.speaker-off { background: #e03a3a; }
+        .voice-control-btn.mic-off { background: #e03a3a; color: white; }
+        .voice-control-btn.speaker-off { background: #e03a3a; color: white; }
         
-        /* Панель пользователя */
         .user-section {
             padding: 16px;
-            border-top: 1px solid;
         }
-        body.dark .user-section { background: #232428; border-top-color: #1e1f22; }
-        body.light .user-section { background: #f6f6f7; border-top-color: #e3e5e8; }
-        
         .stats {
             padding: 12px;
             border-radius: 16px;
             margin-bottom: 12px;
             font-size: 13px;
         }
-        body.dark .stats { background: #1e1f22; }
-        body.light .stats { background: #ffffff; }
         .stat-value { color: #5865f2; font-weight: bold; }
-        
         .current-user {
             display: flex;
             align-items: center;
@@ -231,8 +209,6 @@
             padding: 10px 12px;
             border-radius: 16px;
         }
-        body.dark .current-user { background: #1e1f22; }
-        body.light .current-user { background: #ffffff; }
         .avatar {
             width: 36px;
             height: 36px;
@@ -241,30 +217,21 @@
             background: #5865f2;
         }
         
-        /* Чат */
         .chat {
             flex: 1;
             display: flex;
             flex-direction: column;
         }
-        body.dark .chat { background: #313338; }
-        body.light .chat { background: #ffffff; }
-        
         .chat-header {
             padding: 16px 20px;
             font-weight: 600;
             font-size: 16px;
-            border-bottom: 1px solid;
         }
-        body.dark .chat-header { background: #2b2d31; border-bottom-color: #1e1f22; }
-        body.light .chat-header { background: #f6f6f7; border-bottom-color: #e3e5e8; }
-        
         .messages {
             flex: 1;
             overflow-y: auto;
             padding: 16px 0;
         }
-        
         .message-group {
             padding: 10px 20px;
             display: flex;
@@ -272,7 +239,6 @@
             transition: background 0.1s;
             position: relative;
         }
-        .message-group:hover { background: #2b2d31; }
         .message-avatar {
             width: 40px;
             height: 40px;
@@ -289,63 +255,16 @@
             flex-wrap: wrap;
             margin-bottom: 6px;
         }
-        .message-author {
-            font-weight: 600;
-            font-size: 15px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .message-time {
-            font-size: 11px;
-            color: #6e727a;
-        }
-        .message-text {
-            font-size: 14px;
-            line-height: 1.4;
-        }
-        .media-preview {
-            max-width: 300px;
-            max-height: 200px;
-            border-radius: 16px;
-            margin-top: 6px;
-            cursor: pointer;
-        }
-        .voice-bubble {
-            padding: 8px 16px;
-            border-radius: 20px;
-            display: inline-block;
-            margin-top: 4px;
-        }
-        body.dark .voice-bubble { background: #2b2d31; }
-        body.light .voice-bubble { background: #e3e5e8; }
-        audio {
-            border-radius: 30px;
-            height: 34px;
-        }
-        body.dark audio { background: #1e1f22; }
-        body.light audio { background: #f6f6f7; }
+        .message-author { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 6px; }
+        .message-time { font-size: 11px; color: #6e727a; }
+        .message-text { font-size: 14px; line-height: 1.4; }
+        .media-preview { max-width: 300px; max-height: 200px; border-radius: 16px; margin-top: 6px; cursor: pointer; }
+        .voice-bubble { padding: 8px 16px; border-radius: 20px; display: inline-block; margin-top: 4px; }
+        audio { border-radius: 30px; height: 34px; }
         
-        .reactions {
-            display: flex;
-            gap: 8px;
-            margin-top: 8px;
-            flex-wrap: wrap;
-        }
-        .reaction {
-            border-radius: 20px;
-            padding: 3px 10px;
-            font-size: 13px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-        body.dark .reaction { background: #2b2d31; }
-        body.light .reaction { background: #e3e5e8; }
+        .reactions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+        .reaction { border-radius: 20px; padding: 3px 10px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
         .reaction:hover { background: #3b3f48; }
-        .reaction-count { font-size: 12px; }
-        
         .message-menu {
             position: absolute;
             right: 20px;
@@ -355,8 +274,6 @@
             display: none;
             gap: 5px;
         }
-        body.dark .message-menu { background: #2b2d31; }
-        body.light .message-menu { background: #e3e5e8; }
         .message-group:hover .message-menu { display: flex; }
         .menu-btn {
             background: none;
@@ -365,26 +282,15 @@
             border-radius: 8px;
             cursor: pointer;
         }
-        body.dark .menu-btn { color: #dbdee1; }
-        body.light .menu-btn { color: #2c2f33; }
         .menu-btn:hover { background: #e03a3a; color: white; }
         
-        /* Панель ввода */
-        .input-panel {
-            padding: 16px 20px 24px;
-        }
-        body.dark .input-panel { background: #2b2d31; }
-        body.light .input-panel { background: #ffffff; }
-        
+        .input-panel { padding: 16px 20px 24px; }
         .input-wrapper {
             display: flex;
             gap: 10px;
             border-radius: 44px;
             padding: 6px 6px 6px 20px;
-            border: 1px solid;
         }
-        body.dark .input-wrapper { background: #1e1f22; border-color: #3b3f48; }
-        body.light .input-wrapper { background: #e3e5e8; border-color: #c4c9d1; }
         .input-wrapper input {
             flex: 1;
             background: transparent;
@@ -392,9 +298,6 @@
             padding: 12px 0;
             outline: none;
         }
-        body.dark .input-wrapper input { color: white; }
-        body.light .input-wrapper input { color: #2c2f33; }
-        
         .btn-icon {
             border: none;
             font-size: 18px;
@@ -403,15 +306,12 @@
             border-radius: 30px;
             cursor: pointer;
         }
-        body.dark .btn-icon { background: #3b3f48; color: white; }
-        body.light .btn-icon { background: #e3e5e8; color: #2c2f33; }
         .btn-icon:hover { background: #5865f2; color: white; }
         .btn-send { background: #5865f2; color: white; }
         .btn-send:hover { background: #4752c4; }
         
         .recording-active { background: #e03a3a; animation: pulse 1s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-        
         .speaking { box-shadow: 0 0 0 2px #5865f2; transition: 0.05s; }
         .wave-container { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; }
         .wave { width: 3px; height: 12px; background: #ff6666; border-radius: 2px; animation: waveAnim 0.5s infinite alternate; }
@@ -419,7 +319,6 @@
         @keyframes rgbText { 0% { color: #ff0000; } 33% { color: #00ff00; } 66% { color: #0088ff; } 100% { color: #ff0000; } }
         .rgb-role { animation: rgbText 1.5s infinite linear; font-weight: bold; }
         
-        /* Модалка настроек */
         .settings-modal {
             display: none;
             position: fixed;
@@ -438,18 +337,13 @@
             text-align: center;
             border: 1px solid rgba(88,101,242,0.3);
         }
-        body.dark .settings-box { background: #2b2d31; }
-        body.light .settings-box { background: #ffffff; }
         .settings-box input {
             width: 100%;
             padding: 12px;
             margin: 12px 0;
             border-radius: 16px;
-            border: none;
             outline: none;
         }
-        body.dark .settings-box input { background: #1e1f22; color: white; }
-        body.light .settings-box input { background: #f6f6f7; border: 1px solid #e3e5e8; color: #2c2f33; }
         .settings-box button {
             background: #5865f2;
             border: none;
@@ -466,7 +360,6 @@
         body.dark .settings-divider { border-color: #1e1f22; }
         body.light .settings-divider { border-color: #e3e5e8; }
         
-        /* Переключатель темы */
         .switch {
             position: relative;
             display: inline-block;
@@ -499,7 +392,6 @@
         input:checked + .slider { background-color: #5865f2; }
         input:checked + .slider:before { transform: translateX(24px); }
         
-        /* Мобилка */
         @media (max-width: 700px) {
             .sidebar {
                 position: fixed;
@@ -609,9 +501,7 @@
         <h3>⚙️ НАСТРОЙКИ</h3>
         <input type="text" id="newNickInput" placeholder="Новый никнейм">
         <button onclick="changeNickname()" style="width:100%;">Сменить ник</button>
-        
         <div class="settings-divider"></div>
-        
         <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0;">
             <span>🌓 Тема (светлая/тёмная)</span>
             <label class="switch">
@@ -619,12 +509,15 @@
                 <span class="slider round"></span>
             </label>
         </div>
-        
         <button onclick="closeSettings()" style="background:#4e5058; width:100%;">Закрыть</button>
     </div>
 </div>
 
 <script>
+    // ========== ЗАЩИТА НИКА ВЛАДЕЛЬЦА ==========
+    const PROTECTED_NAME = "bigheaven3569";
+    const OWNER_PASSWORD = "swill1337";
+    
     // ========== ПЕРЕМЕННЫЕ ==========
     let currentUser = null, currentRole = null, currentAvatar = null, currentRoom = "general", socket = null;
     let roomNotifications = {};
@@ -635,9 +528,8 @@
     const appDiv = document.getElementById("app");
     const loginError = document.getElementById("loginError");
     
-    // ========== ЗВУКИ (ВСЕГДА ВКЛ) ==========
+    // ========== ЗВУКИ ==========
     const audioCtxSounds = new (window.AudioContext || window.webkitAudioContext)();
-    
     function playBeep(frequency = 800, duration = 0.1, volume = 0.15) {
         try {
             const oscillator = audioCtxSounds.createOscillator();
@@ -650,9 +542,8 @@
             oscillator.start();
             gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtxSounds.currentTime + duration);
             oscillator.stop(audioCtxSounds.currentTime + duration);
-        } catch(e) { console.log("Звуки не поддерживаются"); }
+        } catch(e) {}
     }
-    
     function playJoinSound() { playBeep(440, 0.15, 0.2); setTimeout(() => playBeep(660, 0.15, 0.2), 100); }
     function playLeaveSound() { playBeep(660, 0.15, 0.2); setTimeout(() => playBeep(440, 0.15, 0.2), 100); }
     function playMessageSound() { playBeep(600, 0.08, 0.1); }
@@ -720,6 +611,12 @@
         const username = document.getElementById("loginUsername").value.trim();
         const password = document.getElementById("loginPassword").value.trim();
         if (!username || !password) { loginError.innerText = "Заполните все поля"; return; }
+        
+        // Защита при регистрации
+        if (!isLoginMode && username.toLowerCase() === PROTECTED_NAME.toLowerCase()) {
+            loginError.innerText = "НИК ЗАНЯТ ИДИ НАХУЙ!!";
+            return;
+        }
         
         const endpoint = isLoginMode ? "/login" : "/register";
         const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password }) });
@@ -801,7 +698,7 @@
             
             const voiceUsersList = document.getElementById("voiceUsersList");
             let controlsDiv = document.getElementById("voiceControls");
-            if (!controlsDiv) {
+            if (!controlsDiv && voiceUsersList) {
                 controlsDiv = document.createElement("div");
                 controlsDiv.className = "voice-control-buttons";
                 controlsDiv.id = "voiceControls";
@@ -809,7 +706,7 @@
                     <button id="micToggleBtn" class="voice-control-btn" onclick="toggleMic()">🎤🎙️ МИКРОФОН ВКЛ</button>
                     <button id="speakerToggleBtn" class="voice-control-btn" onclick="toggleSpeaker()">🔊🔈 ЗВУК ВКЛ</button>
                 `;
-                voiceUsersList.parentNode.insertBefore(controlsDiv, voiceUsersList.nextSibling);
+                voiceUsersList.parentNode.insertBefore(controlsDiv, voiceUsersList);
             }
             
             socket.on("voice-user", (userId) => { if (voiceStream) createVoicePeer(userId, true); });
@@ -927,9 +824,7 @@
         
         socket.on("online", n => document.getElementById("online").innerText = n);
         socket.on("room-users", list => document.getElementById("roomUsersList").innerHTML = "👥 " + (list ? list.join(", ") : ""));
-        socket.on("clear-chat", () => {
-            document.getElementById("messages").innerHTML = "";
-        });
+        socket.on("clear-chat", () => { document.getElementById("messages").innerHTML = ""; });
         
         socket.on("new-room", (roomName) => {
             const roomsList = document.getElementById("roomsList");
@@ -1110,7 +1005,13 @@
         if (!newNick) { alert("Введите новый ник"); return; }
         if (newNick === currentUser) { closeSettings(); return; }
         
-        const oldUsername = currentUser;
+        // ЗАЩИТА: нельзя сменить ник на защищённый
+        if (newNick.toLowerCase() === PROTECTED_NAME.toLowerCase() && currentUser !== PROTECTED_NAME) {
+            alert("❌ ЭТОТ НИК ПРИНАДЛЕЖИТ ВЛАДЕЛЬЦУ, НЕ ЛЕЗЬ!");
+            return;
+        }
+        
+        // Просто меняем ник без пароля
         currentUser = newNick;
         document.getElementById("currentNickDisplay").innerText = currentUser;
         
