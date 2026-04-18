@@ -86,10 +86,13 @@ let rooms = {
     general: { messages: [], users: new Set() },
     gaming: { messages: [], users: new Set() },
     music: { messages: [], users: new Set() },
-    "other-fuckin-shit": { messages: [], users: new Set() }
+    "other-fuckin-shit": { messages: [], users: new Set() },
+    "voice-chat": { messages: [], users: new Set() }  // Голосовая комната
 };
 
-const voiceRooms = { test: new Set() };
+const voiceRooms = {
+    "voice-chat": new Set()  // Голосовой канал
+};
 const activeSessions = {};
 
 const roomsFile = path.join(__dirname, "rooms.json");
@@ -340,6 +343,25 @@ io.on("connection", (socket) => {
                     if (target) { io.to(target.socketId).emit("ban", "3 варна = БАН!"); target.session.socket.disconnect(); }
                 }
             }
+            else if (cmd === "/whois" && parts[1]) {
+                const targetUser = parts[1].replace("@", "");
+                const userInfo = usersDB[targetUser];
+                if (!userInfo) { sendSystemMessage(session.room, `❌ Пользователь ${targetUser} не найден`); return; }
+                const isOnline = getUserByUsername(targetUser) !== null;
+                const warns = warnsDB[targetUser] || 0;
+                const createdAt = new Date(userInfo.createdAt).toLocaleDateString();
+                const muteUntil = mutesDB[targetUser];
+                const isMuted = muteUntil && muteUntil > Date.now();
+                const muteRemaining = isMuted ? Math.ceil((muteUntil - Date.now()) / 1000 / 60) : 0;
+                sendSystemMessage(session.room, `
+📋 **ИНФО О ПОЛЬЗОВАТЕЛЕ ${targetUser}**
+👤 Роль: ${userInfo.role}
+📅 Зарегистрирован: ${createdAt}
+🟢 Статус: ${isOnline ? "В сети" : "Не в сети"}
+⚠️ Варны: ${warns}/3
+${isMuted ? `🔇 В муте: ещё ${muteRemaining} мин` : "🔊 Не в муте"}
+                `);
+            }
             else if (cmd === "/stats") {
                 const totalUsers = Object.keys(usersDB).length;
                 const onlineNow = Object.keys(activeSessions).length;
@@ -416,18 +438,58 @@ io.on("connection", (socket) => {
         }
     });
 
-    socket.on("voice-join", (room) => {
-        const vr = "voice:" + room;
-        socket.join(vr);
-        if (!voiceRooms[room]) voiceRooms[room] = new Set();
-        voiceRooms[room].add(socket.id);
-        voiceRooms[room].forEach(id => { if (id !== socket.id) socket.emit("voice-user", id); });
-        socket.to(vr).emit("user-joined", socket.id);
-        io.to(vr).emit("voice-count", voiceRooms[room].size);
+    // ========== ГОЛОСОВОЙ ЧАТ (отдельная комната) ==========
+    socket.on("join-voice-channel", (channelName) => {
+        const session = activeSessions[socket.id];
+        if (!session) return;
+        
+        // Покидаем предыдущий голосовой канал
+        for (let [name, users] of Object.entries(voiceRooms)) {
+            if (users.has(socket.id)) {
+                users.delete(socket.id);
+                io.to("voice:" + name).emit("voice-users-update", Array.from(users).map(id => ({
+                    username: activeSessions[id]?.username,
+                    avatar: usersDB[activeSessions[id]?.username]?.avatar
+                })));
+                io.to("voice:" + name).emit("voice-count", users.size);
+                socket.leave("voice:" + name);
+            }
+        }
+        
+        if (!voiceRooms[channelName]) voiceRooms[channelName] = new Set();
+        voiceRooms[channelName].add(socket.id);
+        socket.join("voice:" + channelName);
+        
+        // Отправляем обновлённый список участников
+        const usersInChannel = Array.from(voiceRooms[channelName]).map(id => ({
+            username: activeSessions[id]?.username,
+            avatar: usersDB[activeSessions[id]?.username]?.avatar
+        }));
+        io.to("voice:" + channelName).emit("voice-users-update", usersInChannel);
+        io.to("voice:" + channelName).emit("voice-count", voiceRooms[channelName].size);
+        
+        // WebRTC сигнализация
+        voiceRooms[channelName].forEach(id => {
+            if (id !== socket.id) {
+                socket.emit("voice-user", id);
+            }
+        });
+        socket.to("voice:" + channelName).emit("user-joined", socket.id);
     });
-
-    socket.on("voice-leave", (room) => {
-        if (voiceRooms[room]) { voiceRooms[room].delete(socket.id); io.to("voice:" + room).emit("voice-count", voiceRooms[room].size); }
+    
+    socket.on("leave-voice-channel", () => {
+        for (let [name, users] of Object.entries(voiceRooms)) {
+            if (users.has(socket.id)) {
+                users.delete(socket.id);
+                io.to("voice:" + name).emit("voice-users-update", Array.from(users).map(id => ({
+                    username: activeSessions[id]?.username,
+                    avatar: usersDB[activeSessions[id]?.username]?.avatar
+                })));
+                io.to("voice:" + name).emit("voice-count", users.size);
+                socket.leave("voice:" + name);
+                break;
+            }
+        }
     });
 
     socket.on("signal", ({ to, data }) => { io.to(to).emit("signal", { from: socket.id, data }); });
@@ -441,6 +503,19 @@ io.on("connection", (socket) => {
         }
         delete activeSessions[socket.id];
         io.emit("online", Object.keys(activeSessions).length);
+        
+        // Выход из голосовых комнат
+        for (let [name, users] of Object.entries(voiceRooms)) {
+            if (users.has(socket.id)) {
+                users.delete(socket.id);
+                io.to("voice:" + name).emit("voice-users-update", Array.from(users).map(id => ({
+                    username: activeSessions[id]?.username,
+                    avatar: usersDB[activeSessions[id]?.username]?.avatar
+                })));
+                io.to("voice:" + name).emit("voice-count", users.size);
+                break;
+            }
+        }
     });
 });
 
