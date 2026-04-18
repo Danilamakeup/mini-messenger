@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>NEXUS — ФИНАЛ</title>
+    <title>NEXUS — МЕГА-ЧАТ</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.js"></script>
@@ -14,6 +14,7 @@
         body.dark { background: #1e1f22; color: #dbdee1; }
         body.light { background: #f2f3f5; color: #2c2f33; }
         
+        /* Тёмная тема */
         body.dark .sidebar { background: #2b2d31; border-right: 1px solid #1e1f22; }
         body.dark .server-header { background: #313338; border-bottom: 1px solid #1e1f22; }
         body.dark .room { color: #949ba4; }
@@ -38,7 +39,11 @@
         body.dark .login-box input { background: #1e1f22; color: white; border: none; }
         body.dark .settings-box { background: #2b2d31; }
         body.dark .settings-box input { background: #1e1f22; color: white; border: none; }
+        body.dark .right-sidebar { background: #2b2d31; border-left: 1px solid #1e1f22; }
+        body.dark .online-user { background: #1e1f22; }
+        body.dark .online-user:hover { background: #3b3f48; }
         
+        /* Светлая тема */
         body.light .sidebar { background: #ffffff; border-right: 1px solid #e3e5e8; }
         body.light .server-header { background: #f6f6f7; border-bottom: 1px solid #e3e5e8; color: #2c2f33; }
         body.light .room { color: #4f545c; }
@@ -63,12 +68,16 @@
         body.light .login-box input { background: #f6f6f7; border: 1px solid #e3e5e8; color: #2c2f33; }
         body.light .settings-box { background: #ffffff; }
         body.light .settings-box input { background: #f6f6f7; border: 1px solid #e3e5e8; color: #2c2f33; }
+        body.light .right-sidebar { background: #ffffff; border-left: 1px solid #e3e5e8; }
+        body.light .online-user { background: #f6f6f7; }
+        body.light .online-user:hover { background: #e3e5e8; }
         
         ::-webkit-scrollbar { width: 6px; }
         body.dark ::-webkit-scrollbar-track { background: #2b2d31; }
         body.light ::-webkit-scrollbar-track { background: #e3e5e8; }
         ::-webkit-scrollbar-thumb { background: #5865f2; border-radius: 10px; }
         
+        /* Логин модалка */
         .login-modal {
             position: fixed;
             inset: 0;
@@ -113,7 +122,10 @@
         }
         .login-error { color: #e03a3a; margin-top: 12px; font-size: 13px; }
         
+        /* Основной интерфейс */
         .app { display: flex; height: 100vh; }
+        
+        /* Левый сайдбар (комнаты) */
         .sidebar {
             width: 260px;
             display: flex;
@@ -177,21 +189,8 @@
             object-fit: cover;
         }
         .voice-user-name { font-size: 13px; font-weight: 500; }
-        .voice-control-buttons {
-            display: flex;
-            gap: 8px;
-            margin: 8px 0;
-        }
-        .voice-control-btn {
-            border: none;
-            padding: 6px 12px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        .voice-control-btn.mic-off { background: #e03a3a; color: white; }
-        .voice-control-btn.speaker-off { background: #e03a3a; color: white; }
         
+        /* Панель пользователя снизу */
         .user-section {
             padding: 16px;
         }
@@ -215,8 +214,76 @@
             border-radius: 50%;
             object-fit: cover;
             background: #5865f2;
+            position: relative;
+        }
+        .status-dot {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid;
+        }
+        body.dark .status-dot { border-color: #2b2d31; }
+        body.light .status-dot { border-color: #ffffff; }
+        .status-online { background: #23a55a; }
+        .status-idle { background: #f0b232; }
+        .status-dnd { background: #f23f42; }
+        .status-loading { background: #f09b42; }
+        .status-offline { background: #80848e; }
+        
+        /* Правый сайдбар (онлайн-пользователи) */
+        .right-sidebar {
+            width: 260px;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+        }
+        .right-sidebar-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            padding: 0 8px;
+        }
+        body.dark .right-sidebar-title { color: #949ba4; }
+        body.light .right-sidebar-title { color: #4f545c; }
+        .online-users-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .online-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .online-user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+            position: relative;
+        }
+        .online-user-info {
+            flex: 1;
+        }
+        .online-user-name {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .online-user-role {
+            font-size: 10px;
+            opacity: 0.7;
         }
         
+        /* Чат */
         .chat {
             flex: 1;
             display: flex;
@@ -284,6 +351,7 @@
         }
         .menu-btn:hover { background: #e03a3a; color: white; }
         
+        /* Панель ввода */
         .input-panel { padding: 16px 20px 24px; }
         .input-wrapper {
             display: flex;
@@ -310,6 +378,26 @@
         .btn-send { background: #5865f2; color: white; }
         .btn-send:hover { background: #4752c4; }
         
+        /* Кнопки управления в профиле */
+        .profile-controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .profile-btn {
+            flex: 1;
+            background: #3b3f48;
+            border: none;
+            padding: 6px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        body.dark .profile-btn { background: #3b3f48; color: white; }
+        body.light .profile-btn { background: #e3e5e8; color: #2c2f33; }
+        .profile-btn.mic-off { background: #e03a3a; }
+        .profile-btn.speaker-off { background: #e03a3a; }
+        
         .recording-active { background: #e03a3a; animation: pulse 1s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
         .speaking { box-shadow: 0 0 0 2px #5865f2; transition: 0.05s; }
@@ -319,6 +407,7 @@
         @keyframes rgbText { 0% { color: #ff0000; } 33% { color: #00ff00; } 66% { color: #0088ff; } 100% { color: #ff0000; } }
         .rgb-role { animation: rgbText 1.5s infinite linear; font-weight: bold; }
         
+        /* Модалка настроек */
         .settings-modal {
             display: none;
             position: fixed;
@@ -333,7 +422,7 @@
         .settings-box {
             border-radius: 28px;
             padding: 28px;
-            width: 320px;
+            width: 340px;
             text-align: center;
             border: 1px solid rgba(88,101,242,0.3);
         }
@@ -392,6 +481,32 @@
         input:checked + .slider { background-color: #5865f2; }
         input:checked + .slider:before { transform: translateX(24px); }
         
+        /* Выбор статуса */
+        .status-select {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin: 10px 0;
+        }
+        .status-option {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: 0.1s;
+        }
+        .status-option:hover { transform: scale(1.1); }
+        .status-option.selected { border-color: #5865f2; }
+        .status-online-bg { background: #23a55a; }
+        .status-idle-bg { background: #f0b232; }
+        .status-dnd-bg { background: #f23f42; }
+        .status-loading-bg { background: #f09b42; }
+        .status-offline-bg { background: #80848e; }
+        
+        @media (max-width: 900px) {
+            .right-sidebar { display: none; }
+        }
         @media (max-width: 700px) {
             .sidebar {
                 position: fixed;
@@ -443,6 +558,7 @@
 </div>
 
 <div class="app" style="display: none;" id="app">
+    <!-- Левый сайдбар (комнаты) -->
     <div class="sidebar" id="sidebar">
         <div class="server-header">✨ NEXUS</div>
         <div class="rooms-list" id="roomsList">
@@ -457,24 +573,41 @@
                 <div id="voiceUsersList" class="voice-users-list"></div>
             </div>
         </div>
+        
+        <!-- Панель пользователя снизу с кнопками микрофона и звука -->
         <div class="user-section">
             <div class="stats">
                 <div>🌐 Online: <span class="stat-value" id="online">0</span></div>
                 <div>🎙️ Voice: <span class="stat-value" id="voiceOnline">0</span></div>
-                <div id="roomUsersList" style="font-size:12px; margin-top:8px;"></div>
             </div>
             <div class="current-user">
-                <img class="avatar" id="myAvatar" src="">
-                <div>
+                <div style="position: relative;">
+                    <img class="avatar" id="myAvatar" src="">
+                    <div class="status-dot" id="myStatusDot"></div>
+                </div>
+                <div style="flex:1">
                     <div id="currentNickDisplay" style="font-weight:600;"></div>
                     <div id="currentRoleDisplay" style="font-size:11px;"></div>
                 </div>
-                <label style="margin-left:auto; background:#3b3f48; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;">📷<input type="file" id="avatarInput" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;"></label>
                 <button onclick="openSettings()" style="background:#3b3f48; border:none; width:32px; height:32px; border-radius:50%; cursor:pointer;">⚙️</button>
+            </div>
+            <!-- Кнопки управления микрофоном и звуком (в профиле) -->
+            <div class="profile-controls">
+                <button id="profileMicBtn" class="profile-btn" onclick="toggleMic()">🎤 Микрофон</button>
+                <button id="profileSpeakerBtn" class="profile-btn" onclick="toggleSpeaker()">🔊 Звук</button>
+            </div>
+            <!-- Выбор статуса -->
+            <div class="status-select" id="statusSelect">
+                <div class="status-option status-online-bg" data-status="online" title="В сети"></div>
+                <div class="status-option status-idle-bg" data-status="idle" title="Отошёл"></div>
+                <div class="status-option status-dnd-bg" data-status="dnd" title="Не беспокоить"></div>
+                <div class="status-option status-loading-bg" data-status="loading" title="Загружаюсь"></div>
+                <div class="status-option status-offline-bg" data-status="offline" title="Не в сети"></div>
             </div>
         </div>
     </div>
 
+    <!-- Чат -->
     <div class="chat">
         <div class="chat-header"># <span id="currentRoomName">general</span></div>
         <div id="messages" class="messages"></div>
@@ -492,6 +625,12 @@
             </div>
         </div>
     </div>
+
+    <!-- Правый сайдбар (онлайн-пользователи) -->
+    <div class="right-sidebar" id="rightSidebar">
+        <div class="right-sidebar-title">👥 ПОЛЬЗОВАТЕЛИ — <span id="onlineCount">0</span></div>
+        <div class="online-users-list" id="onlineUsersList"></div>
+    </div>
 </div>
 
 <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
@@ -501,7 +640,16 @@
         <h3>⚙️ НАСТРОЙКИ</h3>
         <input type="text" id="newNickInput" placeholder="Новый никнейм">
         <button onclick="changeNickname()" style="width:100%;">Сменить ник</button>
+        
         <div class="settings-divider"></div>
+        
+        <div style="margin: 10px 0;">
+            <label>📷 Сменить аватарку</label>
+            <input type="file" id="settingsAvatarInput" accept="image/jpeg,image/png,image/gif,image/webp" style="padding: 8px;">
+        </div>
+        
+        <div class="settings-divider"></div>
+        
         <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0;">
             <span>🌓 Тема (светлая/тёмная)</span>
             <label class="switch">
@@ -509,6 +657,7 @@
                 <span class="slider round"></span>
             </label>
         </div>
+        
         <button onclick="closeSettings()" style="background:#4e5058; width:100%;">Закрыть</button>
     </div>
 </div>
@@ -523,6 +672,7 @@
     let roomNotifications = {};
     let voiceStream = null, voicePeers = {}, inVoiceChannel = false, currentVoiceChannel = null;
     let isMicMuted = false, isSpeakerMuted = false;
+    let currentStatus = "online";
     
     const loginModal = document.getElementById("loginModal");
     const appDiv = document.getElementById("app");
@@ -586,13 +736,27 @@
                         initSocket();
                         document.getElementById("currentNickDisplay").innerText = currentUser;
                         updateRoleUI(currentRole);
-                        document.getElementById("myAvatar").src = currentAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser)}&background=5865f2&color=fff&size=36`;
+                        updateAvatar();
+                        updateStatusDot("online");
                     } else { localStorage.removeItem("nexus_session"); }
                 });
         } catch(e) { localStorage.removeItem("nexus_session"); }
     }
     
     function saveSession(username, password) { localStorage.setItem("nexus_session", JSON.stringify({ username, password })); }
+    function updateAvatar() {
+        const avatarUrl = currentAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser)}&background=5865f2&color=fff&size=36`;
+        document.getElementById("myAvatar").src = avatarUrl;
+    }
+    function updateStatusDot(status) {
+        const dot = document.getElementById("myStatusDot");
+        dot.className = "status-dot";
+        if (status === "online") dot.classList.add("status-online");
+        else if (status === "idle") dot.classList.add("status-idle");
+        else if (status === "dnd") dot.classList.add("status-dnd");
+        else if (status === "loading") dot.classList.add("status-loading");
+        else dot.classList.add("status-offline");
+    }
     
     // ========== ЛОГИН/РЕГИСТРАЦИЯ ==========
     let isLoginMode = true;
@@ -612,7 +776,6 @@
         const password = document.getElementById("loginPassword").value.trim();
         if (!username || !password) { loginError.innerText = "Заполните все поля"; return; }
         
-        // Защита при регистрации
         if (!isLoginMode && username.toLowerCase() === PROTECTED_NAME.toLowerCase()) {
             loginError.innerText = "НИК ЗАНЯТ ИДИ НАХУЙ!!";
             return;
@@ -628,18 +791,19 @@
             initSocket();
             document.getElementById("currentNickDisplay").innerText = currentUser;
             updateRoleUI(currentRole);
-            document.getElementById("myAvatar").src = currentAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser)}&background=5865f2&color=fff&size=36`;
+            updateAvatar();
+            updateStatusDot("online");
         } else { loginError.innerText = data.error; }
     };
     
-    // ========== АВАТАРКА ==========
-    document.getElementById("avatarInput").onchange = async (e) => {
+    // ========== СМЕНА АВАТАРКИ В НАСТРОЙКАХ ==========
+    document.getElementById("settingsAvatarInput").onchange = async (e) => {
         const file = e.target.files[0];
         if (!file || !file.type.match(/image\/(jpeg|png|gif|webp)/)) { alert("Можно только PNG, JPG, GIF, WEBP!"); return; }
         const fd = new FormData(); fd.append("avatar", file); fd.append("username", currentUser);
         const res = await fetch("/upload-avatar", { method: "POST", body: fd });
         const data = await res.json();
-        if (data.url) { currentAvatar = data.url; document.getElementById("myAvatar").src = currentAvatar; }
+        if (data.url) { currentAvatar = data.url; updateAvatar(); }
     };
     
     // ========== МЕДИА ==========
@@ -654,23 +818,23 @@
         else alert("Ошибка загрузки");
     };
     
-    // ========== УПРАВЛЕНИЕ МИКРОФОНОМ ==========
+    // ========== УПРАВЛЕНИЕ МИКРОФОНОМ И ЗВУКОМ (В ПРОФИЛЕ) ==========
     function toggleMic() {
-        if (!voiceStream) return;
+        if (!voiceStream) { alert("Сначала зайдите в голосовой канал"); return; }
         isMicMuted = !isMicMuted;
         voiceStream.getAudioTracks().forEach(track => track.enabled = !isMicMuted);
-        const micBtn = document.getElementById("micToggleBtn");
+        const micBtn = document.getElementById("profileMicBtn");
         if (micBtn) {
-            micBtn.innerHTML = isMicMuted ? "🎤🔇 МИКРОФОН ВЫКЛ" : "🎤🎙️ МИКРОФОН ВКЛ";
+            micBtn.innerHTML = isMicMuted ? "🎤🔇 МИКРОФОН" : "🎤🎙️ МИКРОФОН";
             micBtn.classList.toggle("mic-off", isMicMuted);
         }
     }
     
     function toggleSpeaker() {
         isSpeakerMuted = !isSpeakerMuted;
-        const speakerBtn = document.getElementById("speakerToggleBtn");
+        const speakerBtn = document.getElementById("profileSpeakerBtn");
         if (speakerBtn) {
-            speakerBtn.innerHTML = isSpeakerMuted ? "🔊🔇 ЗВУК ВЫКЛ" : "🔊🔈 ЗВУК ВКЛ";
+            speakerBtn.innerHTML = isSpeakerMuted ? "🔊🔇 ЗВУК" : "🔊🔈 ЗВУК";
             speakerBtn.classList.toggle("speaker-off", isSpeakerMuted);
         }
         const allAudios = document.querySelectorAll("audio");
@@ -678,6 +842,44 @@
             if (isSpeakerMuted) audio.volume = 0;
             else audio.volume = 0.8;
         });
+    }
+    
+    // ========== ВЫБОР СТАТУСА ==========
+    function setupStatusSelect() {
+        const options = document.querySelectorAll(".status-option");
+        options.forEach(opt => {
+            opt.addEventListener("click", () => {
+                const status = opt.getAttribute("data-status");
+                currentStatus = status;
+                updateStatusDot(status);
+                socket.emit("set-status", { status });
+                options.forEach(o => o.classList.remove("selected"));
+                opt.classList.add("selected");
+            });
+        });
+    }
+    
+    // ========== ОБНОВЛЕНИЕ СПИСКА ПОЛЬЗОВАТЕЛЕЙ ==========
+    function updateOnlineUsers(users) {
+        const container = document.getElementById("onlineUsersList");
+        if (!container) return;
+        container.innerHTML = users.map(user => {
+            const statusEmoji = user.status === "online" ? "🟢" : user.status === "idle" ? "🟡" : user.status === "dnd" ? "🔴" : user.status === "loading" ? "🟠" : "⚫";
+            return `
+                <div class="online-user">
+                    <div style="position: relative;">
+                        <img class="online-user-avatar" src="${user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=5865f2&color=fff&size=32`}">
+                        <div class="status-dot ${user.status === 'online' ? 'status-online' : user.status === 'idle' ? 'status-idle' : user.status === 'dnd' ? 'status-dnd' : user.status === 'loading' ? 'status-loading' : 'status-offline'}" style="width: 8px; height: 8px;"></div>
+                    </div>
+                    <div class="online-user-info">
+                        <div class="online-user-name">${escapeHtml(user.username)}</div>
+                        <div class="online-user-role">${user.role || "пользователь"}</div>
+                    </div>
+                    <div>${statusEmoji}</div>
+                </div>
+            `;
+        }).join("");
+        document.getElementById("onlineCount").innerText = users.length;
     }
     
     // ========== ГОЛОСОВАЯ КОМНАТА ==========
@@ -696,19 +898,6 @@
             socket.emit("join-voice-channel", channelName);
             playJoinSound();
             
-            const voiceUsersList = document.getElementById("voiceUsersList");
-            let controlsDiv = document.getElementById("voiceControls");
-            if (!controlsDiv && voiceUsersList) {
-                controlsDiv = document.createElement("div");
-                controlsDiv.className = "voice-control-buttons";
-                controlsDiv.id = "voiceControls";
-                controlsDiv.innerHTML = `
-                    <button id="micToggleBtn" class="voice-control-btn" onclick="toggleMic()">🎤🎙️ МИКРОФОН ВКЛ</button>
-                    <button id="speakerToggleBtn" class="voice-control-btn" onclick="toggleSpeaker()">🔊🔈 ЗВУК ВКЛ</button>
-                `;
-                voiceUsersList.parentNode.insertBefore(controlsDiv, voiceUsersList);
-            }
-            
             socket.on("voice-user", (userId) => { if (voiceStream) createVoicePeer(userId, true); });
             socket.on("user-joined", (userId) => { if (voiceStream) createVoicePeer(userId, false); playJoinSound(); });
             
@@ -717,7 +906,10 @@
                 if (container) {
                     container.innerHTML = users.map(user => `
                         <div class="voice-user" data-username="${user.username}">
-                            <img class="voice-user-avatar" src="${user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=5865f2&color=fff&size=28`}">
+                            <div style="position: relative;">
+                                <img class="voice-user-avatar" src="${user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=5865f2&color=fff&size=28`}">
+                                <div class="status-dot ${user.status === 'online' ? 'status-online' : user.status === 'idle' ? 'status-idle' : user.status === 'dnd' ? 'status-dnd' : user.status === 'loading' ? 'status-loading' : 'status-offline'}" style="width: 7px; height: 7px;"></div>
+                            </div>
                             <span class="voice-user-name">${escapeHtml(user.username)}</span>
                         </div>
                     `).join("");
@@ -765,8 +957,6 @@
         socket.off("voice-count");
         document.getElementById("voiceUsersList").innerHTML = "";
         document.getElementById("voiceOnline").innerText = "0";
-        const controls = document.getElementById("voiceControls");
-        if (controls) controls.remove();
     }
     
     // ========== SOCKET ==========
@@ -778,10 +968,24 @@
         socket.on("ban", (msg) => { alert(msg); localStorage.removeItem("nexus_session"); location.reload(); });
         socket.on("mute", (msg) => alert(msg));
         
-        socket.on("user-data", ({ username, role, avatar }) => {
+        socket.on("user-data", ({ username, role, avatar, status }) => {
+            currentUser = username;
+            currentRole = role;
+            if (avatar) currentAvatar = avatar;
             document.getElementById("currentNickDisplay").innerText = username;
             updateRoleUI(role);
-            if (avatar) document.getElementById("myAvatar").src = avatar;
+            updateAvatar();
+            if (status) updateStatusDot(status);
+        });
+        
+        socket.on("all-users", (users) => {
+            updateOnlineUsers(users);
+        });
+        
+        socket.on("user-status-update", ({ username, status }) => {
+            if (username === currentUser) updateStatusDot(status);
+            // обновляем список пользователей
+            fetch("/users-list").catch(() => {});
         });
         
         socket.on("history", (msgs) => {
@@ -823,7 +1027,10 @@
         });
         
         socket.on("online", n => document.getElementById("online").innerText = n);
-        socket.on("room-users", list => document.getElementById("roomUsersList").innerHTML = "👥 " + (list ? list.join(", ") : ""));
+        socket.on("room-users", list => {
+            const container = document.getElementById("roomUsersList");
+            if (container) container.innerHTML = "👥 " + (list ? list.map(u => u.username || u).join(", ") : "");
+        });
         socket.on("clear-chat", () => { document.getElementById("messages").innerHTML = ""; });
         
         socket.on("new-room", (roomName) => {
@@ -1005,16 +1212,13 @@
         if (!newNick) { alert("Введите новый ник"); return; }
         if (newNick === currentUser) { closeSettings(); return; }
         
-        // ЗАЩИТА: нельзя сменить ник на защищённый
         if (newNick.toLowerCase() === PROTECTED_NAME.toLowerCase() && currentUser !== PROTECTED_NAME) {
             alert("❌ ЭТОТ НИК ПРИНАДЛЕЖИТ ВЛАДЕЛЬЦУ, НЕ ЛЕЗЬ!");
             return;
         }
         
-        // Просто меняем ник без пароля
         currentUser = newNick;
         document.getElementById("currentNickDisplay").innerText = currentUser;
-        
         socket.emit("auth", { username: currentUser, room: currentRoom });
         
         const saved = JSON.parse(localStorage.getItem("nexus_session"));
@@ -1025,6 +1229,11 @@
         closeSettings();
         alert(`Ник изменён на ${newNick}`);
     }
+    
+    // Запускаем выбор статуса после загрузки
+    setTimeout(() => {
+        setupStatusSelect();
+    }, 100);
 </script>
 </body>
 </html>
