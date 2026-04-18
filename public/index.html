@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>NEXUS — Голосовой чат</title>
+    <title>NEXUS — Полный ультимативный чат</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.js"></script>
@@ -48,6 +48,15 @@
         .stat-value { color: #8f9eff; font-weight: bold; }
         .current-user { display: flex; align-items: center; gap: 10px; background: #151721; padding: 10px 12px; border-radius: 16px; }
         .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: #5865f2; }
+        
+        /* Переключатель звуков */
+        .sound-settings { display: flex; align-items: center; justify-content: space-between; margin: 12px 0; padding: 8px 0; border-top: 1px solid #1e2029; }
+        .switch { position: relative; display: inline-block; width: 46px; height: 22px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #2b2d31; transition: 0.2s; border-radius: 22px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: 0.2s; border-radius: 50%; }
+        input:checked + .slider { background-color: #5865f2; }
+        input:checked + .slider:before { transform: translateX(24px); }
         
         .chat { flex: 1; display: flex; flex-direction: column; background: #0f1117; }
         .chat-header { padding: 16px 20px; background: #11131c; border-bottom: 1px solid #1e2029; font-weight: 600; }
@@ -125,7 +134,6 @@
             <div class="room" data-room="music" onclick="joinRoom('music')">🎵 music</div>
             <div class="room" data-room="other-fuckin-shit" onclick="joinRoom('other-fuckin-shit')">💩 other-fuckin-shit</div>
             
-            <!-- Голосовая комната -->
             <div class="voice-channel">
                 <div class="voice-channel-title">🔊 ГОЛОСОВЫЕ КАНАЛЫ</div>
                 <div class="room" data-room="voice-chat" onclick="joinVoiceChannel('voice-chat')">🎤 Голосовой чат</div>
@@ -146,6 +154,13 @@
                 </div>
                 <label style="margin-left:auto; background:#2b2d31; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;">📷<input type="file" id="avatarInput" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;"></label>
                 <button onclick="openSettings()" style="background:#2b2d31; border:none; width:32px; height:32px; border-radius:50%; cursor:pointer;">⚙️</button>
+            </div>
+            <div class="sound-settings">
+                <span>🔊 Звуки</span>
+                <label class="switch">
+                    <input type="checkbox" id="soundToggle" checked>
+                    <span class="slider round"></span>
+                </label>
             </div>
         </div>
     </div>
@@ -186,10 +201,42 @@
     let currentUser = null, currentRole = null, currentAvatar = null, currentRoom = "general", socket = null;
     let roomNotifications = {};
     let voiceStream = null, voicePeers = {}, inVoiceChannel = false, currentVoiceChannel = null;
+    let soundEnabled = localStorage.getItem("soundEnabled") !== "false";
     
     const loginModal = document.getElementById("loginModal");
     const appDiv = document.getElementById("app");
     const loginError = document.getElementById("loginError");
+    
+    // ========== ЗВУКОВЫЕ ЭФФЕКТЫ ==========
+    const audioCtxSounds = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playBeep(frequency = 800, duration = 0.1, volume = 0.2) {
+        if (!soundEnabled) return;
+        try {
+            const oscillator = audioCtxSounds.createOscillator();
+            const gainNode = audioCtxSounds.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtxSounds.destination);
+            oscillator.frequency.value = frequency;
+            gainNode.gain.value = volume;
+            oscillator.type = "sine";
+            oscillator.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtxSounds.currentTime + duration);
+            oscillator.stop(audioCtxSounds.currentTime + duration);
+        } catch(e) { console.log("Звуки не поддерживаются"); }
+    }
+    
+    function playJoinSound() { playBeep(440, 0.15, 0.2); setTimeout(() => playBeep(660, 0.15, 0.2), 100); }
+    function playLeaveSound() { playBeep(660, 0.15, 0.2); setTimeout(() => playBeep(440, 0.15, 0.2), 100); }
+    function playMessageSound() { playBeep(600, 0.08, 0.12); }
+    function playRecordStartSound() { playBeep(880, 0.1, 0.2); }
+    function playRecordEndSound() { playBeep(440, 0.2, 0.2); }
+    
+    document.getElementById("soundToggle") && (document.getElementById("soundToggle").checked = soundEnabled);
+    document.getElementById("soundToggle")?.addEventListener("change", (e) => {
+        soundEnabled = e.target.checked;
+        localStorage.setItem("soundEnabled", soundEnabled);
+    });
     
     // ========== АВТОЛОГИН ==========
     const savedSession = localStorage.getItem("nexus_session");
@@ -269,12 +316,10 @@
     // ========== ГОЛОСОВАЯ КОМНАТА ==========
     async function joinVoiceChannel(channelName) {
         if (inVoiceChannel && currentVoiceChannel === channelName) {
-            // Если уже в этой комнате — выходим
             leaveVoiceChannel();
             return;
         }
         
-        // Выходим из текущей голосовой комнаты
         if (inVoiceChannel) leaveVoiceChannel();
         
         currentVoiceChannel = channelName;
@@ -283,12 +328,11 @@
         try {
             voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             socket.emit("join-voice-channel", channelName);
+            playJoinSound();
             
-            // WebRTC настройка
             socket.on("voice-user", (userId) => { if (voiceStream) createVoicePeer(userId, true); });
-            socket.on("user-joined", (userId) => { if (voiceStream) createVoicePeer(userId, false); });
+            socket.on("user-joined", (userId) => { if (voiceStream) createVoicePeer(userId, false); playJoinSound(); });
             
-            // Говорящий эффект
             const ctx = new AudioContext();
             const src = ctx.createMediaStreamSource(voiceStream);
             const analyser = ctx.createAnalyser();
@@ -303,7 +347,6 @@
                 }
             }, 100);
             
-            // Обновление списка участников голосового канала
             socket.on("voice-users-update", (users) => {
                 const container = document.getElementById("voiceUsersList");
                 if (!container) return;
@@ -316,9 +359,7 @@
                 document.getElementById("voiceOnline").innerText = users.length;
             });
             
-            socket.on("voice-count", (count) => {
-                document.getElementById("voiceOnline").innerText = count;
-            });
+            socket.on("voice-count", (count) => { document.getElementById("voiceOnline").innerText = count; });
             
         } catch(e) { console.error("Микрофон не доступен", e); inVoiceChannel = false; }
     }
@@ -338,8 +379,10 @@
     }
     
     function leaveVoiceChannel() {
+        if (!inVoiceChannel) return;
         inVoiceChannel = false;
         currentVoiceChannel = null;
+        playLeaveSound();
         Object.values(voicePeers).forEach(p => p.destroy());
         voicePeers = {};
         if (voiceStream) voiceStream.getTracks().forEach(t => t.stop());
@@ -370,6 +413,9 @@
         socket.on("history", (msgs) => { document.getElementById("messages").innerHTML = ""; msgs.forEach(msg => addMessageToUI(msg)); });
         socket.on("chat", (msg) => {
             addMessageToUI(msg);
+            if (msg.author !== currentUser && msg.author !== "🛡️ СИСТЕМА") {
+                playMessageSound();
+            }
             if (msg.author !== currentUser && msg.room !== currentRoom) {
                 const roomEl = document.querySelector(`.room[data-room="${msg.room}"]`);
                 if (roomEl) roomEl.classList.add("notification");
@@ -405,7 +451,6 @@
             if (currentRoom === roomName) joinRoom("general");
         });
         
-        // WebRTC сигнализация для голосового чата
         socket.on("signal", ({ from, data }) => {
             if (!voicePeers[from]) createVoicePeer(from, false);
             voicePeers[from]?.signal(data);
@@ -497,6 +542,7 @@
             isRecording = true;
             recordBtn.classList.add("recording-active"); recordBtn.innerText = "⏹️";
             cancelBtn.style.display = "inline-flex"; waveVisual.style.display = "inline-flex";
+            playRecordStartSound();
             let seconds = 0;
             recordTimer = setInterval(() => {
                 seconds++;
@@ -530,6 +576,7 @@
             const blob = new Blob(mp3Data, { type: "audio/mp3" });
             const fd = new FormData(); fd.append("audio", blob);
             fetch("/upload-audio", { method: "POST", body: fd }).then(res=>res.json()).then(data=> socket.emit("voice-msg", data.url));
+            playRecordEndSound();
         }
         recordBtn.classList.remove("recording-active"); recordBtn.innerText = "🎙️";
         cancelBtn.style.display = "none"; waveVisual.style.display = "none";
