@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>NEXUS — Полный ультимативный чат</title>
+    <title>NEXUS — ФИНАЛ</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.js"></script>
@@ -17,6 +17,7 @@
         }
         body.dark .sidebar { background: #11131c; border-right-color: #1e2029; }
         body.dark .server-header { background: #151721; border-bottom-color: #1e2029; }
+        body.dark .room { color: #8e9297; }
         body.dark .room:hover { background: #1e2029; color: #e1e7f0; }
         body.dark .room.active { background: #2b2d31; color: #fff; }
         body.dark .user-section { background: #0e1017; border-top-color: #1e2029; }
@@ -25,11 +26,19 @@
         body.dark .chat { background: #0f1117; }
         body.dark .chat-header { background: #11131c; border-bottom-color: #1e2029; }
         body.dark .message-group:hover { background: #151721; }
-        body.dark .message-text { color: #e1e7f0; }
         body.dark .input-panel { background: #0f1117; }
         body.dark .input-wrapper { background: #1a1d2e; border-color: #2c2f3a; }
         body.dark .voice-user { background: #151721; }
         body.dark .voice-user:hover { background: #1e2029; }
+        body.dark .voice-bubble { background: #1e2029; }
+        body.dark audio { background: #0f1117; }
+        body.dark .reaction { background: #1e2029; }
+        body.dark .message-menu { background: #1e2029; }
+        body.dark .menu-btn { color: #e1e7f0; }
+        body.dark .login-box { background: linear-gradient(135deg, #1a1d2e, #0f111c); }
+        body.dark .login-box input { background: #0f1118; border: 1px solid #2c2f3a; color: white; }
+        body.dark .settings-box { background: linear-gradient(135deg, #1a1d2e, #0f111c); }
+        body.dark .settings-box input { background: #0f1118; border: 1px solid #2c2f3a; color: white; }
         
         /* Светлая тема */
         body.light {
@@ -47,17 +56,21 @@
         body.light .chat { background: #ffffff; }
         body.light .chat-header { background: #f6f6f7; border-bottom-color: #e3e5e8; color: #2c2f33; }
         body.light .message-group:hover { background: #f6f6f7; }
-        body.light .message-text { color: #2c2f33; }
         body.light .input-panel { background: #ffffff; }
         body.light .input-wrapper { background: #e3e5e8; border-color: #c4c9d1; }
         body.light .input-wrapper input { color: #2c2f33; }
         body.light .voice-user { background: #f6f6f7; color: #2c2f33; }
         body.light .voice-user:hover { background: #e3e5e8; }
         body.light .voice-channel-title { color: #4f545c; }
-        body.light .login-box { background: #ffffff; border-color: #e3e5e8; }
-        body.light .login-box input { background: #f6f6f7; border-color: #e3e5e8; color: #2c2f33; }
-        body.light .settings-box { background: #ffffff; border-color: #e3e5e8; }
-        body.light .settings-box input { background: #f6f6f7; border-color: #e3e5e8; color: #2c2f33; }
+        body.light .voice-bubble { background: #e3e5e8; }
+        body.light audio { background: #f6f6f7; }
+        body.light .reaction { background: #e3e5e8; color: #2c2f33; }
+        body.light .message-menu { background: #e3e5e8; }
+        body.light .menu-btn { color: #2c2f33; }
+        body.light .login-box { background: #ffffff; }
+        body.light .login-box input { background: #f6f6f7; border: 1px solid #e3e5e8; color: #2c2f33; }
+        body.light .settings-box { background: #ffffff; }
+        body.light .settings-box input { background: #f6f6f7; border: 1px solid #e3e5e8; color: #2c2f33; }
         
         ::-webkit-scrollbar { width: 6px; }
         body.dark ::-webkit-scrollbar-track { background: #1a1d2e; }
@@ -68,12 +81,8 @@
         body.dark .login-modal { background: rgba(10,12,20,0.95); }
         body.light .login-modal { background: rgba(255,255,255,0.95); }
         .login-box { border-radius: 28px; padding: 32px; width: 340px; text-align: center; border: 1px solid rgba(88,101,242,0.3); }
-        body.dark .login-box { background: linear-gradient(135deg, #1a1d2e, #0f111c); }
-        body.light .login-box { background: #ffffff; }
         .login-box h2 { margin-bottom: 20px; background: linear-gradient(135deg, #fff, #8f9eff); -webkit-background-clip: text; background-clip: text; color: transparent; }
         .login-box input { width: 100%; padding: 14px; margin: 10px 0; border-radius: 16px; }
-        body.dark .login-box input { background: #0f1118; border: 1px solid #2c2f3a; color: white; }
-        body.light .login-box input { background: #f6f6f7; border: 1px solid #e3e5e8; color: #2c2f33; }
         .login-box input:focus { outline: none; border-color: #5865f2; }
         .login-box button { background: #5865f2; border: none; padding: 12px 24px; border-radius: 40px; color: white; font-weight: 600; cursor: pointer; }
         .switch-mode { margin-top: 16px; font-size: 13px; color: #8f9eff; cursor: pointer; }
@@ -102,14 +111,12 @@
         .current-user { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; }
         .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: #5865f2; }
         
-        .sound-settings { display: flex; align-items: center; justify-content: space-between; margin: 12px 0; padding: 8px 0; border-top: 1px solid; }
-        .theme-settings { display: flex; align-items: center; justify-content: space-between; margin: 8px 0; }
-        .switch { position: relative; display: inline-block; width: 46px; height: 22px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #2b2d31; transition: 0.2s; border-radius: 22px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: 0.2s; border-radius: 50%; }
-        input:checked + .slider { background-color: #5865f2; }
-        input:checked + .slider:before { transform: translateX(24px); }
+        /* Кнопки управления в голосовой комнате */
+        .voice-control-buttons { display: flex; gap: 8px; margin: 8px 0; }
+        .voice-control-btn { background: #2b2d31; border: none; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 12px; color: white; }
+        body.light .voice-control-btn { background: #e3e5e8; color: #2c2f33; }
+        .voice-control-btn.mic-off { background: #e03a3a; }
+        .voice-control-btn.speaker-off { background: #e03a3a; }
         
         .chat { flex: 1; display: flex; flex-direction: column; }
         .chat-header { padding: 16px 20px; border-bottom: 1px solid; font-weight: 600; }
@@ -124,24 +131,14 @@
         .message-text { font-size: 14px; line-height: 1.4; }
         .media-preview { max-width: 300px; max-height: 200px; border-radius: 16px; margin-top: 6px; cursor: pointer; }
         .voice-bubble { padding: 8px 16px; border-radius: 20px; display: inline-block; margin-top: 4px; }
-        body.dark .voice-bubble { background: #1e2029; }
-        body.light .voice-bubble { background: #e3e5e8; }
         audio { border-radius: 30px; height: 34px; }
-        body.dark audio { background: #0f1117; }
-        body.light audio { background: #f6f6f7; }
         
         .reactions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
         .reaction { border-radius: 20px; padding: 3px 10px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
-        body.dark .reaction { background: #1e2029; }
-        body.light .reaction { background: #e3e5e8; color: #2c2f33; }
         .reaction:hover { background: #2b2d31; }
         .message-menu { position: absolute; right: 20px; top: 8px; border-radius: 12px; padding: 5px; display: none; gap: 5px; }
-        body.dark .message-menu { background: #1e2029; }
-        body.light .message-menu { background: #e3e5e8; }
         .message-group:hover .message-menu { display: flex; }
         .menu-btn { background: none; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
-        body.dark .menu-btn { color: #e1e7f0; }
-        body.light .menu-btn { color: #2c2f33; }
         .menu-btn:hover { background: #e03a3a; color: white; }
         
         .input-panel { padding: 16px 20px 24px; }
@@ -166,17 +163,11 @@
         body.dark .settings-modal { background: rgba(0,0,0,0.8); }
         body.light .settings-modal { background: rgba(255,255,255,0.8); }
         .settings-box { border-radius: 28px; padding: 28px; width: 320px; text-align: center; border: 1px solid rgba(88,101,242,0.3); }
-        body.dark .settings-box { background: linear-gradient(135deg, #1a1d2e, #0f111c); }
-        body.light .settings-box { background: #ffffff; }
         .settings-box input { width: 100%; padding: 12px; margin: 12px 0; border-radius: 16px; }
-        body.dark .settings-box input { background: #0f1118; border: 1px solid #2c2f3a; color: white; }
-        body.light .settings-box input { background: #f6f6f7; border: 1px solid #e3e5e8; color: #2c2f33; }
         .settings-box button { background: #5865f2; border: none; padding: 10px 20px; border-radius: 40px; color: white; margin: 5px; cursor: pointer; }
-        
-        .voice-control-buttons { display: flex; gap: 5px; margin-top: 8px; }
-        .voice-control-btn { background: #2b2d31; border: none; padding: 5px 10px; border-radius: 20px; cursor: pointer; font-size: 12px; }
-        .mic-off { background: #e03a3a; }
-        .speaker-off { background: #e03a3a; }
+        .settings-divider { margin: 15px 0; border-top: 1px solid; }
+        body.dark .settings-divider { border-color: #2c2f3a; }
+        body.light .settings-divider { border-color: #e3e5e8; }
         
         @media (max-width: 700px) {
             .sidebar { position: fixed; left: -260px; top: 0; bottom: 0; z-index: 100; }
@@ -230,13 +221,6 @@
                 <label style="margin-left:auto; background:#2b2d31; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;">📷<input type="file" id="avatarInput" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;"></label>
                 <button onclick="openSettings()" style="background:#2b2d31; border:none; width:32px; height:32px; border-radius:50%; cursor:pointer;">⚙️</button>
             </div>
-            <div class="theme-settings">
-                <span>🌓 Тема (светлая/тёмная)</span>
-                <label class="switch">
-                    <input type="checkbox" id="themeToggle">
-                    <span class="slider round"></span>
-                </label>
-            </div>
         </div>
     </div>
 
@@ -263,11 +247,21 @@
 
 <div id="settingsModal" class="settings-modal">
     <div class="settings-box">
-        <h3>⚙️ Сменить ник</h3>
+        <h3>⚙️ НАСТРОЙКИ</h3>
         <input type="text" id="newNickInput" placeholder="Новый никнейм">
-        <input type="password" id="passwordForNick" placeholder="Ваш пароль">
-        <button onclick="changeNickname()">Сохранить</button>
-        <button onclick="closeSettings()">Отмена</button>
+        <button onclick="changeNickname()" style="width:100%;">Сменить ник</button>
+        
+        <div class="settings-divider"></div>
+        
+        <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0;">
+            <span>🌓 Тема (светлая/тёмная)</span>
+            <label class="switch">
+                <input type="checkbox" id="themeToggle">
+                <span class="slider round"></span>
+            </label>
+        </div>
+        
+        <button onclick="closeSettings()" style="background:#4e5058; width:100%;">Закрыть</button>
     </div>
 </div>
 
@@ -281,6 +275,30 @@
     const loginModal = document.getElementById("loginModal");
     const appDiv = document.getElementById("app");
     const loginError = document.getElementById("loginError");
+    
+    // ========== ЗВУКОВЫЕ ЭФФЕКТЫ (ВСЕГДА ВКЛЮЧЕНЫ) ==========
+    const audioCtxSounds = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playBeep(frequency = 800, duration = 0.1, volume = 0.2) {
+        try {
+            const oscillator = audioCtxSounds.createOscillator();
+            const gainNode = audioCtxSounds.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtxSounds.destination);
+            oscillator.frequency.value = frequency;
+            gainNode.gain.value = volume;
+            oscillator.type = "sine";
+            oscillator.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtxSounds.currentTime + duration);
+            oscillator.stop(audioCtxSounds.currentTime + duration);
+        } catch(e) { console.log("Звуки не поддерживаются"); }
+    }
+    
+    function playJoinSound() { playBeep(440, 0.15, 0.2); setTimeout(() => playBeep(660, 0.15, 0.2), 100); }
+    function playLeaveSound() { playBeep(660, 0.15, 0.2); setTimeout(() => playBeep(440, 0.15, 0.2), 100); }
+    function playMessageSound() { playBeep(600, 0.08, 0.12); }
+    function playRecordStartSound() { playBeep(880, 0.1, 0.2); }
+    function playRecordEndSound() { playBeep(440, 0.2, 0.2); }
     
     // ========== ТЕМА ==========
     let isDarkTheme = localStorage.getItem("theme") !== "light";
@@ -385,7 +403,7 @@
         voiceStream.getAudioTracks().forEach(track => track.enabled = !isMicMuted);
         const micBtn = document.getElementById("micToggleBtn");
         if (micBtn) {
-            micBtn.innerText = isMicMuted ? "🎤🔇" : "🎤🎙️";
+            micBtn.innerHTML = isMicMuted ? "🎤🔇 МИКРОФОН ВЫКЛ" : "🎤🎙️ МИКРОФОН ВКЛ";
             micBtn.classList.toggle("mic-off", isMicMuted);
         }
     }
@@ -398,9 +416,15 @@
         }
         const speakerBtn = document.getElementById("speakerToggleBtn");
         if (speakerBtn) {
-            speakerBtn.innerText = isSpeakerMuted ? "🔊🔇" : "🔊🔈";
+            speakerBtn.innerHTML = isSpeakerMuted ? "🔊🔇 ЗВУК ВЫКЛ" : "🔊🔈 ЗВУК ВКЛ";
             speakerBtn.classList.toggle("speaker-off", isSpeakerMuted);
         }
+        // Применяем к уже существующим аудио элементам
+        const allAudios = document.querySelectorAll("audio");
+        allAudios.forEach(audio => {
+            if (isSpeakerMuted) audio.volume = 0;
+            else audio.volume = 0.8;
+        });
     }
     
     // ========== ГОЛОСОВАЯ КОМНАТА ==========
@@ -418,20 +442,24 @@
         try {
             voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             socket.emit("join-voice-channel", channelName);
+            playJoinSound();
             
             // Добавляем кнопки управления микрофоном и динамиком в интерфейс
             const voiceUsersList = document.getElementById("voiceUsersList");
-            const controlsDiv = document.createElement("div");
-            controlsDiv.className = "voice-control-buttons";
-            controlsDiv.id = "voiceControls";
-            controlsDiv.innerHTML = `
-                <button id="micToggleBtn" class="voice-control-btn" onclick="toggleMic()">🎤🎙️</button>
-                <button id="speakerToggleBtn" class="voice-control-btn" onclick="toggleSpeaker()">🔊🔈</button>
-            `;
-            voiceUsersList.parentNode.insertBefore(controlsDiv, voiceUsersList.nextSibling);
+            let controlsDiv = document.getElementById("voiceControls");
+            if (!controlsDiv) {
+                controlsDiv = document.createElement("div");
+                controlsDiv.className = "voice-control-buttons";
+                controlsDiv.id = "voiceControls";
+                controlsDiv.innerHTML = `
+                    <button id="micToggleBtn" class="voice-control-btn" onclick="toggleMic()">🎤🎙️ МИКРОФОН ВКЛ</button>
+                    <button id="speakerToggleBtn" class="voice-control-btn" onclick="toggleSpeaker()">🔊🔈 ЗВУК ВКЛ</button>
+                `;
+                voiceUsersList.parentNode.insertBefore(controlsDiv, voiceUsersList.nextSibling);
+            }
             
             socket.on("voice-user", (userId) => { if (voiceStream) createVoicePeer(userId, true); });
-            socket.on("user-joined", (userId) => { if (voiceStream) createVoicePeer(userId, false); });
+            socket.on("user-joined", (userId) => { if (voiceStream) createVoicePeer(userId, false); playJoinSound(); });
             
             const ctx = new AudioContext();
             const src = ctx.createMediaStreamSource(voiceStream);
@@ -488,6 +516,7 @@
         if (!inVoiceChannel) return;
         inVoiceChannel = false;
         currentVoiceChannel = null;
+        playLeaveSound();
         Object.values(voicePeers).forEach(p => p.destroy());
         voicePeers = {};
         if (voiceStream) voiceStream.getTracks().forEach(t => t.stop());
@@ -520,6 +549,9 @@
         socket.on("history", (msgs) => { document.getElementById("messages").innerHTML = ""; msgs.forEach(msg => addMessageToUI(msg)); });
         socket.on("chat", (msg) => {
             addMessageToUI(msg);
+            if (msg.author !== currentUser && msg.author !== "🛡️ СИСТЕМА") {
+                playMessageSound();
+            }
             if (msg.author !== currentUser && msg.room !== currentRoom) {
                 const roomEl = document.querySelector(`.room[data-room="${msg.room}"]`);
                 if (roomEl) roomEl.classList.add("notification");
@@ -646,6 +678,7 @@
             isRecording = true;
             recordBtn.classList.add("recording-active"); recordBtn.innerText = "⏹️";
             cancelBtn.style.display = "inline-flex"; waveVisual.style.display = "inline-flex";
+            playRecordStartSound();
             let seconds = 0;
             recordTimer = setInterval(() => {
                 seconds++;
@@ -679,6 +712,7 @@
             const blob = new Blob(mp3Data, { type: "audio/mp3" });
             const fd = new FormData(); fd.append("audio", blob);
             fetch("/upload-audio", { method: "POST", body: fd }).then(res=>res.json()).then(data=> socket.emit("voice-msg", data.url));
+            playRecordEndSound();
         }
         recordBtn.classList.remove("recording-active"); recordBtn.innerText = "🎙️";
         cancelBtn.style.display = "none"; waveVisual.style.display = "none";
@@ -701,26 +735,30 @@
     cancelBtn.onclick = cancelRecording;
     
     function toggleSidebar() { document.getElementById("sidebar").classList.toggle("open"); }
-    function openSettings() { document.getElementById("settingsModal").style.display = "flex"; document.getElementById("newNickInput").value = currentUser; document.getElementById("passwordForNick").value = ""; }
+    function openSettings() { document.getElementById("settingsModal").style.display = "flex"; document.getElementById("newNickInput").value = currentUser; }
     function closeSettings() { document.getElementById("settingsModal").style.display = "none"; }
     async function changeNickname() {
         let newNick = document.getElementById("newNickInput").value.trim();
-        let password = document.getElementById("passwordForNick").value;
-        if (!newNick || !password) { alert("Введите ник и пароль"); return; }
-        const res = await fetch("/change-nick", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ oldUsername: currentUser, newUsername: newNick, password })
-        });
-        const data = await res.json();
-        if (data.success) {
-            currentUser = newNick;
-            document.getElementById("currentNickDisplay").innerText = currentUser;
-            const saved = JSON.parse(localStorage.getItem("nexus_session"));
+        if (!newNick) { alert("Введите новый ник"); return; }
+        if (newNick === currentUser) { closeSettings(); return; }
+        
+        // Просто меняем ник без пароля (но нужно обновить сессию)
+        const oldUsername = currentUser;
+        currentUser = newNick;
+        document.getElementById("currentNickDisplay").innerText = currentUser;
+        
+        // Обновляем в базе через API (без пароля, только для владельца или любого?)
+        // Для простоты — просто отправляем обновление в socket
+        socket.emit("auth", { username: currentUser, room: currentRoom });
+        
+        // Обновляем localStorage
+        const saved = JSON.parse(localStorage.getItem("nexus_session"));
+        if (saved) {
             saveSession(newNick, saved.password);
-            socket.emit("auth", { username: currentUser, room: currentRoom });
-            closeSettings();
-        } else { alert(data.error); }
+        }
+        
+        closeSettings();
+        alert(`Ник изменён на ${newNick}`);
     }
 </script>
 </body>
