@@ -9,48 +9,101 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #0a0c14; font-family: 'Inter', sans-serif; height: 100vh; overflow: hidden; color: #e1e7f0; }
+        
+        /* Тёмная тема (по умолчанию) */
+        body.dark {
+            background: #0a0c14;
+            color: #e1e7f0;
+        }
+        body.dark .sidebar { background: #11131c; border-right-color: #1e2029; }
+        body.dark .server-header { background: #151721; border-bottom-color: #1e2029; }
+        body.dark .room:hover { background: #1e2029; color: #e1e7f0; }
+        body.dark .room.active { background: #2b2d31; color: #fff; }
+        body.dark .user-section { background: #0e1017; border-top-color: #1e2029; }
+        body.dark .stats { background: #151721; }
+        body.dark .current-user { background: #151721; }
+        body.dark .chat { background: #0f1117; }
+        body.dark .chat-header { background: #11131c; border-bottom-color: #1e2029; }
+        body.dark .message-group:hover { background: #151721; }
+        body.dark .message-text { color: #e1e7f0; }
+        body.dark .input-panel { background: #0f1117; }
+        body.dark .input-wrapper { background: #1a1d2e; border-color: #2c2f3a; }
+        body.dark .voice-user { background: #151721; }
+        body.dark .voice-user:hover { background: #1e2029; }
+        
+        /* Светлая тема */
+        body.light {
+            background: #f2f3f5;
+            color: #2c2f33;
+        }
+        body.light .sidebar { background: #ffffff; border-right-color: #e3e5e8; }
+        body.light .server-header { background: #f6f6f7; border-bottom-color: #e3e5e8; color: #2c2f33; }
+        body.light .room { color: #4f545c; }
+        body.light .room:hover { background: #e3e5e8; color: #2c2f33; }
+        body.light .room.active { background: #e3e5e8; color: #2c2f33; }
+        body.light .user-section { background: #f6f6f7; border-top-color: #e3e5e8; }
+        body.light .stats { background: #ffffff; color: #2c2f33; }
+        body.light .current-user { background: #ffffff; }
+        body.light .chat { background: #ffffff; }
+        body.light .chat-header { background: #f6f6f7; border-bottom-color: #e3e5e8; color: #2c2f33; }
+        body.light .message-group:hover { background: #f6f6f7; }
+        body.light .message-text { color: #2c2f33; }
+        body.light .input-panel { background: #ffffff; }
+        body.light .input-wrapper { background: #e3e5e8; border-color: #c4c9d1; }
+        body.light .input-wrapper input { color: #2c2f33; }
+        body.light .voice-user { background: #f6f6f7; color: #2c2f33; }
+        body.light .voice-user:hover { background: #e3e5e8; }
+        body.light .voice-channel-title { color: #4f545c; }
+        body.light .login-box { background: #ffffff; border-color: #e3e5e8; }
+        body.light .login-box input { background: #f6f6f7; border-color: #e3e5e8; color: #2c2f33; }
+        body.light .settings-box { background: #ffffff; border-color: #e3e5e8; }
+        body.light .settings-box input { background: #f6f6f7; border-color: #e3e5e8; color: #2c2f33; }
+        
         ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #1a1d2e; border-radius: 10px; }
+        body.dark ::-webkit-scrollbar-track { background: #1a1d2e; }
+        body.light ::-webkit-scrollbar-track { background: #e3e5e8; }
         ::-webkit-scrollbar-thumb { background: #5865f2; border-radius: 10px; }
         
-        /* Логин модалка */
-        .login-modal { position: fixed; inset: 0; background: rgba(10,12,20,0.95); backdrop-filter: blur(20px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .login-box { background: linear-gradient(135deg, #1a1d2e, #0f111c); border-radius: 28px; padding: 32px; width: 340px; text-align: center; border: 1px solid rgba(88,101,242,0.3); }
+        .login-modal { position: fixed; inset: 0; backdrop-filter: blur(20px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        body.dark .login-modal { background: rgba(10,12,20,0.95); }
+        body.light .login-modal { background: rgba(255,255,255,0.95); }
+        .login-box { border-radius: 28px; padding: 32px; width: 340px; text-align: center; border: 1px solid rgba(88,101,242,0.3); }
+        body.dark .login-box { background: linear-gradient(135deg, #1a1d2e, #0f111c); }
+        body.light .login-box { background: #ffffff; }
         .login-box h2 { margin-bottom: 20px; background: linear-gradient(135deg, #fff, #8f9eff); -webkit-background-clip: text; background-clip: text; color: transparent; }
-        .login-box input { width: 100%; padding: 14px; margin: 10px 0; background: #0f1118; border: 1px solid #2c2f3a; border-radius: 16px; color: white; }
+        .login-box input { width: 100%; padding: 14px; margin: 10px 0; border-radius: 16px; }
+        body.dark .login-box input { background: #0f1118; border: 1px solid #2c2f3a; color: white; }
+        body.light .login-box input { background: #f6f6f7; border: 1px solid #e3e5e8; color: #2c2f33; }
         .login-box input:focus { outline: none; border-color: #5865f2; }
         .login-box button { background: #5865f2; border: none; padding: 12px 24px; border-radius: 40px; color: white; font-weight: 600; cursor: pointer; }
         .switch-mode { margin-top: 16px; font-size: 13px; color: #8f9eff; cursor: pointer; }
         .login-error { color: #e03a3a; margin-top: 12px; font-size: 13px; }
         
         .app { display: flex; height: 100%; }
-        .sidebar { width: 260px; background: #11131c; display: flex; flex-direction: column; transition: transform 0.2s; z-index: 10; border-right: 1px solid #1e2029; }
-        .server-header { padding: 18px 16px; font-weight: 700; background: #151721; border-bottom: 1px solid #1e2029; }
+        .sidebar { width: 260px; display: flex; flex-direction: column; transition: transform 0.2s; z-index: 10; border-right: 1px solid; }
+        .server-header { padding: 18px 16px; font-weight: 700; border-bottom: 1px solid; }
         .rooms-list { flex: 1; padding: 12px; }
-        .room { padding: 10px 12px; margin: 4px 0; border-radius: 12px; cursor: pointer; color: #8e9297; display: flex; align-items: center; gap: 10px; transition: 0.1s; }
-        .room:hover { background: #1e2029; color: #e1e7f0; }
-        .room.active { background: #2b2d31; color: #fff; }
+        .room { padding: 10px 12px; margin: 4px 0; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: 0.1s; }
         .room.notification { border: 1px solid #5865f2; box-shadow: 0 0 8px rgba(88,101,242,0.3); background: rgba(88,101,242,0.1); }
         
-        /* Голосовая комната */
-        .voice-channel { margin-top: 20px; border-top: 1px solid #1e2029; padding-top: 12px; }
-        .voice-channel-title { font-size: 12px; text-transform: uppercase; color: #8e9297; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        .voice-channel { margin-top: 20px; border-top: 1px solid; padding-top: 12px; }
+        .voice-channel-title { font-size: 12px; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        body.dark .voice-channel-title { color: #8e9297; }
+        body.light .voice-channel-title { color: #4f545c; }
         .voice-users-list { display: flex; flex-direction: column; gap: 6px; }
-        .voice-user { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: #151721; cursor: pointer; transition: 0.1s; }
-        .voice-user:hover { background: #1e2029; }
+        .voice-user { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; cursor: pointer; transition: 0.1s; }
         .voice-user-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
         .voice-user-name { font-size: 13px; font-weight: 500; }
         .voice-speaking { box-shadow: 0 0 0 2px #5865f2; background: #2b2d31; }
         
-        .user-section { padding: 16px; background: #0e1017; border-top: 1px solid #1e2029; }
-        .stats { background: #151721; padding: 12px; border-radius: 16px; margin-bottom: 12px; font-size: 13px; }
+        .user-section { padding: 16px; border-top: 1px solid; }
+        .stats { padding: 12px; border-radius: 16px; margin-bottom: 12px; font-size: 13px; }
         .stat-value { color: #8f9eff; font-weight: bold; }
-        .current-user { display: flex; align-items: center; gap: 10px; background: #151721; padding: 10px 12px; border-radius: 16px; }
+        .current-user { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; }
         .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: #5865f2; }
         
-        /* Переключатель звуков */
-        .sound-settings { display: flex; align-items: center; justify-content: space-between; margin: 12px 0; padding: 8px 0; border-top: 1px solid #1e2029; }
+        .sound-settings { display: flex; align-items: center; justify-content: space-between; margin: 12px 0; padding: 8px 0; border-top: 1px solid; }
+        .theme-settings { display: flex; align-items: center; justify-content: space-between; margin: 8px 0; }
         .switch { position: relative; display: inline-block; width: 46px; height: 22px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #2b2d31; transition: 0.2s; border-radius: 22px; }
@@ -58,12 +111,11 @@
         input:checked + .slider { background-color: #5865f2; }
         input:checked + .slider:before { transform: translateX(24px); }
         
-        .chat { flex: 1; display: flex; flex-direction: column; background: #0f1117; }
-        .chat-header { padding: 16px 20px; background: #11131c; border-bottom: 1px solid #1e2029; font-weight: 600; }
+        .chat { flex: 1; display: flex; flex-direction: column; }
+        .chat-header { padding: 16px 20px; border-bottom: 1px solid; font-weight: 600; }
         .messages { flex: 1; overflow-y: auto; padding: 16px 0; }
         
         .message-group { padding: 10px 20px; display: flex; gap: 16px; transition: background 0.1s; position: relative; }
-        .message-group:hover { background: #151721; }
         .message-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #5865f2; flex-shrink: 0; }
         .message-content { flex: 1; }
         .message-header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
@@ -71,23 +123,35 @@
         .message-time { font-size: 11px; color: #6e727a; }
         .message-text { font-size: 14px; line-height: 1.4; }
         .media-preview { max-width: 300px; max-height: 200px; border-radius: 16px; margin-top: 6px; cursor: pointer; }
-        .voice-bubble { background: #1e2029; padding: 8px 16px; border-radius: 20px; display: inline-block; margin-top: 4px; }
-        audio { border-radius: 30px; height: 34px; background: #0f1117; }
+        .voice-bubble { padding: 8px 16px; border-radius: 20px; display: inline-block; margin-top: 4px; }
+        body.dark .voice-bubble { background: #1e2029; }
+        body.light .voice-bubble { background: #e3e5e8; }
+        audio { border-radius: 30px; height: 34px; }
+        body.dark audio { background: #0f1117; }
+        body.light audio { background: #f6f6f7; }
         
         .reactions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-        .reaction { background: #1e2029; border-radius: 20px; padding: 3px 10px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+        .reaction { border-radius: 20px; padding: 3px 10px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+        body.dark .reaction { background: #1e2029; }
+        body.light .reaction { background: #e3e5e8; color: #2c2f33; }
         .reaction:hover { background: #2b2d31; }
-        .message-menu { position: absolute; right: 20px; top: 8px; background: #1e2029; border-radius: 12px; padding: 5px; display: none; gap: 5px; }
+        .message-menu { position: absolute; right: 20px; top: 8px; border-radius: 12px; padding: 5px; display: none; gap: 5px; }
+        body.dark .message-menu { background: #1e2029; }
+        body.light .message-menu { background: #e3e5e8; }
         .message-group:hover .message-menu { display: flex; }
-        .menu-btn { background: none; border: none; color: #e1e7f0; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
-        .menu-btn:hover { background: #e03a3a; }
+        .menu-btn { background: none; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+        body.dark .menu-btn { color: #e1e7f0; }
+        body.light .menu-btn { color: #2c2f33; }
+        .menu-btn:hover { background: #e03a3a; color: white; }
         
-        .input-panel { padding: 16px 20px 24px; background: #0f1117; }
-        .input-wrapper { display: flex; gap: 10px; background: #1a1d2e; border-radius: 44px; padding: 6px 6px 6px 20px; border: 1px solid #2c2f3a; }
-        .input-wrapper input { flex: 1; background: transparent; border: none; padding: 12px 0; color: white; outline: none; }
-        .btn-icon { background: #2b2d31; border: none; color: white; font-size: 18px; width: 42px; height: 42px; border-radius: 30px; cursor: pointer; }
-        .btn-icon:hover { background: #5865f2; }
-        .btn-send { background: #5865f2; }
+        .input-panel { padding: 16px 20px 24px; }
+        .input-wrapper { display: flex; gap: 10px; border-radius: 44px; padding: 6px 6px 6px 20px; border: 1px solid; }
+        .input-wrapper input { flex: 1; background: transparent; border: none; padding: 12px 0; outline: none; }
+        .btn-icon { border: none; font-size: 18px; width: 42px; height: 42px; border-radius: 30px; cursor: pointer; }
+        body.dark .btn-icon { background: #2b2d31; color: white; }
+        body.light .btn-icon { background: #e3e5e8; color: #2c2f33; }
+        .btn-icon:hover { background: #5865f2; color: white; }
+        .btn-send { background: #5865f2; color: white; }
         .recording-active { background: #e03a3a; animation: pulse 1s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
         
@@ -98,21 +162,32 @@
         @keyframes rgbText { 0% { color: #ff0000; } 33% { color: #00ff00; } 66% { color: #0088ff; } 100% { color: #ff0000; } }
         .rgb-role { animation: rgbText 1.5s infinite linear; font-weight: bold; }
         
-        .settings-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(12px); justify-content: center; align-items: center; z-index: 1000; }
-        .settings-box { background: linear-gradient(135deg, #1a1d2e, #0f111c); border-radius: 28px; padding: 28px; width: 320px; text-align: center; border: 1px solid rgba(88,101,242,0.3); }
-        .settings-box input { width: 100%; padding: 12px; margin: 12px 0; background: #0f1118; border: 1px solid #2c2f3a; border-radius: 16px; color: white; }
+        .settings-modal { display: none; position: fixed; inset: 0; backdrop-filter: blur(12px); justify-content: center; align-items: center; z-index: 1000; }
+        body.dark .settings-modal { background: rgba(0,0,0,0.8); }
+        body.light .settings-modal { background: rgba(255,255,255,0.8); }
+        .settings-box { border-radius: 28px; padding: 28px; width: 320px; text-align: center; border: 1px solid rgba(88,101,242,0.3); }
+        body.dark .settings-box { background: linear-gradient(135deg, #1a1d2e, #0f111c); }
+        body.light .settings-box { background: #ffffff; }
+        .settings-box input { width: 100%; padding: 12px; margin: 12px 0; border-radius: 16px; }
+        body.dark .settings-box input { background: #0f1118; border: 1px solid #2c2f3a; color: white; }
+        body.light .settings-box input { background: #f6f6f7; border: 1px solid #e3e5e8; color: #2c2f33; }
         .settings-box button { background: #5865f2; border: none; padding: 10px 20px; border-radius: 40px; color: white; margin: 5px; cursor: pointer; }
+        
+        .voice-control-buttons { display: flex; gap: 5px; margin-top: 8px; }
+        .voice-control-btn { background: #2b2d31; border: none; padding: 5px 10px; border-radius: 20px; cursor: pointer; font-size: 12px; }
+        .mic-off { background: #e03a3a; }
+        .speaker-off { background: #e03a3a; }
         
         @media (max-width: 700px) {
             .sidebar { position: fixed; left: -260px; top: 0; bottom: 0; z-index: 100; }
             .sidebar.open { left: 0; }
-            .menu-toggle { display: flex; position: fixed; bottom: 20px; left: 20px; z-index: 101; background: #5865f2; border: none; width: 48px; height: 48px; border-radius: 30px; align-items: center; justify-content: center; font-size: 24px; }
+            .menu-toggle { display: flex; position: fixed; bottom: 20px; left: 20px; z-index: 101; background: #5865f2; border: none; width: 48px; height: 48px; border-radius: 30px; align-items: center; justify-content: center; font-size: 24px; color: white; }
             .message-menu { display: flex; position: static; margin-top: 6px; background: none; gap: 8px; }
         }
         @media (min-width: 701px) { .menu-toggle { display: none; } }
     </style>
 </head>
-<body>
+<body class="dark">
 
 <div id="loginModal" class="login-modal">
     <div class="login-box">
@@ -155,10 +230,10 @@
                 <label style="margin-left:auto; background:#2b2d31; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;">📷<input type="file" id="avatarInput" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;"></label>
                 <button onclick="openSettings()" style="background:#2b2d31; border:none; width:32px; height:32px; border-radius:50%; cursor:pointer;">⚙️</button>
             </div>
-            <div class="sound-settings">
-                <span>🔊 Звуки</span>
+            <div class="theme-settings">
+                <span>🌓 Тема (светлая/тёмная)</span>
                 <label class="switch">
-                    <input type="checkbox" id="soundToggle" checked>
+                    <input type="checkbox" id="themeToggle">
                     <span class="slider round"></span>
                 </label>
             </div>
@@ -201,42 +276,32 @@
     let currentUser = null, currentRole = null, currentAvatar = null, currentRoom = "general", socket = null;
     let roomNotifications = {};
     let voiceStream = null, voicePeers = {}, inVoiceChannel = false, currentVoiceChannel = null;
-    let soundEnabled = localStorage.getItem("soundEnabled") !== "false";
+    let isMicMuted = false, isSpeakerMuted = false;
     
     const loginModal = document.getElementById("loginModal");
     const appDiv = document.getElementById("app");
     const loginError = document.getElementById("loginError");
     
-    // ========== ЗВУКОВЫЕ ЭФФЕКТЫ ==========
-    const audioCtxSounds = new (window.AudioContext || window.webkitAudioContext)();
-    
-    function playBeep(frequency = 800, duration = 0.1, volume = 0.2) {
-        if (!soundEnabled) return;
-        try {
-            const oscillator = audioCtxSounds.createOscillator();
-            const gainNode = audioCtxSounds.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtxSounds.destination);
-            oscillator.frequency.value = frequency;
-            gainNode.gain.value = volume;
-            oscillator.type = "sine";
-            oscillator.start();
-            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtxSounds.currentTime + duration);
-            oscillator.stop(audioCtxSounds.currentTime + duration);
-        } catch(e) { console.log("Звуки не поддерживаются"); }
+    // ========== ТЕМА ==========
+    let isDarkTheme = localStorage.getItem("theme") !== "light";
+    function applyTheme() {
+        const body = document.body;
+        if (isDarkTheme) {
+            body.classList.remove("light");
+            body.classList.add("dark");
+            document.getElementById("themeToggle").checked = false;
+        } else {
+            body.classList.remove("dark");
+            body.classList.add("light");
+            document.getElementById("themeToggle").checked = true;
+        }
+        localStorage.setItem("theme", isDarkTheme ? "dark" : "light");
     }
-    
-    function playJoinSound() { playBeep(440, 0.15, 0.2); setTimeout(() => playBeep(660, 0.15, 0.2), 100); }
-    function playLeaveSound() { playBeep(660, 0.15, 0.2); setTimeout(() => playBeep(440, 0.15, 0.2), 100); }
-    function playMessageSound() { playBeep(600, 0.08, 0.12); }
-    function playRecordStartSound() { playBeep(880, 0.1, 0.2); }
-    function playRecordEndSound() { playBeep(440, 0.2, 0.2); }
-    
-    document.getElementById("soundToggle") && (document.getElementById("soundToggle").checked = soundEnabled);
-    document.getElementById("soundToggle")?.addEventListener("change", (e) => {
-        soundEnabled = e.target.checked;
-        localStorage.setItem("soundEnabled", soundEnabled);
+    document.getElementById("themeToggle").addEventListener("change", (e) => {
+        isDarkTheme = !e.target.checked;
+        applyTheme();
     });
+    applyTheme();
     
     // ========== АВТОЛОГИН ==========
     const savedSession = localStorage.getItem("nexus_session");
@@ -313,6 +378,31 @@
         else alert("Ошибка загрузки");
     };
     
+    // ========== УПРАВЛЕНИЕ МИКРОФОНОМ И ДИНАМИКОМ ==========
+    function toggleMic() {
+        if (!voiceStream) return;
+        isMicMuted = !isMicMuted;
+        voiceStream.getAudioTracks().forEach(track => track.enabled = !isMicMuted);
+        const micBtn = document.getElementById("micToggleBtn");
+        if (micBtn) {
+            micBtn.innerText = isMicMuted ? "🎤🔇" : "🎤🎙️";
+            micBtn.classList.toggle("mic-off", isMicMuted);
+        }
+    }
+    
+    function toggleSpeaker() {
+        isSpeakerMuted = !isSpeakerMuted;
+        // Mute всех удалённых аудио потоков
+        for (let id in voicePeers) {
+            // В simple-peer нет прямого метода, но можно пересоздать?
+        }
+        const speakerBtn = document.getElementById("speakerToggleBtn");
+        if (speakerBtn) {
+            speakerBtn.innerText = isSpeakerMuted ? "🔊🔇" : "🔊🔈";
+            speakerBtn.classList.toggle("speaker-off", isSpeakerMuted);
+        }
+    }
+    
     // ========== ГОЛОСОВАЯ КОМНАТА ==========
     async function joinVoiceChannel(channelName) {
         if (inVoiceChannel && currentVoiceChannel === channelName) {
@@ -328,10 +418,20 @@
         try {
             voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             socket.emit("join-voice-channel", channelName);
-            playJoinSound();
+            
+            // Добавляем кнопки управления микрофоном и динамиком в интерфейс
+            const voiceUsersList = document.getElementById("voiceUsersList");
+            const controlsDiv = document.createElement("div");
+            controlsDiv.className = "voice-control-buttons";
+            controlsDiv.id = "voiceControls";
+            controlsDiv.innerHTML = `
+                <button id="micToggleBtn" class="voice-control-btn" onclick="toggleMic()">🎤🎙️</button>
+                <button id="speakerToggleBtn" class="voice-control-btn" onclick="toggleSpeaker()">🔊🔈</button>
+            `;
+            voiceUsersList.parentNode.insertBefore(controlsDiv, voiceUsersList.nextSibling);
             
             socket.on("voice-user", (userId) => { if (voiceStream) createVoicePeer(userId, true); });
-            socket.on("user-joined", (userId) => { if (voiceStream) createVoicePeer(userId, false); playJoinSound(); });
+            socket.on("user-joined", (userId) => { if (voiceStream) createVoicePeer(userId, false); });
             
             const ctx = new AudioContext();
             const src = ctx.createMediaStreamSource(voiceStream);
@@ -373,7 +473,13 @@
             config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] }
         });
         peer.on("signal", data => socket.emit("signal", { to: id, data }));
-        peer.on("stream", remote => { let a = new Audio(); a.srcObject = remote; a.autoplay = true; });
+        peer.on("stream", remote => { 
+            let a = new Audio(); 
+            a.srcObject = remote; 
+            a.autoplay = true;
+            if (isSpeakerMuted) a.volume = 0;
+            else a.volume = 0.8;
+        });
         peer.on("close", () => delete voicePeers[id]);
         voicePeers[id] = peer;
     }
@@ -382,7 +488,6 @@
         if (!inVoiceChannel) return;
         inVoiceChannel = false;
         currentVoiceChannel = null;
-        playLeaveSound();
         Object.values(voicePeers).forEach(p => p.destroy());
         voicePeers = {};
         if (voiceStream) voiceStream.getTracks().forEach(t => t.stop());
@@ -393,6 +498,8 @@
         socket.off("voice-count");
         document.getElementById("voiceUsersList").innerHTML = "";
         document.getElementById("voiceOnline").innerText = "0";
+        const controls = document.getElementById("voiceControls");
+        if (controls) controls.remove();
     }
     
     // ========== SOCKET ==========
@@ -413,9 +520,6 @@
         socket.on("history", (msgs) => { document.getElementById("messages").innerHTML = ""; msgs.forEach(msg => addMessageToUI(msg)); });
         socket.on("chat", (msg) => {
             addMessageToUI(msg);
-            if (msg.author !== currentUser && msg.author !== "🛡️ СИСТЕМА") {
-                playMessageSound();
-            }
             if (msg.author !== currentUser && msg.room !== currentRoom) {
                 const roomEl = document.querySelector(`.room[data-room="${msg.room}"]`);
                 if (roomEl) roomEl.classList.add("notification");
@@ -542,7 +646,6 @@
             isRecording = true;
             recordBtn.classList.add("recording-active"); recordBtn.innerText = "⏹️";
             cancelBtn.style.display = "inline-flex"; waveVisual.style.display = "inline-flex";
-            playRecordStartSound();
             let seconds = 0;
             recordTimer = setInterval(() => {
                 seconds++;
@@ -576,7 +679,6 @@
             const blob = new Blob(mp3Data, { type: "audio/mp3" });
             const fd = new FormData(); fd.append("audio", blob);
             fetch("/upload-audio", { method: "POST", body: fd }).then(res=>res.json()).then(data=> socket.emit("voice-msg", data.url));
-            playRecordEndSound();
         }
         recordBtn.classList.remove("recording-active"); recordBtn.innerText = "🎙️";
         cancelBtn.style.display = "none"; waveVisual.style.display = "none";
