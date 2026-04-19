@@ -3,253 +3,344 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>NEXUS — МОБИЛЬНЫЙ ЧАТ</title>
+    <title>NEXUS — КИБЕРПАНК ЧАТ</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
+        @keyframes glitch {
+            0% { text-shadow: -2px 0 #ff00ff, 2px 0 #00ffff; }
+            50% { text-shadow: 2px 0 #ff00ff, -2px 0 #00ffff; }
+            100% { text-shadow: -2px 0 #ff00ff, 2px 0 #00ffff; }
+        }
+        
+        @keyframes neonPulse {
+            0% { box-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff; }
+            100% { box-shadow: 0 0 15px #00ffff, 0 0 25px #ff00ff; }
+        }
+        
+        @keyframes gridMove {
+            0% { background-position: 0 0; }
+            100% { background-position: 50px 50px; }
+        }
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
+            font-family: 'Share Tech Mono', 'Courier New', monospace;
             height: 100vh;
             overflow: hidden;
-            touch-action: pan-x pan-y;
-        }
-        body.dark { background: #1e1f22; color: #dbdee1; }
-        body.light { background: #f2f3f5; color: #2c2f33; }
-        
-        /* Мобильные стили */
-        @media (max-width: 700px) {
-            .sidebar { width: 85vw; max-width: 280px; }
-            .right-sidebar { display: none; }
-            .room { padding: 12px 14px; font-size: 16px; }
-            .message-group { padding: 8px 12px; gap: 12px; }
-            .message-avatar { width: 36px; height: 36px; }
-            .message-text { font-size: 15px; }
-            .input-wrapper { padding: 4px 4px 4px 16px; }
-            .btn-icon { width: 40px; height: 40px; font-size: 18px; }
-            .voice-user { padding: 8px 8px; }
-            .online-user { padding: 8px 12px; }
-            .chat-header { padding: 12px 16px; font-size: 15px; }
-            .messages { padding: 8px 0; }
-            .input-panel { padding: 12px 16px 20px; }
+            position: relative;
         }
         
-        @media (max-width: 480px) {
-            .message-group { gap: 10px; }
-            .message-avatar { width: 32px; height: 32px; }
-            .message-author { font-size: 14px; }
-            .message-text { font-size: 14px; }
+        /* Киберпанк фон */
+        body.dark {
+            background: radial-gradient(ellipse at 20% 30%, #0a0a1a, #000000);
+            color: #00ffff;
+        }
+        body.dark::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 30px 30px;
+            pointer-events: none;
+            animation: gridMove 20s linear infinite;
         }
         
-        /* Остальные стили (как в предыдущей версии, но оптимизированные) */
+        body.light {
+            background: radial-gradient(ellipse at 20% 30%, #e0e0f0, #ffffff);
+            color: #0a0a1a;
+        }
+        body.light::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(0, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+            pointer-events: none;
+        }
+        
         ::-webkit-scrollbar { width: 4px; }
-        body.dark ::-webkit-scrollbar-track { background: #2b2d31; }
-        body.light ::-webkit-scrollbar-track { background: #e3e5e8; }
-        ::-webkit-scrollbar-thumb { background: #5865f2; border-radius: 10px; }
+        body.dark ::-webkit-scrollbar-track { background: #0a0a1a; }
+        body.light ::-webkit-scrollbar-track { background: #e0e0f0; }
+        ::-webkit-scrollbar-thumb { background: #00ffff; border-radius: 10px; box-shadow: 0 0 5px #00ffff; }
         
-        .login-modal { position: fixed; inset: 0; backdrop-filter: blur(20px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        body.dark .login-modal { background: rgba(0,0,0,0.9); }
+        /* Логин модалка */
+        .login-modal {
+            position: fixed;
+            inset: 0;
+            backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        body.dark .login-modal { background: rgba(0,0,0,0.95); }
         body.light .login-modal { background: rgba(255,255,255,0.95); }
-        .login-box { border-radius: 28px; padding: 28px; width: 320px; text-align: center; border: 1px solid rgba(88,101,242,0.3); }
-        body.dark .login-box { background: #2b2d31; }
+        .login-box {
+            border-radius: 20px;
+            padding: 32px;
+            width: 340px;
+            text-align: center;
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+        body.dark .login-box { background: #0a0a1a; }
         body.light .login-box { background: #ffffff; }
-        .login-box h2 { margin-bottom: 20px; color: #5865f2; }
-        .login-box input { width: 100%; padding: 14px; margin: 10px 0; border-radius: 16px; outline: none; font-size: 16px; }
-        body.dark .login-box input { background: #1e1f22; color: white; border: none; }
-        body.light .login-box input { background: #f6f6f7; border: 1px solid #e3e5e8; color: #2c2f33; }
-        .login-box button { background: #5865f2; border: none; padding: 14px; border-radius: 40px; color: white; font-weight: 600; cursor: pointer; width: 100%; font-size: 16px; }
-        .switch-mode { margin-top: 16px; font-size: 14px; color: #5865f2; cursor: pointer; }
-        .login-error { color: #e03a3a; margin-top: 12px; font-size: 13px; }
+        .login-box h2 { margin-bottom: 20px; color: #00ffff; text-shadow: 0 0 5px #00ffff; letter-spacing: 2px; }
+        .login-box input {
+            width: 100%;
+            padding: 14px;
+            margin: 10px 0;
+            border-radius: 10px;
+            outline: none;
+            font-size: 16px;
+            font-family: monospace;
+            border: 1px solid #00ffff;
+            background: transparent;
+        }
+        body.dark .login-box input { color: #00ffff; background: rgba(0,255,255,0.05); }
+        body.light .login-box input { color: #0a0a1a; background: rgba(0,255,255,0.1); }
+        .login-box button {
+            background: linear-gradient(135deg, #00ffff, #ff00ff);
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .switch-mode { margin-top: 16px; font-size: 14px; color: #00ffff; cursor: pointer; }
+        .login-error { color: #ff00ff; margin-top: 12px; font-size: 13px; text-shadow: 0 0 3px #ff00ff; }
         
-        .app { display: flex; height: 100vh; }
-        .sidebar { width: 260px; display: flex; flex-direction: column; transition: transform 0.2s; z-index: 10; }
-        body.dark .sidebar { background: #2b2d31; border-right: 1px solid #1e1f22; }
-        body.light .sidebar { background: #ffffff; border-right: 1px solid #e3e5e8; }
-        .server-header { padding: 18px 16px; font-weight: 700; font-size: 16px; }
-        body.dark .server-header { background: #313338; border-bottom: 1px solid #1e1f22; }
-        body.light .server-header { background: #f6f6f7; border-bottom: 1px solid #e3e5e8; }
+        .app { display: flex; height: 100vh; position: relative; z-index: 1; }
+        
+        /* Киберпанк сайдбар */
+        .sidebar {
+            width: 280px;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s;
+            z-index: 10;
+            border-right: 1px solid #00ffff33;
+        }
+        body.dark .sidebar { background: rgba(10, 10, 26, 0.9); backdrop-filter: blur(10px); }
+        body.light .sidebar { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+        
+        .server-header {
+            padding: 20px 16px;
+            font-weight: bold;
+            font-size: 20px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            border-bottom: 1px solid #00ffff33;
+        }
+        body.dark .server-header { color: #00ffff; text-shadow: 0 0 5px #00ffff; }
+        body.light .server-header { color: #ff00ff; text-shadow: 0 0 3px #ff00ff; }
+        
         .rooms-list { flex: 1; padding: 12px; overflow-y: auto; }
-        .room { padding: 10px 12px; margin: 4px 0; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: 0.1s; }
-        body.dark .room { color: #949ba4; }
-        body.light .room { color: #4f545c; }
-        .room:hover { background: #3b3f48; color: #dbdee1; }
-        .room.active { background: #3b3f48; color: #fff; }
-        .room.notification { border: 1px solid #5865f2; box-shadow: 0 0 8px rgba(88,101,242,0.3); background: rgba(88,101,242,0.1); }
+        .room {
+            padding: 10px 12px;
+            margin: 4px 0;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: 0.1s;
+            font-family: monospace;
+        }
+        body.dark .room { color: #88ffff; }
+        body.light .room { color: #0a0a1a; }
+        .room:hover { background: #00ffff22; transform: translateX(5px); }
+        .room.active { background: #00ffff33; border-left: 3px solid #00ffff; }
+        .room.notification { border: 1px solid #00ffff; box-shadow: 0 0 8px #00ffff; }
         
-        .voice-channel { margin-top: 20px; border-top: 1px solid; padding-top: 12px; }
-        body.dark .voice-channel { border-top-color: #1e1f22; }
-        body.light .voice-channel { border-top-color: #e3e5e8; }
-        .voice-channel-title { font-size: 12px; text-transform: uppercase; margin-bottom: 8px; padding-left: 8px; }
-        body.dark .voice-channel-title { color: #949ba4; }
-        body.light .voice-channel-title { color: #4f545c; }
+        .voice-channel { margin-top: 20px; border-top: 1px solid #00ffff33; padding-top: 12px; }
+        .voice-channel-title { font-size: 11px; text-transform: uppercase; margin-bottom: 8px; padding-left: 8px; letter-spacing: 2px; opacity: 0.7; }
         .voice-users-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
         .voice-user { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; cursor: pointer; }
-        .voice-user:hover { background: #3b3f48; }
-        .voice-user-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
-        .voice-user-name { font-size: 13px; font-weight: 500; }
+        .voice-user:hover { background: #00ffff22; }
+        .voice-user-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid #00ffff; }
         
-        .user-section { padding: 16px; }
-        body.dark .user-section { background: #232428; border-top: 1px solid #1e1f22; }
-        body.light .user-section { background: #f6f6f7; border-top: 1px solid #e3e5e8; }
-        .stats { padding: 12px; border-radius: 16px; margin-bottom: 12px; font-size: 13px; }
-        body.dark .stats { background: #1e1f22; }
-        body.light .stats { background: #ffffff; }
-        .stat-value { color: #5865f2; font-weight: bold; }
-        .current-user { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; }
-        body.dark .current-user { background: #1e1f22; }
-        body.light .current-user { background: #ffffff; }
-        .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: #5865f2; position: relative; }
+        .user-section { padding: 16px; border-top: 1px solid #00ffff33; }
+        .stats { padding: 12px; border-radius: 10px; margin-bottom: 12px; font-size: 12px; font-family: monospace; }
+        body.dark .stats { background: rgba(0,255,255,0.05); }
+        body.light .stats { background: rgba(0,255,255,0.1); }
+        .stat-value { color: #ff00ff; font-weight: bold; text-shadow: 0 0 3px #ff00ff; }
+        .current-user { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; }
+        body.dark .current-user { background: rgba(0,255,255,0.05); }
+        body.light .current-user { background: rgba(0,255,255,0.1); }
+        .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #00ffff; position: relative; }
         .status-dot { position: absolute; bottom: 0; right: 0; width: 10px; height: 10px; border-radius: 50%; border: 2px solid; }
-        body.dark .status-dot { border-color: #2b2d31; }
+        body.dark .status-dot { border-color: #0a0a1a; }
         body.light .status-dot { border-color: #ffffff; }
-        .status-online { background: #23a55a; }
-        .status-idle { background: #f0b232; }
-        .status-dnd { background: #f23f42; }
-        .status-loading { background: #f09b42; }
-        .status-offline { background: #80848e; }
+        .status-online { background: #00ff00; box-shadow: 0 0 5px #00ff00; }
+        .status-idle { background: #ffff00; box-shadow: 0 0 5px #ffff00; }
+        .status-dnd { background: #ff0000; box-shadow: 0 0 5px #ff0000; }
+        .status-loading { background: #ff8800; box-shadow: 0 0 5px #ff8800; }
+        .status-offline { background: #808080; }
         
-        .right-sidebar { width: 260px; display: flex; flex-direction: column; padding: 16px; }
-        body.dark .right-sidebar { background: #2b2d31; border-left: 1px solid #1e1f22; }
-        body.light .right-sidebar { background: #ffffff; border-left: 1px solid #e3e5e8; }
-        .right-sidebar-title { font-size: 12px; text-transform: uppercase; margin-bottom: 12px; padding: 0 8px; }
-        body.dark .right-sidebar-title { color: #949ba4; }
-        body.light .right-sidebar-title { color: #4f545c; }
+        .right-sidebar { width: 260px; display: flex; flex-direction: column; padding: 16px; border-left: 1px solid #00ffff33; }
+        body.dark .right-sidebar { background: rgba(10, 10, 26, 0.8); backdrop-filter: blur(10px); }
+        body.light .right-sidebar { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
+        .right-sidebar-title { font-size: 11px; text-transform: uppercase; margin-bottom: 12px; padding: 0 8px; letter-spacing: 2px; opacity: 0.7; }
         .online-users-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-        .online-user { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; cursor: pointer; transition: 0.1s; }
-        body.dark .online-user { background: #1e1f22; }
-        body.light .online-user { background: #f6f6f7; }
-        .online-user:hover { background: #3b3f48; }
-        .online-user-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; position: relative; }
-        .online-user-info { flex: 1; }
-        .online-user-name { font-size: 14px; font-weight: 500; }
-        .online-user-role { font-size: 10px; opacity: 0.7; }
+        .online-user { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; cursor: pointer; transition: 0.1s; }
+        .online-user:hover { background: #00ffff22; }
+        .online-user-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid #00ffff; }
+        .online-user-name { font-size: 13px; font-weight: 500; font-family: monospace; }
+        .online-user-role { font-size: 9px; opacity: 0.7; }
         
+        /* Чат */
         .chat { flex: 1; display: flex; flex-direction: column; }
-        body.dark .chat { background: #313338; }
-        body.light .chat { background: #ffffff; }
-        .chat-header { padding: 16px 20px; font-weight: 600; font-size: 16px; }
-        body.dark .chat-header { background: #2b2d31; border-bottom: 1px solid #1e1f22; }
-        body.light .chat-header { background: #f6f6f7; border-bottom: 1px solid #e3e5e8; }
+        body.dark .chat { background: rgba(10, 10, 26, 0.6); }
+        body.light .chat { background: rgba(255, 255, 255, 0.6); }
+        .chat-header {
+            padding: 16px 20px;
+            font-weight: bold;
+            font-size: 16px;
+            border-bottom: 1px solid #00ffff33;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chat-header span { font-family: monospace; letter-spacing: 1px; }
+        
         .messages { flex: 1; overflow-y: auto; padding: 16px 0; }
         .message-group { padding: 10px 20px; display: flex; gap: 16px; transition: background 0.1s; position: relative; }
-        .message-group:hover { background: #2b2d31; }
-        .message-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #5865f2; flex-shrink: 0; }
+        .message-group:hover { background: #00ffff11; }
+        .message-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid #00ffff; flex-shrink: 0; }
         .message-content { flex: 1; }
         .message-header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
-        .message-author { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 6px; }
-        .message-time { font-size: 11px; color: #6e727a; }
+        .message-author { font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 6px; font-family: monospace; }
+        body.dark .message-author { color: #00ffff; }
+        body.light .message-author { color: #ff00ff; }
+        .message-time { font-size: 10px; opacity: 0.6; }
         .message-text { font-size: 14px; line-height: 1.4; word-break: break-word; }
-        .media-preview { max-width: 100%; max-height: 200px; border-radius: 16px; margin-top: 6px; cursor: pointer; }
-        .voice-bubble { padding: 8px 16px; border-radius: 20px; display: inline-block; margin-top: 4px; }
-        body.dark .voice-bubble { background: #2b2d31; }
-        body.light .voice-bubble { background: #e3e5e8; }
-        audio { border-radius: 30px; height: 34px; max-width: 100%; }
+        .media-preview { max-width: 100%; max-height: 200px; border-radius: 10px; margin-top: 6px; cursor: pointer; border: 1px solid #00ffff; }
+        .voice-bubble { padding: 8px 16px; border-radius: 20px; display: inline-block; margin-top: 4px; border: 1px solid #00ffff33; }
+        audio { border-radius: 30px; height: 34px; max-width: 100%; background: transparent; }
         
         .reactions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-        .reaction { border-radius: 20px; padding: 3px 10px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
-        body.dark .reaction { background: #2b2d31; }
-        body.light .reaction { background: #e3e5e8; }
-        .reaction:hover { background: #3b3f48; }
-        .message-menu { position: absolute; right: 20px; top: 8px; border-radius: 12px; padding: 5px; display: none; gap: 5px; }
-        body.dark .message-menu { background: #2b2d31; }
-        body.light .message-menu { background: #e3e5e8; }
+        .reaction { border-radius: 20px; padding: 3px 10px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; border: 1px solid #00ffff33; }
+        .reaction:hover { background: #00ffff22; transform: scale(1.05); }
+        .message-menu { position: absolute; right: 20px; top: 8px; border-radius: 10px; padding: 5px; display: none; gap: 5px; background: rgba(0,0,0,0.8); border: 1px solid #00ffff; }
         .message-group:hover .message-menu { display: flex; }
-        .menu-btn { background: none; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
-        body.dark .menu-btn { color: #dbdee1; }
-        body.light .menu-btn { color: #2c2f33; }
-        .menu-btn:hover { background: #e03a3a; color: white; }
+        .menu-btn { background: none; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; color: #00ffff; }
+        .menu-btn:hover { background: #ff00ff; color: white; }
         
         .input-panel { padding: 16px 20px 24px; }
-        body.dark .input-panel { background: #2b2d31; }
-        body.light .input-panel { background: #ffffff; }
-        .input-wrapper { display: flex; gap: 10px; border-radius: 44px; padding: 6px 6px 6px 20px; }
-        body.dark .input-wrapper { background: #1e1f22; border: 1px solid #3b3f48; }
-        body.light .input-wrapper { background: #e3e5e8; border: 1px solid #c4c9d1; }
-        .input-wrapper input { flex: 1; background: transparent; border: none; padding: 12px 0; outline: none; font-size: 16px; }
-        body.dark .input-wrapper input { color: white; }
-        body.light .input-wrapper input { color: #2c2f33; }
-        .btn-icon { border: none; font-size: 18px; width: 42px; height: 42px; border-radius: 30px; cursor: pointer; transition: 0.1s; }
-        body.dark .btn-icon { background: #3b3f48; color: white; }
-        body.light .btn-icon { background: #e3e5e8; color: #2c2f33; }
+        .input-wrapper { display: flex; gap: 10px; border-radius: 50px; padding: 6px 6px 6px 20px; border: 1px solid #00ffff; background: rgba(0,255,255,0.05); }
+        .input-wrapper input { flex: 1; background: transparent; border: none; padding: 12px 0; outline: none; font-size: 14px; font-family: monospace; }
+        body.dark .input-wrapper input { color: #00ffff; }
+        body.light .input-wrapper input { color: #0a0a1a; }
+        .btn-icon { border: none; font-size: 18px; width: 42px; height: 42px; border-radius: 30px; cursor: pointer; transition: 0.1s; background: rgba(0,255,255,0.1); border: 1px solid #00ffff33; }
         .btn-icon:active { transform: scale(0.95); }
-        .btn-icon:hover { background: #5865f2; color: white; }
-        .btn-send { background: #5865f2; color: white; }
+        .btn-icon:hover { background: #00ffff; color: #0a0a1a; border-color: #00ffff; box-shadow: 0 0 10px #00ffff; }
+        .btn-send { background: linear-gradient(135deg, #00ffff, #ff00ff); border: none; color: white; }
         
-        .profile-controls { display: flex; gap: 8px; margin-top: 8px; }
-        .profile-btn { flex: 1; background: #3b3f48; border: none; padding: 6px; border-radius: 20px; cursor: pointer; font-size: 12px; }
-        body.dark .profile-btn { background: #3b3f48; color: white; }
-        body.light .profile-btn { background: #e3e5e8; color: #2c2f33; }
-        .profile-btn.mic-off { background: #e03a3a; }
-        .profile-btn.speaker-off { background: #e03a3a; }
+        .profile-controls { display: flex; gap: 8px; margin-top: 12px; }
+        .profile-btn { flex: 1; background: rgba(0,255,255,0.1); border: 1px solid #00ffff; padding: 6px; border-radius: 20px; cursor: pointer; font-size: 11px; font-family: monospace; }
+        body.dark .profile-btn { color: #00ffff; }
+        body.light .profile-btn { color: #0a0a1a; }
+        .profile-btn.mic-off { background: #ff00ff33; border-color: #ff00ff; }
+        .profile-btn.speaker-off { background: #ff00ff33; border-color: #ff00ff; }
         
-        .status-select { display: flex; gap: 8px; justify-content: center; margin: 10px 0; }
+        .status-select { display: flex; gap: 8px; justify-content: center; margin: 12px 0; }
         .status-option { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: 0.1s; }
         .status-option:active { transform: scale(1.1); }
-        .status-option.selected { border-color: #5865f2; }
-        .status-online-bg { background: #23a55a; }
-        .status-idle-bg { background: #f0b232; }
-        .status-dnd-bg { background: #f23f42; }
-        .status-loading-bg { background: #f09b42; }
-        .status-offline-bg { background: #80848e; }
+        .status-option.selected { border-color: #00ffff; box-shadow: 0 0 10px #00ffff; }
+        .status-online-bg { background: #00ff00; box-shadow: 0 0 5px #00ff00; }
+        .status-idle-bg { background: #ffff00; box-shadow: 0 0 5px #ffff00; }
+        .status-dnd-bg { background: #ff0000; box-shadow: 0 0 5px #ff0000; }
+        .status-loading-bg { background: #ff8800; box-shadow: 0 0 5px #ff8800; }
+        .status-offline-bg { background: #808080; }
         
-        /* Стикеры и GIF */
-        .sticker-btn { background: #3b3f48; border: none; border-radius: 30px; padding: 8px 12px; cursor: pointer; font-size: 20px; }
-        .sticker-panel { display: none; position: absolute; bottom: 70px; left: 20px; background: #2b2d31; border-radius: 20px; padding: 12px; z-index: 100; flex-wrap: wrap; gap: 10px; max-width: 200px; }
-        .sticker { font-size: 40px; cursor: pointer; padding: 5px; transition: 0.1s; }
-        .sticker:active { transform: scale(0.9); }
-        .gif-panel { display: none; position: absolute; bottom: 70px; left: 80px; background: #2b2d31; border-radius: 20px; padding: 12px; z-index: 100; flex-wrap: wrap; gap: 10px; max-width: 300px; }
-        .gif-item { width: 80px; height: 80px; object-fit: cover; border-radius: 12px; cursor: pointer; transition: 0.1s; }
-        .gif-item:active { transform: scale(0.95); }
+        /* Эмодзи-пикер */
+        .emoji-picker {
+            position: absolute;
+            bottom: 80px;
+            left: 20px;
+            background: rgba(10, 10, 26, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 12px;
+            border: 1px solid #00ffff;
+            display: none;
+            flex-wrap: wrap;
+            gap: 8px;
+            width: 280px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        .emoji-item {
+            font-size: 28px;
+            cursor: pointer;
+            padding: 5px;
+            transition: 0.1s;
+            border-radius: 10px;
+        }
+        .emoji-item:hover { background: #00ffff22; transform: scale(1.1); }
         
-        .recording-active { background: #e03a3a; animation: pulse 1s infinite; }
+        .recording-active { background: #ff00ff; animation: neonPulse 1s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-        .speaking { box-shadow: 0 0 0 2px #5865f2; transition: 0.05s; }
+        .speaking { box-shadow: 0 0 0 2px #00ffff, 0 0 0 4px #ff00ff; transition: 0.05s; }
         .wave-container { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; }
-        .wave { width: 3px; height: 12px; background: #ff6666; border-radius: 2px; animation: waveAnim 0.5s infinite alternate; }
+        .wave { width: 3px; height: 12px; background: #ff00ff; border-radius: 2px; animation: waveAnim 0.5s infinite alternate; }
         @keyframes waveAnim { from { transform: scaleY(0.5); } to { transform: scaleY(1.5); } }
-        @keyframes rgbText { 0% { color: #ff0000; } 33% { color: #00ff00; } 66% { color: #0088ff; } 100% { color: #ff0000; } }
+        @keyframes rgbText { 0% { color: #ff0000; text-shadow: 0 0 3px #ff0000; } 33% { color: #00ff00; text-shadow: 0 0 3px #00ff00; } 66% { color: #0088ff; text-shadow: 0 0 3px #0088ff; } 100% { color: #ff0000; text-shadow: 0 0 3px #ff0000; } }
         .rgb-role { animation: rgbText 1.5s infinite linear; font-weight: bold; }
         
         .settings-modal { display: none; position: fixed; inset: 0; backdrop-filter: blur(12px); justify-content: center; align-items: center; z-index: 1000; }
-        body.dark .settings-modal { background: rgba(0,0,0,0.8); }
-        body.light .settings-modal { background: rgba(255,255,255,0.8); }
-        .settings-box { border-radius: 28px; padding: 28px; width: 320px; text-align: center; border: 1px solid rgba(88,101,242,0.3); }
-        body.dark .settings-box { background: #2b2d31; }
+        .settings-box { border-radius: 20px; padding: 28px; width: 340px; text-align: center; border: 2px solid #00ffff; box-shadow: 0 0 30px rgba(0,255,255,0.3); }
+        body.dark .settings-box { background: #0a0a1a; }
         body.light .settings-box { background: #ffffff; }
-        .settings-box input { width: 100%; padding: 12px; margin: 12px 0; border-radius: 16px; outline: none; font-size: 16px; }
-        body.dark .settings-box input { background: #1e1f22; color: white; border: none; }
-        body.light .settings-box input { background: #f6f6f7; border: 1px solid #e3e5e8; color: #2c2f33; }
-        .settings-box button { background: #5865f2; border: none; padding: 10px 20px; border-radius: 40px; color: white; margin: 5px; cursor: pointer; }
-        .settings-divider { margin: 15px 0; border-top: 1px solid; }
-        body.dark .settings-divider { border-color: #1e1f22; }
-        body.light .settings-divider { border-color: #e3e5e8; }
+        .settings-box input { width: 100%; padding: 12px; margin: 12px 0; border-radius: 10px; outline: none; font-family: monospace; border: 1px solid #00ffff; background: transparent; }
+        body.dark .settings-box input { color: #00ffff; }
+        body.light .settings-box input { color: #0a0a1a; }
+        .settings-box button { background: linear-gradient(135deg, #00ffff, #ff00ff); border: none; padding: 10px 20px; border-radius: 10px; color: white; margin: 5px; cursor: pointer; }
+        .settings-divider { margin: 15px 0; border-top: 1px solid #00ffff33; }
         
         .switch { position: relative; display: inline-block; width: 46px; height: 22px; }
         .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #3b3f48; transition: 0.2s; border-radius: 22px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: 0.2s; border-radius: 50%; }
-        input:checked + .slider { background-color: #5865f2; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #0a0a1a; transition: 0.2s; border-radius: 22px; border: 1px solid #00ffff; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: #00ffff; transition: 0.2s; border-radius: 50%; }
+        input:checked + .slider { background-color: #ff00ff; }
         input:checked + .slider:before { transform: translateX(24px); }
         
         .menu-toggle { display: none; }
         @media (max-width: 700px) {
             .sidebar { position: fixed; left: -280px; top: 0; bottom: 0; z-index: 100; }
             .sidebar.open { left: 0; }
-            .menu-toggle { display: flex; position: fixed; bottom: 20px; left: 20px; z-index: 101; background: #5865f2; border: none; width: 48px; height: 48px; border-radius: 30px; align-items: center; justify-content: center; font-size: 24px; color: white; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
-            .message-menu { display: flex; position: static; margin-top: 6px; background: none; gap: 8px; padding: 0; }
+            .menu-toggle { display: flex; position: fixed; bottom: 20px; left: 20px; z-index: 101; background: linear-gradient(135deg, #00ffff, #ff00ff); border: none; width: 48px; height: 48px; border-radius: 30px; align-items: center; justify-content: center; font-size: 24px; color: white; cursor: pointer; box-shadow: 0 0 15px #00ffff; }
+            .right-sidebar { display: none; }
+            .message-menu { display: flex; position: static; margin-top: 6px; background: none; gap: 8px; padding: 0; border: none; }
         }
+        
+        .chat-header-buttons { display: flex; gap: 8px; }
+        .chat-btn { background: rgba(0,255,255,0.1); border: 1px solid #00ffff; border-radius: 20px; padding: 6px 12px; cursor: pointer; font-size: 16px; transition: 0.1s; }
+        .chat-btn:hover { background: #00ffff; color: #0a0a1a; box-shadow: 0 0 10px #00ffff; }
     </style>
 </head>
 <body class="dark">
 
 <div id="loginModal" class="login-modal">
     <div class="login-box">
-        <h2 id="formTitle">🔐 Вход</h2>
-        <input type="text" id="loginUsername" placeholder="Никнейм">
-        <input type="password" id="loginPassword" placeholder="Пароль">
-        <button id="submitBtn">Войти</button>
+        <h2 id="formTitle">🔐 ВХОД</h2>
+        <input type="text" id="loginUsername" placeholder="НИКНЕЙМ">
+        <input type="password" id="loginPassword" placeholder="ПАРОЛЬ">
+        <button id="submitBtn">ВОЙТИ</button>
         <div class="switch-mode" id="switchMode">Нет аккаунта? Зарегистрироваться</div>
         <div class="login-error" id="loginError"></div>
     </div>
@@ -286,11 +377,11 @@
                     <div id="currentNickDisplay" style="font-weight:600;"></div>
                     <div id="currentRoleDisplay" style="font-size:11px;"></div>
                 </div>
-                <button onclick="openSettings()" style="background:#3b3f48; border:none; width:32px; height:32px; border-radius:50%; cursor:pointer;">⚙️</button>
+                <button onclick="openSettings()" style="background:rgba(0,255,255,0.1); border:1px solid #00ffff; border-radius:10px; width:32px; height:32px; cursor:pointer;">⚙️</button>
             </div>
             <div class="profile-controls">
-                <button id="profileMicBtn" class="profile-btn" onclick="toggleMic()">🎤 Микрофон</button>
-                <button id="profileSpeakerBtn" class="profile-btn" onclick="toggleSpeaker()">🔊 Звук</button>
+                <button id="profileMicBtn" class="profile-btn" onclick="toggleMic()">🎤 МИКРОФОН</button>
+                <button id="profileSpeakerBtn" class="profile-btn" onclick="toggleSpeaker()">🔊 ЗВУК</button>
             </div>
             <div class="status-select" id="statusSelect">
                 <div class="status-option status-online-bg" data-status="online" title="В сети"></div>
@@ -305,23 +396,31 @@
     <div class="chat">
         <div class="chat-header">
             <span># <span id="currentRoomName">general</span></span>
-            <div style="display: flex; gap: 8px; float: right;">
-                <button class="sticker-btn" onclick="toggleStickerPanel()">😊</button>
-                <button class="sticker-btn" onclick="toggleGifPanel()">🎞️</button>
+            <div class="chat-header-buttons">
+                <button class="chat-btn" onclick="toggleEmojiPicker()">😊</button>
             </div>
         </div>
-        <div id="stickerPanel" class="sticker-panel">
-            <div class="sticker" onclick="sendSticker('🐶')">🐶</div>
-            <div class="sticker" onclick="sendSticker('🐱')">🐱</div>
-            <div class="sticker" onclick="sendSticker('🔥')">🔥</div>
-            <div class="sticker" onclick="sendSticker('💀')">💀</div>
-            <div class="sticker" onclick="sendSticker('Макума')">🐱 Макума</div>
-        </div>
-        <div id="gifPanel" class="gif-panel">
-            <img class="gif-item" src="https://media.tenor.com/5iT4ZkZkZk0AAAAi/cat.gif" onclick="sendGif('https://media.tenor.com/5iT4ZkZkZk0AAAAi/cat.gif')">
-            <img class="gif-item" src="https://media.tenor.com/8qQqQqQqQq0AAAAi/dance.gif" onclick="sendGif('https://media.tenor.com/8qQqQqQqQq0AAAAi/dance.gif')">
-            <img class="gif-item" src="https://media.tenor.com/3pYpYpYpYp0AAAAi/laugh.gif" onclick="sendGif('https://media.tenor.com/3pYpYpYpYp0AAAAi/laugh.gif')">
-            <img class="gif-item" src="https://media.tenor.com/7tTtTtTtTt0AAAAi/angry.gif" onclick="sendGif('https://media.tenor.com/7tTtTtTtTt0AAAAi/angry.gif')">
+        <div id="emojiPicker" class="emoji-picker">
+            <div class="emoji-item" onclick="sendEmoji('😀')">😀</div>
+            <div class="emoji-item" onclick="sendEmoji('😂')">😂</div>
+            <div class="emoji-item" onclick="sendEmoji('🥹')">🥹</div>
+            <div class="emoji-item" onclick="sendEmoji('😍')">😍</div>
+            <div class="emoji-item" onclick="sendEmoji('🥰')">🥰</div>
+            <div class="emoji-item" onclick="sendEmoji('😎')">😎</div>
+            <div class="emoji-item" onclick="sendEmoji('😭')">😭</div>
+            <div class="emoji-item" onclick="sendEmoji('😡')">😡</div>
+            <div class="emoji-item" onclick="sendEmoji('👍')">👍</div>
+            <div class="emoji-item" onclick="sendEmoji('👎')">👎</div>
+            <div class="emoji-item" onclick="sendEmoji('🔥')">🔥</div>
+            <div class="emoji-item" onclick="sendEmoji('💀')">💀</div>
+            <div class="emoji-item" onclick="sendEmoji('❤️')">❤️</div>
+            <div class="emoji-item" onclick="sendEmoji('💩')">💩</div>
+            <div class="emoji-item" onclick="sendEmoji('🐱')">🐱</div>
+            <div class="emoji-item" onclick="sendEmoji('🐶')">🐶</div>
+            <div class="emoji-item" onclick="sendEmoji('🎮')">🎮</div>
+            <div class="emoji-item" onclick="sendEmoji('🎵')">🎵</div>
+            <div class="emoji-item" onclick="sendEmoji('✨')">✨</div>
+            <div class="emoji-item" onclick="sendEmoji('⭐')">⭐</div>
         </div>
         <div id="messages" class="messages"></div>
         <div class="input-panel">
@@ -330,7 +429,7 @@
                 <label class="btn-icon" style="display:inline-flex; align-items:center; justify-content:center; cursor:pointer;">📎<input type="file" id="mediaInput" accept="image/*,video/*,audio/*" style="display:none;"></label>
                 <div class="voice-controls">
                     <button class="btn-icon" id="recordBtn">🎙️</button>
-                    <button class="btn-icon" id="cancelVoiceBtn" style="display:none; background:#e03a3a;">❌</button>
+                    <button class="btn-icon" id="cancelVoiceBtn" style="display:none; background:#ff00ff;">❌</button>
                     <span id="recTimer"></span>
                     <div id="waveVisual" class="wave-container" style="display:none;"><div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div></div>
                 </div>
@@ -383,26 +482,14 @@
     const appDiv = document.getElementById("app");
     const loginError = document.getElementById("loginError");
     
-    // Панели стикеров и GIF
-    function toggleStickerPanel() {
-        const panel = document.getElementById("stickerPanel");
-        const gifPanel = document.getElementById("gifPanel");
-        panel.style.display = panel.style.display === "flex" ? "none" : "flex";
-        gifPanel.style.display = "none";
+    // Эмодзи-пикер
+    function toggleEmojiPicker() {
+        const picker = document.getElementById("emojiPicker");
+        picker.style.display = picker.style.display === "flex" ? "none" : "flex";
     }
-    function toggleGifPanel() {
-        const panel = document.getElementById("gifPanel");
-        const stickerPanel = document.getElementById("stickerPanel");
-        panel.style.display = panel.style.display === "flex" ? "none" : "flex";
-        stickerPanel.style.display = "none";
-    }
-    function sendSticker(sticker) {
-        socket.emit("chat", sticker);
-        document.getElementById("stickerPanel").style.display = "none";
-    }
-    function sendGif(url) {
-        socket.emit("media", url, "image");
-        document.getElementById("gifPanel").style.display = "none";
+    function sendEmoji(emoji) {
+        socket.emit("chat", emoji);
+        document.getElementById("emojiPicker").style.display = "none";
     }
     
     const audioCtxSounds = new (window.AudioContext || window.webkitAudioContext)();
@@ -469,7 +556,7 @@
     
     function saveSession(username, password) { localStorage.setItem("nexus_session", JSON.stringify({ username, password })); }
     function updateAvatar() {
-        const avatarUrl = currentAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser)}&background=5865f2&color=fff&size=36`;
+        const avatarUrl = currentAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser)}&background=0a0a1a&color=00ffff&size=36`;
         document.getElementById("myAvatar").src = avatarUrl;
     }
     function updateStatusDot(status) {
@@ -489,7 +576,7 @@
     
     switchMode.onclick = () => {
         isLoginMode = !isLoginMode;
-        formTitle.innerText = isLoginMode ? "🔐 Вход" : "📝 Регистрация";
+        formTitle.innerText = isLoginMode ? "🔐 ВХОД" : "📝 РЕГИСТРАЦИЯ";
         switchMode.innerText = isLoginMode ? "Нет аккаунта? Зарегистрироваться" : "Уже есть аккаунт? Войти";
         loginError.innerText = "";
     };
@@ -586,7 +673,7 @@
             return `
                 <div class="online-user">
                     <div style="position: relative;">
-                        <img class="online-user-avatar" src="${user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=5865f2&color=fff&size=32`}">
+                        <img class="online-user-avatar" src="${user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=0a0a1a&color=00ffff&size=32`}">
                         <div class="status-dot ${user.status === 'online' ? 'status-online' : user.status === 'idle' ? 'status-idle' : user.status === 'dnd' ? 'status-dnd' : user.status === 'loading' ? 'status-loading' : 'status-offline'}" style="width: 8px; height: 8px;"></div>
                     </div>
                     <div class="online-user-info">
@@ -629,7 +716,7 @@
                     container.innerHTML = users.map(user => `
                         <div class="voice-user" data-username="${user.username}">
                             <div style="position: relative;">
-                                <img class="voice-user-avatar" src="${user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=5865f2&color=fff&size=28`}">
+                                <img class="voice-user-avatar" src="${user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=0a0a1a&color=00ffff&size=28`}">
                                 <div class="status-dot ${user.status === 'online' ? 'status-online' : user.status === 'idle' ? 'status-idle' : user.status === 'dnd' ? 'status-dnd' : user.status === 'loading' ? 'status-loading' : 'status-offline'}" style="width: 7px; height: 7px;"></div>
                             </div>
                             <span class="voice-user-name">${escapeHtml(user.username)}</span>
@@ -791,8 +878,7 @@
         if (input.value.trim()) { 
             socket.emit("chat", input.value); 
             input.value = "";
-            document.getElementById("stickerPanel").style.display = "none";
-            document.getElementById("gifPanel").style.display = "none";
+            document.getElementById("emojiPicker").style.display = "none";
         }
     }
     
@@ -810,7 +896,7 @@
         div.className = "message-group";
         div.setAttribute("data-msg-id", msg.id);
         
-        const avatarUrl = msg.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.author)}&background=5865f2&color=fff&size=40`;
+        const avatarUrl = msg.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.author)}&background=0a0a1a&color=00ffff&size=40`;
         const roleTag = `<span class="role-tag" style="${msg.role === 'владелец' ? 'animation: rgbText 1.5s infinite linear;' : ''}">${msg.role}</span>`;
         
         let contentHtml = '';
@@ -957,13 +1043,10 @@
         setupStatusSelect();
     }, 100);
     
-    // Закрытие панелей при клике вне
+    // Закрытие эмодзи-пикера при клике вне
     document.addEventListener("click", function(e) {
-        if (!e.target.closest(".sticker-btn") && !e.target.closest("#stickerPanel")) {
-            document.getElementById("stickerPanel").style.display = "none";
-        }
-        if (!e.target.closest(".sticker-btn") && !e.target.closest("#gifPanel")) {
-            document.getElementById("gifPanel").style.display = "none";
+        if (!e.target.closest(".chat-btn") && !e.target.closest("#emojiPicker")) {
+            document.getElementById("emojiPicker").style.display = "none";
         }
     });
 </script>
