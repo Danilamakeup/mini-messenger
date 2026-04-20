@@ -83,12 +83,67 @@ let coinsDB = {};
 if (fs.existsSync(coinsFile)) coinsDB = JSON.parse(fs.readFileSync(coinsFile));
 function saveCoins() { fs.writeFileSync(coinsFile, JSON.stringify(coinsDB, null, 2)); }
 
+// ========== ДРУЗЬЯ ==========
+const friendsFile = path.join(__dirname, "friends.json");
+let friendsDB = {};
+if (fs.existsSync(friendsFile)) friendsDB = JSON.parse(fs.readFileSync(friendsFile));
+function saveFriends() { fs.writeFileSync(friendsFile, JSON.stringify(friendsDB, null, 2)); }
+
+// ========== СЕРВЕРА ==========
+const serversFile = path.join(__dirname, "servers.json");
+let serversDB = {
+    main: {
+        name: "Главный сервер",
+        owner: "bigheaven3569",
+        rooms: {
+            general: { messages: [], users: new Set() },
+            gaming: { messages: [], users: new Set() },
+            music: { messages: [], users: new Set() },
+            "other-fuckin-shit": { messages: [], users: new Set() }
+        },
+        voiceRooms: { "voice-chat": new Set() },
+        members: new Set()
+    }
+};
+if (fs.existsSync(serversFile)) {
+    const data = JSON.parse(fs.readFileSync(serversFile));
+    for (let [id, server] of Object.entries(data)) {
+        serversDB[id] = server;
+        if (!serversDB[id].rooms) serversDB[id].rooms = {};
+        if (!serversDB[id].voiceRooms) serversDB[id].voiceRooms = {};
+        if (!serversDB[id].members) serversDB[id].members = new Set();
+        for (let room in serversDB[id].rooms) {
+            if (!serversDB[id].rooms[room].messages) serversDB[id].rooms[room].messages = [];
+            if (!serversDB[id].rooms[room].users) serversDB[id].rooms[room].users = new Set();
+        }
+    }
+}
+function saveServers() {
+    const saveData = {};
+    for (let [id, server] of Object.entries(serversDB)) {
+        saveData[id] = { ...server, members: Array.from(server.members), rooms: {}, voiceRooms: server.voiceRooms };
+        for (let [roomName, room] of Object.entries(server.rooms)) {
+            saveData[id].rooms[roomName] = { messages: room.messages };
+        }
+    }
+    fs.writeFileSync(serversFile, JSON.stringify(saveData, null, 2));
+}
+
+// ========== ЛИЧНЫЕ СООБЩЕНИЯ ==========
+const privateMessagesFile = path.join(__dirname, "private_messages.json");
+let privateMessagesDB = {};
+if (fs.existsSync(privateMessagesFile)) privateMessagesDB = JSON.parse(fs.readFileSync(privateMessagesFile));
+function savePrivateMessages() { fs.writeFileSync(privateMessagesFile, JSON.stringify(privateMessagesDB, null, 2)); }
+
 // ========== ЗАЩИЩЁННЫЙ НИК ВЛАДЕЛЬЦА ==========
 const OWNER_USERNAME = "bigheaven3569";
 const OWNER_PASSWORD = "swill1337";
 
 // ========== СТАТУСЫ ==========
 let userStatus = {};
+
+// ========== АКТИВНЫЕ СЕССИИ ==========
+const activeSessions = {}; // socket.id -> { username, serverId, room }
 
 // ========== КОНКУРСЫ ==========
 let activeContest = null;
@@ -97,14 +152,9 @@ let contestTimeout = null;
 const contestQuestions = [
     { question: "Сколько будет 15 + 27?", answer: "42", type: "math" },
     { question: "Сколько будет 8 × 7?", answer: "56", type: "math" },
-    { question: "Сколько будет 144 ÷ 12?", answer: "12", type: "math" },
-    { question: "Сколько будет 9²?", answer: "81", type: "math" },
-    { question: "Какой блок в Майнкрафте нужен для создания портала в Незер?", answer: "обсидиан", type: "minecraft" },
+    { question: "Какой блок в Майнкрафте нужен для портала в Незер?", answer: "обсидиан", type: "minecraft" },
     { question: "Как называется алмазная броня в Майнкрафте?", answer: "алмазная", type: "minecraft" },
-    { question: "Кто главный босс в Майнкрафте?", answer: "дракон края", type: "minecraft" },
-    { question: "Какой инструмент нужен для добычи алмазов?", answer: "железная кирка", type: "minecraft" },
-    { question: "Сколько будет 25 × 4?", answer: "100", type: "math" },
-    { question: "Сколько будет 100 - 37?", answer: "63", type: "math" }
+    { question: "Кто главный босс в Майнкрафте?", answer: "дракон края", type: "minecraft" }
 ];
 
 function startNewContest() {
@@ -119,50 +169,29 @@ function startNewContest() {
         active: true
     };
     
-    sendGlobalAnnouncement(`🎉 **КОНКУРС!** 🎉\n📝 Вопрос: ${activeContest.question}\n💰 Приз: 100 монет!\n✏️ Пиши ответ в чат первым!`);
+    for (let serverId in serversDB) {
+        for (let room in serversDB[serverId].rooms) {
+            sendSystemMessage(serverId, room, `🎉 **КОНКУРС!** 🎉\n📝 Вопрос: ${activeContest.question}\n💰 Приз: 100 монет!\n✏️ Пиши ответ в чат первым!`);
+        }
+    }
     
     contestTimeout = setTimeout(() => {
         if (activeContest && activeContest.active) {
-            sendGlobalAnnouncement(`⏰ Конкурс закончен! Правильный ответ: ${activeContest.answer}. Никто не выиграл :(`);
+            for (let serverId in serversDB) {
+                for (let room in serversDB[serverId].rooms) {
+                    sendSystemMessage(serverId, room, `⏰ Конкурс закончен! Правильный ответ: ${activeContest.answer}.`);
+                }
+            }
             activeContest = null;
         }
-    }, 60000);
+    }, 65000);
 }
 
-// Запуск конкурсов каждые 10 минут
 setInterval(() => {
-    if (!activeContest || !activeContest.active) {
-        startNewContest();
-    }
+    if (!activeContest || !activeContest.active) startNewContest();
 }, 10 * 60 * 1000);
 
-// ========== КОМНАТЫ ==========
-let rooms = {
-    general: { messages: [], users: new Set() },
-    gaming: { messages: [], users: new Set() },
-    music: { messages: [], users: new Set() },
-    "other-fuckin-shit": { messages: [], users: new Set() }
-};
-
-const voiceRooms = { "voice-chat": new Set() };
-const activeSessions = {};
-
-const roomsFile = path.join(__dirname, "rooms.json");
-if (fs.existsSync(roomsFile)) {
-    const roomsData = JSON.parse(fs.readFileSync(roomsFile));
-    for (let [name, data] of Object.entries(roomsData)) {
-        if (rooms[name]) rooms[name].messages = data.messages;
-        else rooms[name] = { messages: data.messages, users: new Set() };
-    }
-}
-function saveRooms() {
-    const roomsData = {};
-    for (let [name, room] of Object.entries(rooms)) {
-        roomsData[name] = { messages: room.messages };
-    }
-    fs.writeFileSync(roomsFile, JSON.stringify(roomsData, null, 2));
-}
-
+// ========== ФУНКЦИИ ==========
 function getUserByUsername(username) {
     for (let [socketId, session] of Object.entries(activeSessions)) {
         if (session.username === username) return { socketId, session };
@@ -170,7 +199,7 @@ function getUserByUsername(username) {
     return null;
 }
 
-function sendSystemMessage(room, text) {
+function sendSystemMessage(serverId, room, text) {
     const msg = {
         id: Date.now() + "_" + Math.random(),
         type: "text",
@@ -181,61 +210,29 @@ function sendSystemMessage(room, text) {
         time: Date.now(),
         reactions: {}
     };
-    rooms[room].messages.push(msg);
-    io.to(room).emit("chat", msg);
+    serversDB[serverId].rooms[room].messages.push(msg);
+    io.to(`server:${serverId}:${room}`).emit("chat", msg);
 }
 
-function sendGlobalAnnouncement(text) {
-    for (let room in rooms) {
-        sendSystemMessage(room, text);
+function sendPrivateMessage(from, to, text) {
+    const chatId = [from, to].sort().join("_");
+    if (!privateMessagesDB[chatId]) privateMessagesDB[chatId] = [];
+    const msg = {
+        id: Date.now() + "_" + Math.random(),
+        type: "text",
+        author: from,
+        text,
+        time: Date.now(),
+        read: false
+    };
+    privateMessagesDB[chatId].push(msg);
+    savePrivateMessages();
+    
+    const target = getUserByUsername(to);
+    if (target) {
+        io.to(target.socketId).emit("private-message", { from, msg });
     }
 }
-
-// ========== ИНТЕРЕСНЫЕ ФАКТЫ (каждые 2 минуты) ==========
-const funFacts = [
-    "🧠 Интересный факт: мама нолана весит больше чем кто-либо",
-    "💡 Совет: не меняй ник на владельца, лучше ищи баги",
-    "😂 Прикол: 'окак' придуман еще в маша и медведь",
-    "🐱 Факт: коты не умеют жевать еду",
-    "🍕 Факт: самый дорогой пицца в мире стоит $12,000",
-    "🎮 Факт: Minecraft был создан за одну неделю",
-    "💀 Факт: Discord изначально создавался как игра",
-    "🔥 Факт: ты сейчас читаешь этот факт в моём мессенджере",
-    "🐶 Факт: собаки понимают до 250 слов и жестов",
-    "🌍 Факт: интернет весит примерно 50 граммов",
-    "🎵 Факт: самая длинная песня длится 639 лет",
-    "📱 Факт: первый смартфон появился в 1992 году",
-    "🍔 Факт: самый большой бургер весил 350 кг",
-    "🚀 Факт: скорость интернета на МКС — 600 Мбит/с",
-    "💻 Факт: первый компьютер весил 27 тонн",
-    "🎮 Факт: Tetris создал советский программист",
-    "🐧 Факт: пингвины предлагают камешки самкам",
-    "🦷 Факт: улитки имеют около 25,000 зубов"
-];
-
-let factInterval = null;
-function startFactTimer() {
-    if (factInterval) clearInterval(factInterval);
-    factInterval = setInterval(() => {
-        const randomFact = funFacts[Math.floor(Math.random() * funFacts.length)];
-        for (let room in rooms) {
-            sendSystemMessage(room, randomFact);
-        }
-    }, 2 * 60 * 1000);
-}
-
-// ========== ОЧИСТКА МУТОВ ==========
-setInterval(() => {
-    const now = Date.now();
-    let changed = false;
-    for (let [user, until] of Object.entries(mutesDB)) {
-        if (until <= now) {
-            delete mutesDB[user];
-            changed = true;
-        }
-    }
-    if (changed) saveMutes();
-}, 60000);
 
 // ========== API ==========
 app.post("/register", (req, res) => {
@@ -249,6 +246,8 @@ app.post("/register", (req, res) => {
     saveUsers();
     if (!coinsDB[username]) coinsDB[username] = 0;
     saveCoins();
+    if (!friendsDB[username]) friendsDB[username] = [];
+    saveFriends();
     res.json({ success: true, role: "новичок" });
 });
 
@@ -293,12 +292,16 @@ app.post("/change-nick", (req, res) => {
     if (bansDB[newUsername]) return res.status(403).json({ error: "ЭТОТ НИК В БАНЕ!" });
     
     const coins = coinsDB[oldUsername] || 0;
+    const friends = friendsDB[oldUsername] || [];
     usersDB[newUsername] = { ...user };
     delete usersDB[oldUsername];
     coinsDB[newUsername] = coins;
     delete coinsDB[oldUsername];
+    friendsDB[newUsername] = friends;
+    delete friendsDB[oldUsername];
     saveUsers();
     saveCoins();
+    saveFriends();
     res.json({ success: true, newUsername });
 });
 
@@ -314,25 +317,73 @@ app.post("/upload-avatar", uploadAvatar.single("avatar"), (req, res) => {
     }
 });
 
-app.post("/buy-role", (req, res) => {
-    const { username, role, price } = req.body;
-    const userCoins = coinsDB[username] || 0;
-    if (userCoins >= price) {
-        coinsDB[username] -= price;
-        usersDB[username].role = role;
-        saveCoins();
-        saveUsers();
-        res.json({ success: true, newRole: role, newCoins: coinsDB[username] });
-    } else {
-        res.json({ success: false, error: "Недостаточно монет!" });
+app.post("/create-server", (req, res) => {
+    const { username, serverName } = req.body;
+    const user = usersDB[username];
+    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+    if (user.role !== "владелец" && user.role !== "админ" && user.role !== "модер") {
+        return res.status(403).json({ error: "Только модераторы и выше могут создавать сервера!" });
     }
+    
+    const serverId = Date.now() + "_" + Math.random().toString(36).slice(4);
+    serversDB[serverId] = {
+        name: serverName,
+        owner: username,
+        rooms: {
+            general: { messages: [], users: new Set() },
+        },
+        voiceRooms: { "voice-chat": new Set() },
+        members: new Set([username])
+    };
+    saveServers();
+    res.json({ success: true, serverId, serverName });
+});
+
+app.post("/send-friend-request", (req, res) => {
+    const { from, to } = req.body;
+    if (!friendsDB[from]) friendsDB[from] = [];
+    if (!friendsDB[to]) friendsDB[to] = [];
+    if (friendsDB[from].includes(to)) return res.json({ error: "Уже в друзьях" });
+    if (!friendsDB[from].includes(`request_${to}`)) {
+        friendsDB[from].push(`request_${to}`);
+        saveFriends();
+    }
+    const target = getUserByUsername(to);
+    if (target) {
+        io.to(target.socketId).emit("friend-request", { from });
+    }
+    res.json({ success: true });
+});
+
+app.post("/accept-friend", (req, res) => {
+    const { username, friend } = req.body;
+    if (friendsDB[username]) {
+        const index = friendsDB[username].indexOf(`request_${friend}`);
+        if (index !== -1) {
+            friendsDB[username].splice(index, 1);
+            if (!friendsDB[username].includes(friend)) friendsDB[username].push(friend);
+            if (!friendsDB[friend].includes(username)) friendsDB[friend].push(username);
+            saveFriends();
+        }
+    }
+    res.json({ success: true });
+});
+
+app.post("/reject-friend", (req, res) => {
+    const { username, friend } = req.body;
+    if (friendsDB[username]) {
+        const index = friendsDB[username].indexOf(`request_${friend}`);
+        if (index !== -1) friendsDB[username].splice(index, 1);
+        saveFriends();
+    }
+    res.json({ success: true });
 });
 
 // ========== SOCKET.IO ==========
 io.on("connection", (socket) => {
     console.log("✅ Подключился:", socket.id);
 
-    socket.on("auth", ({ username, room }) => {
+    socket.on("auth", ({ username, serverId, room }) => {
         if (bansDB[username]) { socket.emit("auth-error", "ТЫ В БАНЕ, ПИЗДУЙ!"); return; }
         const user = usersDB[username];
         if (!user) { socket.emit("auth-error", "Пользователь не найден"); return; }
@@ -342,27 +393,27 @@ io.on("connection", (socket) => {
             return;
         } else if (mutesDB[username]) { delete mutesDB[username]; saveMutes(); }
 
-        const prev = activeSessions[socket.id]?.room;
-        if (prev && rooms[prev]) {
-            rooms[prev].users.delete(socket.id);
-            socket.leave(prev);
+        const prev = activeSessions[socket.id];
+        if (prev) {
+            const oldServer = serversDB[prev.serverId];
+            if (oldServer && oldServer.rooms[prev.room]) {
+                oldServer.rooms[prev.room].users.delete(socket.id);
+            }
+            socket.leave(`server:${prev.serverId}:${prev.room}`);
         }
 
-        activeSessions[socket.id] = { username, room };
-        socket.join(room);
-        rooms[room].users.add(socket.id);
+        if (!serversDB[serverId]) serverId = "main";
+        if (!serversDB[serverId].rooms[room]) room = "general";
+
+        activeSessions[socket.id] = { username, serverId, room };
+        socket.join(`server:${serverId}:${room}`);
+        serversDB[serverId].rooms[room].users.add(socket.id);
         
         if (!userStatus[username]) userStatus[username] = "online";
         userStatus[username] = "online";
 
-        socket.emit("history", rooms[room].messages);
-        socket.emit("user-data", { username, role: user.role, avatar: user.avatar, status: userStatus[username], coins: coinsDB[username] || 0 });
-        io.emit("online", Object.keys(activeSessions).length);
-        io.to(room).emit("room-users", Array.from(rooms[room].users).map(id => ({
-            username: activeSessions[id]?.username,
-            avatar: usersDB[activeSessions[id]?.username]?.avatar,
-            status: userStatus[activeSessions[id]?.username] || "online"
-        })));
+        socket.emit("history", serversDB[serverId].rooms[room].messages);
+        socket.emit("user-data", { username, role: user.role, avatar: user.avatar, status: userStatus[username], coins: coinsDB[username] || 0, friends: friendsDB[username] || [] });
         
         const allUsers = [];
         for (let u of Object.keys(usersDB)) {
@@ -376,7 +427,11 @@ io.on("connection", (socket) => {
         }
         io.emit("all-users", allUsers);
         
-        if (!factInterval) startFactTimer();
+        const serversList = [];
+        for (let [id, srv] of Object.entries(serversDB)) {
+            serversList.push({ id, name: srv.name, owner: srv.owner, memberCount: srv.members.size });
+        }
+        socket.emit("servers-list", serversList);
     });
     
     socket.on("set-status", ({ status }) => {
@@ -384,18 +439,6 @@ io.on("connection", (socket) => {
         if (session) {
             userStatus[session.username] = status;
             io.emit("user-status-update", { username: session.username, status });
-            
-            const allUsers = [];
-            for (let u of Object.keys(usersDB)) {
-                const isOnline = getUserByUsername(u) !== null;
-                allUsers.push({
-                    username: u,
-                    avatar: usersDB[u]?.avatar,
-                    role: usersDB[u]?.role,
-                    status: isOnline ? (userStatus[u] || "online") : "offline"
-                });
-            }
-            io.emit("all-users", allUsers);
         }
     });
 
@@ -407,269 +450,40 @@ io.on("connection", (socket) => {
             return;
         }
         const user = usersDB[session.username];
+        const server = serversDB[session.serverId];
         
-        // Проверка конкурса
         if (activeContest && activeContest.active && !activeContest.winners.includes(session.username)) {
             if (text.toLowerCase().trim() === activeContest.answer) {
                 activeContest.winners.push(session.username);
                 coinsDB[session.username] = (coinsDB[session.username] || 0) + 100;
                 saveCoins();
-                sendGlobalAnnouncement(`🎉 **ПОБЕДИТЕЛЬ!** 🎉\n👑 ${session.username} правильно ответил на вопрос и получил 100 монет!`);
-                socket.emit("user-data", { username: session.username, role: user.role, avatar: user.avatar, status: userStatus[session.username], coins: coinsDB[session.username] });
+                for (let room in server.rooms) {
+                    sendSystemMessage(session.serverId, room, `🎉 **ПОБЕДИТЕЛЬ!** 🎉\n👑 ${session.username} получил 100 монет!`);
+                }
+                socket.emit("user-data", { username: session.username, role: user.role, avatar: user.avatar, status: userStatus[session.username], coins: coinsDB[session.username], friends: friendsDB[session.username] || [] });
                 activeContest.active = false;
                 if (contestTimeout) clearTimeout(contestTimeout);
-                setTimeout(() => {
-                    if (!activeContest || !activeContest.active) startNewContest();
-                }, 5000);
+                setTimeout(() => startNewContest(), 5000);
             }
-        }
-        
-        // Команда магазина
-        if (text === "/магазин") {
-            const shopText = `🛒 **МАГАЗИН РОЛЕЙ** 🛒\n👑 Владелец — ${coinsDB[session.username] >= 1000000000000000000000000000 ? "✅" : "❌"} 1,000,000,000,000,000,000,000,000,000 монет\n⭐ Олд — ${coinsDB[session.username] >= 5000 ? "✅" : "❌"} 5,000 монет\n🛡️ Модератор — ${coinsDB[session.username] >= 10000 ? "✅" : "❌"} 10,000 монет\n\nЧтобы купить роль, напиши: /купить [роль]`;
-            const msg = { id: Date.now() + "_" + Math.random(), type: "text", author: "🛒 МАГАЗИН", role: "система", avatar: null, text: shopText, time: Date.now(), reactions: {} };
-            rooms[session.room].messages.push(msg);
-            io.to(session.room).emit("chat", msg);
-            return;
-        }
-        
-        if (text.startsWith("/купить")) {
-            const parts = text.split(" ");
-            const roleName = parts[1]?.toLowerCase();
-            let price = 0;
-            let roleToBuy = "";
-            if (roleName === "олд") { price = 5000; roleToBuy = "олд"; }
-            else if (roleName === "модератор") { price = 10000; roleToBuy = "модер"; }
-            else if (roleName === "владелец") { price = 1000000000000000000000000000; roleToBuy = "владелец"; }
-            else {
-                const msg = { id: Date.now() + "_" + Math.random(), type: "text", author: "🛒 МАГАЗИН", role: "система", avatar: null, text: "❌ Доступные роли: олд (5000), модератор (10000), владелец (1,000,000,000,000,000,000,000,000,000)", time: Date.now(), reactions: {} };
-                rooms[session.room].messages.push(msg);
-                io.to(session.room).emit("chat", msg);
-                return;
-            }
-            
-            if ((coinsDB[session.username] || 0) >= price) {
-                coinsDB[session.username] -= price;
-                usersDB[session.username].role = roleToBuy;
-                saveCoins();
-                saveUsers();
-                const msg = { id: Date.now() + "_" + Math.random(), type: "text", author: "🛒 МАГАЗИН", role: "система", avatar: null, text: `✅ Ты купил роль "${roleToBuy}" за ${price} монет! Осталось монет: ${coinsDB[session.username]}`, time: Date.now(), reactions: {} };
-                rooms[session.room].messages.push(msg);
-                io.to(session.room).emit("chat", msg);
-                socket.emit("user-data", { username: session.username, role: roleToBuy, avatar: user.avatar, status: userStatus[session.username], coins: coinsDB[session.username] });
-            } else {
-                const msg = { id: Date.now() + "_" + Math.random(), type: "text", author: "🛒 МАГАЗИН", role: "система", avatar: null, text: `❌ Недостаточно монет! Нужно: ${price}, у тебя: ${coinsDB[session.username] || 0}`, time: Date.now(), reactions: {} };
-                rooms[session.room].messages.push(msg);
-                io.to(session.room).emit("chat", msg);
-            }
-            return;
-        }
-        
-        // Команды владельца
-        if (text.startsWith("/") && user.role === "владелец") {
-            const parts = text.split(" ");
-            const cmd = parts[0].toLowerCase();
-            
-            if (cmd === "/givecoins" && parts[1] && parts[2]) {
-                const targetUser = parts[1].replace("@", "");
-                const amount = parseInt(parts[2]);
-                if (!isNaN(amount) && amount > 0) {
-                    coinsDB[targetUser] = (coinsDB[targetUser] || 0) + amount;
-                    saveCoins();
-                    sendSystemMessage(session.room, `💰 ${targetUser} получил ${amount} монет!`);
-                    const target = getUserByUsername(targetUser);
-                    if (target) io.to(target.socketId).emit("user-data", { username: targetUser, role: usersDB[targetUser].role, avatar: usersDB[targetUser].avatar, status: userStatus[targetUser], coins: coinsDB[targetUser] });
-                }
-            }
-            else if (cmd === "/resetcoins" && parts[1]) {
-                const targetUser = parts[1].replace("@", "");
-                coinsDB[targetUser] = 0;
-                saveCoins();
-                sendSystemMessage(session.room, `💰 Монеты ${targetUser} сброшены до 0!`);
-                const target = getUserByUsername(targetUser);
-                if (target) io.to(target.socketId).emit("user-data", { username: targetUser, role: usersDB[targetUser].role, avatar: usersDB[targetUser].avatar, status: userStatus[targetUser], coins: coinsDB[targetUser] });
-            }
-            else if (cmd === "/contest") {
-                startNewContest();
-                sendSystemMessage(session.room, "🎲 Новый конкурс запущен!");
-            }
-            else if (cmd === "/пароли" || cmd === "/passwords") {
-                let passwordsList = "📋 СПИСОК ПОЛЬЗОВАТЕЛЕЙ И ПАРОЛЕЙ:\n";
-                for (const [u, data] of Object.entries(usersDB)) {
-                    passwordsList += `👤 ${u} → 🔑 ${data.password}\n`;
-                }
-                sendSystemMessage(session.room, passwordsList);
-            }
-            else if (cmd === "/функции" || cmd === "/фун" || cmd === "/help") {
-                const helpText = `📖 КОМАНДЫ:\n/give @user роль — выдать роль\n/givecoins @user сумма — выдать монеты\n/resetcoins @user — сбросить монеты\n/kick @user — кикнуть\n/ban @user — забанить\n/unban @user — разбанить\n/clear N — очистить\n/mute @user минут — замутить\n/warn @user — варн\n/whois @user — инфо\n/stats — статистика\n/nuke — аннигиляция\n/create-room #название\n/delete-room #название\n/resetpass @user — сброс пароля\n/contest — запустить конкурс\n/пароли — посмотреть пароли`;
-                sendSystemMessage(session.room, helpText);
-            }
-            else if (cmd === "/clearall") {
-                for (let r in rooms) {
-                    rooms[r].messages = [];
-                    io.to(r).emit("clear-chat");
-                }
-                sendSystemMessage(session.room, "🧹 ВСЕ КОМНАТЫ ОЧИЩЕНЫ!");
-            }
-            else if (cmd === "/announce" && parts[1]) {
-                const announcement = text.slice(9);
-                sendGlobalAnnouncement(`📢 ОБЪЯВЛЕНИЕ ОТ ВЛАДЕЛЬЦА: ${announcement}`);
-            }
-            else if (cmd === "/serverinfo") {
-                const totalUsers = Object.keys(usersDB).length;
-                const onlineNow = Object.keys(activeSessions).length;
-                const totalMessages = Object.values(rooms).reduce((acc, r) => acc + r.messages.length, 0);
-                const totalRooms = Object.keys(rooms).length;
-                sendSystemMessage(session.room, `📊 **ИНФО О СЕРВЕРЕ**\n👥 Всего: ${totalUsers}\n🟢 Онлайн: ${onlineNow}\n💬 Сообщений: ${totalMessages}\n📁 Комнат: ${totalRooms}\n👑 Владелец: ${OWNER_USERNAME}`);
-            }
-            else if (cmd === "/userinfo" && parts[1]) {
-                const targetUser = parts[1].replace("@", "");
-                const userInfo = usersDB[targetUser];
-                if (!userInfo) { sendSystemMessage(session.room, `❌ Пользователь ${targetUser} не найден`); return; }
-                const isOnline = getUserByUsername(targetUser) !== null;
-                const warns = warnsDB[targetUser] || 0;
-                const createdAt = new Date(userInfo.createdAt).toLocaleDateString();
-                const muteUntil = mutesDB[targetUser];
-                const isMuted = muteUntil && muteUntil > Date.now();
-                const muteRemaining = isMuted ? Math.ceil((muteUntil - Date.now()) / 1000 / 60) : 0;
-                const status = isOnline ? (userStatus[targetUser] || "online") : "offline";
-                const statusEmoji = status === "online" ? "🟢" : status === "idle" ? "🟡" : status === "dnd" ? "🔴" : status === "loading" ? "🟠" : "⚫";
-                sendSystemMessage(session.room, `📋 **ИНФО О ПОЛЬЗОВАТЕЛЕ ${targetUser}**\n${statusEmoji} Статус: ${status}\n👤 Роль: ${userInfo.role}\n💰 Монет: ${coinsDB[targetUser] || 0}\n📅 Зарегистрирован: ${createdAt}\n⚠️ Варны: ${warns}/3\n${isMuted ? `🔇 В муте: ещё ${muteRemaining} мин` : "🔊 Не в муте"}`);
-            }
-            else if ((cmd === "/create-room" || cmd === "/create") && parts[1]) {
-                let newRoom = parts[1].replace("#", "").toLowerCase();
-                if (!rooms[newRoom]) {
-                    rooms[newRoom] = { messages: [], users: new Set() };
-                    io.emit("new-room", newRoom);
-                    sendSystemMessage(session.room, `📁 Создана комната #${newRoom}`);
-                    saveRooms();
-                } else { sendSystemMessage(session.room, `❌ Комната #${newRoom} уже существует`); }
-            }
-            else if ((cmd === "/delete-room" || cmd === "/delete") && parts[1]) {
-                let delRoom = parts[1].replace("#", "").toLowerCase();
-                if (delRoom !== "general" && rooms[delRoom]) {
-                    delete rooms[delRoom];
-                    io.emit("delete-room", delRoom);
-                    sendSystemMessage(session.room, `🗑️ Удалена комната #${delRoom}`);
-                    saveRooms();
-                } else { sendSystemMessage(session.room, `❌ Нельзя удалить general`); }
-            }
-            else if (cmd === "/give" && parts[1] && parts[2]) {
-                const targetUser = parts[1].replace("@", "");
-                const role = parts[2].toLowerCase();
-                if (usersDB[targetUser]) {
-                    usersDB[targetUser].role = role;
-                    saveUsers();
-                    sendSystemMessage(session.room, `✅ ${targetUser} теперь ${role}!`);
-                    const target = getUserByUsername(targetUser);
-                    if (target) io.to(target.socketId).emit("user-data", { username: targetUser, role, avatar: usersDB[targetUser].avatar, status: userStatus[targetUser], coins: coinsDB[targetUser] });
-                } else { sendSystemMessage(session.room, `❌ Не могу дать роль ${targetUser}`); }
-            }
-            else if (cmd === "/kick" && parts[1]) {
-                const targetUser = parts[1].replace("@", "");
-                const target = getUserByUsername(targetUser);
-                if (target) {
-                    io.to(target.socketId).emit("kick", "Тебя кикнули!");
-                    target.session.socket.disconnect();
-                    sendSystemMessage(session.room, `👢 ${targetUser} был кикнут!`);
-                } else { sendSystemMessage(session.room, `❌ ${targetUser} не найден`); }
-            }
-            else if (cmd === "/ban" && parts[1]) {
-                const targetUser = parts[1].replace("@", "");
-                if (targetUser === OWNER_USERNAME) { sendSystemMessage(session.room, `❌ НЕЛЬЗЯ ЗАБАНИТЬ ВЛАДЕЛЬЦА!`); }
-                else if (targetUser === session.username) { sendSystemMessage(session.room, `❌ СЕБЯ НЕЛЬЗЯ ЗАБАНИТЬ!`); }
-                else {
-                    bansDB[targetUser] = true;
-                    saveBans();
-                    const target = getUserByUsername(targetUser);
-                    if (target) { io.to(target.socketId).emit("ban", "ТЫ В БАНЕ, ПИЗДУЙ!"); target.session.socket.disconnect(); }
-                    sendSystemMessage(session.room, `🔨 ${targetUser} ЗАБАНЕН НАВСЕГДА!`);
-                }
-            }
-            else if (cmd === "/unban" && parts[1]) {
-                const targetUser = parts[1].replace("@", "");
-                if (bansDB[targetUser]) {
-                    delete bansDB[targetUser];
-                    saveBans();
-                    sendSystemMessage(session.room, `✅ ${targetUser} РАЗБАНЕН!`);
-                } else { sendSystemMessage(session.room, `❌ ${targetUser} НЕ В БАНЕ.`); }
-            }
-            else if (cmd === "/clear" && parts[1]) {
-                const count = parseInt(parts[1]);
-                if (!isNaN(count) && count > 0) {
-                    rooms[session.room].messages = rooms[session.room].messages.slice(0, -count);
-                    io.to(session.room).emit("clear-chat");
-                    sendSystemMessage(session.room, `🧹 Очищено ${count} сообщений!`);
-                }
-            }
-            else if (cmd === "/mute" && parts[1]) {
-                const targetUser = parts[1].replace("@", "");
-                let minutes = 5;
-                if (parts[2]) minutes = parseInt(parts[2]);
-                if (!isNaN(minutes) && minutes > 0) {
-                    mutesDB[targetUser] = Date.now() + (minutes * 60 * 1000);
-                    saveMutes();
-                    sendSystemMessage(session.room, `🤐 ${targetUser} замучен на ${minutes} минут!`);
-                    const target = getUserByUsername(targetUser);
-                    if (target) io.to(target.socketId).emit("mute", `Ты в муте ${minutes} минут!`);
-                }
-            }
-            else if (cmd === "/warn" && parts[1]) {
-                const targetUser = parts[1].replace("@", "");
-                if (!warnsDB[targetUser]) warnsDB[targetUser] = 0;
-                warnsDB[targetUser]++;
-                saveWarns();
-                sendSystemMessage(session.room, `⚠️ ${targetUser} получил предупреждение (${warnsDB[targetUser]}/3)`);
-                if (warnsDB[targetUser] >= 3) {
-                    bansDB[targetUser] = true;
-                    saveBans();
-                    const target = getUserByUsername(targetUser);
-                    if (target) { io.to(target.socketId).emit("ban", "3 варна = БАН!"); target.session.socket.disconnect(); }
-                }
-            }
-            else if (cmd === "/whois" && parts[1]) {
-                const targetUser = parts[1].replace("@", "");
-                const userInfo = usersDB[targetUser];
-                if (!userInfo) { sendSystemMessage(session.room, `❌ Пользователь ${targetUser} не найден`); return; }
-                const isOnline = getUserByUsername(targetUser) !== null;
-                const warns = warnsDB[targetUser] || 0;
-                const createdAt = new Date(userInfo.createdAt).toLocaleDateString();
-                const muteUntil = mutesDB[targetUser];
-                const isMuted = muteUntil && muteUntil > Date.now();
-                const muteRemaining = isMuted ? Math.ceil((muteUntil - Date.now()) / 1000 / 60) : 0;
-                sendSystemMessage(session.room, `📋 **ИНФО О ПОЛЬЗОВАТЕЛЕ ${targetUser}**\n👤 Роль: ${userInfo.role}\n💰 Монет: ${coinsDB[targetUser] || 0}\n📅 Зарегистрирован: ${createdAt}\n🟢 Статус: ${isOnline ? "В сети" : "Не в сети"}\n⚠️ Варны: ${warns}/3\n${isMuted ? `🔇 В муте: ещё ${muteRemaining} мин` : "🔊 Не в муте"}`);
-            }
-            else if (cmd === "/stats") {
-                const totalUsers = Object.keys(usersDB).length;
-                const onlineNow = Object.keys(activeSessions).length;
-                const totalMessages = Object.values(rooms).reduce((acc, r) => acc + r.messages.length, 0);
-                sendSystemMessage(session.room, `📊 Всего юзеров: ${totalUsers}, Онлайн: ${onlineNow}, Сообщений: ${totalMessages}`);
-            }
-            else if (cmd === "/nuke") {
-                for (let r in rooms) rooms[r].messages = [];
-                for (let r in rooms) io.to(r).emit("clear-chat");
-                sendSystemMessage(session.room, "💀 ПОЛНАЯ АННИГИЛЯЦИЯ! 💀");
-            }
-            else if (cmd === "/resetpass" && parts[1]) {
-                const targetUser = parts[1].replace("@", "");
-                if (usersDB[targetUser]) {
-                    const newPass = Math.random().toString(36).slice(-8);
-                    usersDB[targetUser].password = newPass;
-                    saveUsers();
-                    sendSystemMessage(session.room, `🔑 Новый пароль для ${targetUser}: ${newPass}`);
-                } else { sendSystemMessage(session.room, `❌ ${targetUser} не найден`); }
-            }
-            else {
-                const msg = { id: Date.now() + "_" + Math.random(), type: "text", author: session.username, role: user.role, avatar: user.avatar, text, time: Date.now(), reactions: {} };
-                rooms[session.room].messages.push(msg);
-                io.to(session.room).emit("chat", msg);
-            }
-            return;
         }
         
         const msg = { id: Date.now() + "_" + Math.random(), type: "text", author: session.username, role: user.role, avatar: user.avatar, text, time: Date.now(), reactions: {} };
-        rooms[session.room].messages.push(msg);
-        io.to(session.room).emit("chat", msg);
+        server.rooms[session.room].messages.push(msg);
+        io.to(`server:${session.serverId}:${session.room}`).emit("chat", msg);
+    });
+
+    socket.on("private-chat", ({ to, text }) => {
+        const session = activeSessions[socket.id];
+        if (!session) return;
+        sendPrivateMessage(session.username, to, text);
+    });
+
+    socket.on("get-private-messages", ({ withUser }) => {
+        const session = activeSessions[socket.id];
+        if (!session) return;
+        const chatId = [session.username, withUser].sort().join("_");
+        const messages = privateMessagesDB[chatId] || [];
+        socket.emit("private-messages-history", { withUser, messages });
     });
 
     socket.on("media", (url, fileType) => {
@@ -677,9 +491,10 @@ io.on("connection", (socket) => {
         if (!session) return;
         if (mutesDB[session.username] && mutesDB[session.username] > Date.now()) return;
         const user = usersDB[session.username];
+        const server = serversDB[session.serverId];
         const msg = { id: Date.now() + "_" + Math.random(), type: "media", author: session.username, role: user.role, avatar: user.avatar, mediaUrl: url, mediaType: fileType, time: Date.now(), reactions: {} };
-        rooms[session.room].messages.push(msg);
-        io.to(session.room).emit("chat", msg);
+        server.rooms[session.room].messages.push(msg);
+        io.to(`server:${session.serverId}:${session.room}`).emit("chat", msg);
     });
 
     socket.on("voice-msg", (url) => {
@@ -687,137 +502,116 @@ io.on("connection", (socket) => {
         if (!session) return;
         if (mutesDB[session.username] && mutesDB[session.username] > Date.now()) return;
         const user = usersDB[session.username];
+        const server = serversDB[session.serverId];
         const msg = { id: Date.now() + "_" + Math.random(), type: "voice", author: session.username, role: user.role, avatar: user.avatar, audio: url, time: Date.now(), reactions: {} };
-        rooms[session.room].messages.push(msg);
-        io.to(session.room).emit("chat", msg);
+        server.rooms[session.room].messages.push(msg);
+        io.to(`server:${session.serverId}:${session.room}`).emit("chat", msg);
     });
 
-    socket.on("delete-message", ({ room, msgId }) => {
+    socket.on("delete-message", ({ serverId, room, msgId }) => {
         const session = activeSessions[socket.id];
         if (!session) return;
         const user = usersDB[session.username];
-        const msgIndex = rooms[room].messages.findIndex(m => m.id == msgId);
+        const server = serversDB[serverId];
+        const msgIndex = server.rooms[room].messages.findIndex(m => m.id == msgId);
         if (msgIndex !== -1) {
-            const msg = rooms[room].messages[msgIndex];
+            const msg = server.rooms[room].messages[msgIndex];
             const canDelete = user.role === "владелец" || user.role === "админ" || user.role === "модер" || msg.author === session.username;
-            if (canDelete) { rooms[room].messages.splice(msgIndex, 1); io.to(room).emit("message-deleted", { msgId }); }
+            if (canDelete) { server.rooms[room].messages.splice(msgIndex, 1); io.to(`server:${serverId}:${room}`).emit("message-deleted", { msgId }); }
         }
     });
 
-    socket.on("add-reaction", ({ room, msgId, emoji }) => {
+    socket.on("add-reaction", ({ serverId, room, msgId, emoji }) => {
         const session = activeSessions[socket.id];
         if (!session) return;
-        const msg = rooms[room].messages.find(m => m.id == msgId);
+        const server = serversDB[serverId];
+        const msg = server.rooms[room].messages.find(m => m.id == msgId);
         if (msg) {
             if (!msg.reactions[emoji]) msg.reactions[emoji] = [];
             if (!msg.reactions[emoji].includes(session.username)) msg.reactions[emoji].push(session.username);
-            io.to(room).emit("reaction-updated", { msgId, reactions: msg.reactions });
+            io.to(`server:${serverId}:${room}`).emit("reaction-updated", { msgId, reactions: msg.reactions });
         }
     });
 
-    // ========== ГОЛОСОВОЙ ЧАТ (FIX - ПЕРЕПИСАНО) ==========
-    socket.on("join-voice-channel", (channelName) => {
+    socket.on("join-voice-channel", ({ serverId, channelName }) => {
         const session = activeSessions[socket.id];
         if (!session) return;
+        const server = serversDB[serverId];
         
-        // Выход из всех предыдущих каналов
-        for (let [name, users] of Object.entries(voiceRooms)) {
+        for (let [name, users] of Object.entries(server.voiceRooms)) {
             if (users.has(socket.id)) {
                 users.delete(socket.id);
-                io.to("voice:" + name).emit("voice-users-update", Array.from(users).map(id => ({
+                io.to(`voice:${serverId}:${name}`).emit("voice-users-update", Array.from(users).map(id => ({
                     username: activeSessions[id]?.username,
                     avatar: usersDB[activeSessions[id]?.username]?.avatar,
                     status: userStatus[activeSessions[id]?.username] || "online"
                 })));
-                io.to("voice:" + name).emit("voice-count", users.size);
-                socket.leave("voice:" + name);
+                socket.leave(`voice:${serverId}:${name}`);
             }
         }
         
-        if (!voiceRooms[channelName]) voiceRooms[channelName] = new Set();
-        voiceRooms[channelName].add(socket.id);
-        socket.join("voice:" + channelName);
+        if (!server.voiceRooms[channelName]) server.voiceRooms[channelName] = new Set();
+        server.voiceRooms[channelName].add(socket.id);
+        socket.join(`voice:${serverId}:${channelName}`);
         
-        // Отправляем обновлённый список
-        const usersInChannel = Array.from(voiceRooms[channelName]).map(id => ({
+        const usersInChannel = Array.from(server.voiceRooms[channelName]).map(id => ({
             username: activeSessions[id]?.username,
             avatar: usersDB[activeSessions[id]?.username]?.avatar,
             status: userStatus[activeSessions[id]?.username] || "online"
         }));
-        io.to("voice:" + channelName).emit("voice-users-update", usersInChannel);
-        io.to("voice:" + channelName).emit("voice-count", voiceRooms[channelName].size);
+        io.to(`voice:${serverId}:${channelName}`).emit("voice-users-update", usersInChannel);
         
-        // Отправляем каждому участнику сигналы о других
-        voiceRooms[channelName].forEach(id => {
-            if (id !== socket.id) {
-                socket.emit("voice-user", id);
-            }
+        server.voiceRooms[channelName].forEach(id => {
+            if (id !== socket.id) socket.emit("voice-user", id);
         });
-        socket.to("voice:" + channelName).emit("user-joined", socket.id);
-        
-        console.log(`🎤 ${session.username} вошёл в голосовой канал ${channelName}, участников: ${voiceRooms[channelName].size}`);
+        socket.to(`voice:${serverId}:${channelName}`).emit("user-joined", socket.id);
     });
     
-    socket.on("leave-voice-channel", () => {
+    socket.on("leave-voice-channel", ({ serverId }) => {
         const session = activeSessions[socket.id];
-        for (let [name, users] of Object.entries(voiceRooms)) {
+        const server = serversDB[serverId];
+        for (let [name, users] of Object.entries(server.voiceRooms)) {
             if (users.has(socket.id)) {
                 users.delete(socket.id);
-                io.to("voice:" + name).emit("voice-users-update", Array.from(users).map(id => ({
+                io.to(`voice:${serverId}:${name}`).emit("voice-users-update", Array.from(users).map(id => ({
                     username: activeSessions[id]?.username,
                     avatar: usersDB[activeSessions[id]?.username]?.avatar,
                     status: userStatus[activeSessions[id]?.username] || "online"
                 })));
-                io.to("voice:" + name).emit("voice-count", users.size);
-                socket.leave("voice:" + name);
-                if (session) console.log(`🎤 ${session.username} вышел из голосового канала ${name}`);
+                socket.leave(`voice:${serverId}:${name}`);
                 break;
             }
         }
     });
 
-    socket.on("signal", ({ to, data }) => { 
+    socket.on("signal", ({ serverId, to, data }) => { 
         io.to(to).emit("signal", { from: socket.id, data }); 
     });
 
     socket.on("disconnect", () => {
         const session = activeSessions[socket.id];
         if (session) {
-            const room = session.room;
-            rooms[room]?.users.delete(socket.id);
-            io.to(room).emit("room-users", Array.from(rooms[room].users).map(id => ({
-                username: activeSessions[id]?.username,
-                avatar: usersDB[activeSessions[id]?.username]?.avatar,
-                status: userStatus[activeSessions[id]?.username] || "online"
-            })));
+            const server = serversDB[session.serverId];
+            if (server && server.rooms[session.room]) {
+                server.rooms[session.room].users.delete(socket.id);
+            }
             userStatus[session.username] = "offline";
             io.emit("user-status-update", { username: session.username, status: "offline" });
-            
-            const allUsers = [];
-            for (let u of Object.keys(usersDB)) {
-                const isOnline = getUserByUsername(u) !== null;
-                allUsers.push({
-                    username: u,
-                    avatar: usersDB[u]?.avatar,
-                    role: usersDB[u]?.role,
-                    status: isOnline ? (userStatus[u] || "online") : "offline"
-                });
-            }
-            io.emit("all-users", allUsers);
         }
         delete activeSessions[socket.id];
-        io.emit("online", Object.keys(activeSessions).length);
         
-        for (let [name, users] of Object.entries(voiceRooms)) {
-            if (users.has(socket.id)) {
-                users.delete(socket.id);
-                io.to("voice:" + name).emit("voice-users-update", Array.from(users).map(id => ({
-                    username: activeSessions[id]?.username,
-                    avatar: usersDB[activeSessions[id]?.username]?.avatar,
-                    status: userStatus[activeSessions[id]?.username] || "online"
-                })));
-                io.to("voice:" + name).emit("voice-count", users.size);
-                break;
+        for (let serverId in serversDB) {
+            const server = serversDB[serverId];
+            for (let [name, users] of Object.entries(server.voiceRooms)) {
+                if (users.has(socket.id)) {
+                    users.delete(socket.id);
+                    io.to(`voice:${serverId}:${name}`).emit("voice-users-update", Array.from(users).map(id => ({
+                        username: activeSessions[id]?.username,
+                        avatar: usersDB[activeSessions[id]?.username]?.avatar,
+                        status: userStatus[activeSessions[id]?.username] || "online"
+                    })));
+                    break;
+                }
             }
         }
     });
