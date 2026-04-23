@@ -12,7 +12,6 @@
         body { background: #1e1f22; color: #dbdee1; height: 100vh; overflow: hidden; }
         .app { display: flex; height: 100%; }
 
-        /* ЛЕВАЯ ПАНЕЛЬ СЕРВЕРОВ */
         .servers-bar {
             width: 72px;
             background: #1e1f22;
@@ -39,7 +38,6 @@
         .add-server-btn { background: #2b2d31; }
         .separator { width: 32px; height: 2px; background: #2b2d31; margin: 8px 0; }
 
-        /* САЙДБАР КАНАЛОВ */
         .sidebar {
             width: 240px;
             background: #2b2d31;
@@ -51,6 +49,7 @@
         .room { padding: 6px 8px; border-radius: 8px; cursor: pointer; color: #949ba4; margin-bottom: 2px; display: flex; align-items: center; gap: 8px; }
         .room:hover, .room.active { background: #3b3f48; color: #fff; }
         .voice-channel { margin-top: 16px; border-top: 1px solid #1e1f22; padding-top: 8px; }
+        .voice-channel-title { font-size: 12px; text-transform: uppercase; color: #949ba4; margin-bottom: 8px; }
         .voice-users-list { margin-top: 8px; padding-left: 8px; font-size: 13px; }
 
         .user-section { padding: 12px; background: #232428; border-top: 1px solid #1e1f22; }
@@ -61,7 +60,6 @@
         .profile-btn { background: #3b3f48; border: none; border-radius: 8px; padding: 6px; color: white; cursor: pointer; font-size: 12px; flex: 1; }
         .mic-off, .speaker-off { background: #e03a3a; }
 
-        /* ПРАВАЯ ПАНЕЛЬ (ДРУЗЬЯ) */
         .friends-sidebar {
             width: 260px;
             background: #2b2d31;
@@ -76,7 +74,6 @@
         .friend-item { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px; cursor: pointer; justify-content: space-between; }
         .friend-item:hover { background: #3b3f48; }
 
-        /* ЧАТ */
         .chat {
             flex: 1;
             display: flex;
@@ -94,17 +91,18 @@
         .message-time { font-size: 11px; color: #949ba4; }
         .message-text { margin-top: 4px; word-break: break-word; }
         .voice-bubble { background: #2b2d31; padding: 8px 12px; border-radius: 20px; display: inline-block; }
-        audio { border-radius: 30px; height: 34px; }
+        .media-preview { max-width: 300px; max-height: 200px; border-radius: 12px; margin-top: 6px; cursor: pointer; }
+        audio, video { border-radius: 12px; max-width: 100%; }
         .message-menu {
             position: absolute; right: 16px; top: 8px;
             background: #2b2d31; border-radius: 8px;
             display: none; gap: 8px; padding: 4px 8px;
+            z-index: 10;
         }
         .message-group:hover .message-menu { display: flex; }
         .menu-btn { background: none; border: none; color: white; cursor: pointer; font-size: 14px; }
         .menu-btn:hover { color: #5865f2; }
 
-        /* ПАНЕЛЬ ВВОДА */
         .input-panel { padding: 16px; background: #2b2d31; }
         .input-wrapper { display: flex; gap: 8px; background: #1e1f22; border-radius: 40px; padding: 8px 16px; align-items: center; }
         .input-wrapper input { flex: 1; background: none; border: none; color: white; outline: none; }
@@ -129,6 +127,7 @@
             width: 100%; padding: 8px; margin: 8px 0; border-radius: 8px; border: none; background: #1e1f22; color: white;
         }
         .edit-input { background: #1e1f22; border: none; color: white; padding: 4px; border-radius: 8px; width: 100%; }
+        #recTimer { font-size: 12px; text-align: center; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -174,7 +173,7 @@
         <div class="input-panel">
             <div class="input-wrapper">
                 <input id="input" placeholder="Сообщение...">
-                <label style="cursor:pointer;">📎<input type="file" id="mediaInput" style="display:none;"></label>
+                <label style="cursor:pointer;">📎<input type="file" id="mediaInput" style="display:none;" accept="image/*,video/*,audio/*"></label>
                 <button id="voiceMsgBtn">🎙️</button>
                 <button id="sendBtn">➤</button>
             </div>
@@ -199,35 +198,37 @@
     let isMicMuted = false, isSpeakerMuted = false;
     let friendsList = [], allUsers = [], serversList = [];
 
+    // --- голосовые сообщения ---
     let mediaRec, isRecording = false, audioCtx, recordedSamples = [], recordTimer;
     const recordBtn = document.getElementById("voiceMsgBtn");
     const cancelBtn = document.createElement("button");
     cancelBtn.textContent = "❌ Отменить";
     cancelBtn.style.display = "none";
     cancelBtn.style.background = "#e03a3a";
+    cancelBtn.style.padding = "4px 8px";
+    cancelBtn.style.borderRadius = "20px";
     document.querySelector(".input-wrapper").appendChild(cancelBtn);
 
-    // звуки
-    const audioCtxSounds = new AudioContext();
     function playBeep(freq=600, dur=0.08, vol=0.1) {
         try {
-            const osc = audioCtxSounds.createOscillator();
-            const gain = audioCtxSounds.createGain();
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
             osc.connect(gain);
-            gain.connect(audioCtxSounds.destination);
+            gain.connect(ctx.destination);
             osc.frequency.value = freq;
             gain.gain.value = vol;
             osc.type = "sine";
             osc.start();
-            gain.gain.exponentialRampToValueAtTime(0.00001, audioCtxSounds.currentTime + dur);
-            osc.stop(audioCtxSounds.currentTime + dur);
+            gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + dur);
+            osc.stop(ctx.currentTime + dur);
+            setTimeout(() => ctx.close(), 500);
         } catch(e) {}
     }
     function playMessageSound() { playBeep(600,0.08,0.1); }
     function playRecordStart() { playBeep(880,0.1,0.2); }
     function playRecordEnd() { playBeep(440,0.2,0.2); }
 
-    // --- голосовые сообщения ---
     async function startRecording() {
         if (isRecording) return;
         try {
@@ -279,7 +280,7 @@
             const fd = new FormData();
             fd.append("audio", blob);
             fetch("/upload-audio", {method:"POST", body:fd}).then(res=>res.json()).then(data=> {
-                if(currentPrivateChat) socket.emit("private-chat", {to: currentPrivateChat, text: "", audio: data.url});
+                if(currentPrivateChat) socket.emit("private-voice", { to: currentPrivateChat, url: data.url });
                 else socket.emit("voice-msg", data.url);
             });
             playRecordEnd();
@@ -308,7 +309,7 @@
     recordBtn.onmouseleave = cancelRecording;
     cancelBtn.onclick = cancelRecording;
 
-    // --- микрофон/звук ---
+    // --- голосовой чат ---
     async function joinVoiceChannel() {
         if(inVoice) return;
         try {
@@ -401,6 +402,91 @@
         document.getElementById("switchMode").innerText = isLoginMode ? "Нет аккаунта? Зарегистрироваться" : "Уже есть аккаунт? Войти";
     };
 
+    function addMessageToUI(msg, isTemp = false) {
+        const container = document.getElementById("messages");
+        const existing = document.querySelector(`.message-group[data-id="${msg.id}"]`);
+        if(existing) return;
+        const div = document.createElement("div");
+        div.className = "message-group";
+        div.setAttribute("data-id", msg.id);
+        let content = "";
+        if(msg.text) content = `<div class="message-text">${escapeHtml(msg.text)}</div>`;
+        else if(msg.audio) content = `<div class="voice-bubble"><audio controls src="${msg.audio}"></audio></div>`;
+        else if(msg.mediaUrl) {
+            if(msg.mediaType === "image") content = `<img class="media-preview" src="${msg.mediaUrl}" onclick="window.open('${msg.mediaUrl}')">`;
+            else if(msg.mediaType === "video") content = `<video class="media-preview" src="${msg.mediaUrl}" controls></video>`;
+            else content = `<audio controls src="${msg.mediaUrl}"></audio>`;
+        }
+        div.innerHTML = `
+            <img class="message-avatar" src="${msg.avatar || `https://ui-avatars.com/api/?name=${msg.author}&background=5865f2&color=fff`}">
+            <div style="flex:1">
+                <div class="message-header">
+                    <span class="message-author">${escapeHtml(msg.author)}</span>
+                    <span class="role-tag">${msg.role || "новичок"}</span>
+                    <span class="message-time">${new Date(msg.time).toLocaleTimeString()}</span>
+                </div>
+                ${content}
+            </div>
+            <div class="message-menu">
+                ${msg.author === currentUser && !isTemp ? `<button class="menu-btn edit-btn">✏️</button>` : ''}
+                ${!isTemp ? `<button class="menu-btn delete-btn">🗑️</button>` : ''}
+            </div>
+        `;
+        container.appendChild(div);
+        div.scrollIntoView({ behavior: "smooth" });
+        if(!isTemp) {
+            div.querySelector(".edit-btn")?.addEventListener("click", () => {
+                const textDiv = div.querySelector(".message-text");
+                if(!textDiv) return;
+                const old = textDiv.innerText;
+                const inp = document.createElement("input");
+                inp.value = old;
+                inp.className = "edit-input";
+                textDiv.innerHTML = "";
+                textDiv.appendChild(inp);
+                inp.focus();
+                inp.onblur = () => {
+                    const newText = inp.value.trim();
+                    if(newText && newText !== old) {
+                        if(currentPrivateChat) socket.emit("private-edit", { to: currentPrivateChat, msgId: msg.id, newText });
+                        else socket.emit("edit-message", { serverId: currentServerId, room: currentRoom, msgId: msg.id, newText });
+                    }
+                    textDiv.innerText = newText || old;
+                };
+                inp.onkeydown = (e) => { if(e.key === "Enter") inp.blur(); };
+            });
+            div.querySelector(".delete-btn")?.addEventListener("click", () => {
+                if(confirm("Удалить?")) {
+                    if(currentPrivateChat) socket.emit("private-delete", { to: currentPrivateChat, msgId: msg.id });
+                    else socket.emit("delete-message", { serverId: currentServerId, room: currentRoom, msgId: msg.id });
+                }
+            });
+        }
+    }
+
+    function escapeHtml(str) { return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
+
+    function sendMessage(text) {
+        if (!text.trim()) return;
+        const tempId = Date.now() + "_temp_" + Math.random();
+        const tempMsg = {
+            id: tempId,
+            type: "text",
+            author: currentUser,
+            role: currentRole,
+            avatar: currentAvatar,
+            text: text,
+            time: Date.now(),
+            isTemp: true
+        };
+        addMessageToUI(tempMsg, true);
+        if (currentPrivateChat) {
+            socket.emit("private-chat", { to: currentPrivateChat, text });
+        } else {
+            socket.emit("chat", text);
+        }
+    }
+
     function initSocket() {
         socket = io();
         socket.on("connect", () => socket.emit("auth", { username: currentUser, serverId: currentServerId, room: currentRoom }));
@@ -415,22 +501,30 @@
             renderFriendsList();
         });
 
-        socket.on("servers-list", (servers) => {
-            serversList = servers;
-            renderServersBar();
-        });
-
+        socket.on("servers-list", (servers) => { serversList = servers; renderServersBar(); });
         socket.on("all-users", (users) => { allUsers = users; renderFriendsList(); });
-        socket.on("chat", (msg) => { addMessage(msg); if(msg.author !== currentUser) playMessageSound(); });
-        socket.on("voice-msg", (msg) => addMessage(msg));
+
+        socket.on("chat", (msg) => {
+            if(msg.author === currentUser) {
+                const temp = document.querySelector(`.message-group[data-id*="_temp_"]`);
+                if(temp) temp.remove();
+            }
+            addMessageToUI(msg);
+            if(msg.author !== currentUser) playMessageSound();
+        });
+        socket.on("voice-msg", (msg) => { addMessageToUI(msg); if(msg.author !== currentUser) playMessageSound(); });
         socket.on("private-message", ({ from, msg }) => {
-            if(currentPrivateChat === from) addMessage(msg);
-            else showNotif(`📨 от ${from}`);
+            if(from === currentUser) {
+                const temp = document.querySelector(`.message-group[data-id*="_temp_"]`);
+                if(temp) temp.remove();
+            }
+            addMessageToUI(msg);
+            if(msg.author !== currentUser && from !== "🛡️ СИСТЕМА") playMessageSound();
         });
         socket.on("private-messages-history", ({ withUser, messages }) => {
             if(currentPrivateChat === withUser) {
                 document.getElementById("messages").innerHTML = "";
-                messages.forEach(m => addMessage(m));
+                messages.forEach(m => addMessageToUI(m));
             }
         });
         socket.on("message-edited", ({ msgId, newText }) => {
@@ -441,74 +535,9 @@
         socket.on("voice-users-update", (users) => {
             const container = document.getElementById("voiceUsersList");
             if(container) {
-                container.innerHTML = users.map(u => `<div class="voice-user">🔊 ${u.username}</div>`).join("");
-                document.getElementById("voiceOnline") && (document.getElementById("voiceOnline").innerText = users.length);
+                container.innerHTML = users.map(u => `<div class="voice-user">🔊 ${escapeHtml(u.username)}</div>`).join("");
             }
         });
-    }
-
-    function addMessage(msg) {
-        const container = document.getElementById("messages");
-        const div = document.createElement("div");
-        div.className = "message-group";
-        div.setAttribute("data-id", msg.id);
-        let content = "";
-        if(msg.text) content = `<div class="message-text">${msg.text}</div>`;
-        else if(msg.audio) content = `<div class="voice-bubble"><audio controls src="${msg.audio}"></audio></div>`;
-        else if(msg.mediaUrl) {
-            if(msg.mediaType === "image") content = `<img src="${msg.mediaUrl}" style="max-width:300px; border-radius:12px;">`;
-            else if(msg.mediaType === "video") content = `<video src="${msg.mediaUrl}" controls style="max-width:300px;"></video>`;
-            else content = `<audio src="${msg.mediaUrl}" controls></audio>`;
-        }
-        div.innerHTML = `
-            <img class="message-avatar" src="${msg.avatar || `https://ui-avatars.com/api/?name=${msg.author}&background=5865f2&color=fff`}">
-            <div style="flex:1">
-                <div class="message-header">
-                    <span class="message-author">${msg.author}</span>
-                    <span class="role-tag">${msg.role || "новичок"}</span>
-                    <span class="message-time">${new Date(msg.time).toLocaleTimeString()}</span>
-                </div>
-                ${content}
-            </div>
-            <div class="message-menu">
-                ${msg.author === currentUser ? `<button class="menu-btn edit-btn">✏️</button>` : ''}
-                <button class="menu-btn delete-btn">🗑️</button>
-            </div>
-        `;
-        container.appendChild(div);
-        div.scrollIntoView({ behavior: "smooth" });
-
-        div.querySelector(".edit-btn")?.addEventListener("click", () => {
-            const textDiv = div.querySelector(".message-text");
-            if(!textDiv) return;
-            const old = textDiv.innerText;
-            const inp = document.createElement("input");
-            inp.value = old;
-            inp.className = "edit-input";
-            textDiv.innerHTML = "";
-            textDiv.appendChild(inp);
-            inp.focus();
-            inp.onblur = () => {
-                const newText = inp.value.trim();
-                if(newText && newText !== old) {
-                    if(currentPrivateChat) socket.emit("private-edit", { to: currentPrivateChat, msgId: msg.id, newText });
-                    else socket.emit("edit-message", { serverId: currentServerId, room: currentRoom, msgId: msg.id, newText });
-                }
-                textDiv.innerText = newText || old;
-            };
-            inp.onkeydown = (e) => { if(e.key === "Enter") inp.blur(); };
-        });
-        div.querySelector(".delete-btn")?.addEventListener("click", () => {
-            if(confirm("Удалить?")) {
-                if(currentPrivateChat) socket.emit("private-delete", { to: currentPrivateChat, msgId: msg.id });
-                else socket.emit("delete-message", { serverId: currentServerId, room: currentRoom, msgId: msg.id });
-            }
-        });
-    }
-
-    function sendMessage(text) {
-        if(currentPrivateChat) socket.emit("private-chat", { to: currentPrivateChat, text });
-        else socket.emit("chat", text);
     }
 
     function renderServersBar() {
@@ -528,7 +557,6 @@
         document.getElementById("messages").innerHTML = "";
         socket.emit("auth", { username: currentUser, serverId: id, room: "general" });
     };
-
     window.switchRoom = (room) => {
         currentRoom = room;
         currentPrivateChat = null;
@@ -564,10 +592,10 @@
         const active = document.querySelector(".friends-header .active")?.id;
         if(active === "friendsTab") {
             const friends = friendsList.filter(f => !f.startsWith("req_"));
-            container.innerHTML = friends.map(f => `<div class="friend-item" onclick="openPrivateChat('${f}')">👤 ${f}</div>`).join("");
+            container.innerHTML = friends.map(f => `<div class="friend-item" onclick="openPrivateChat('${escapeHtml(f)}')">👤 ${escapeHtml(f)}</div>`).join("");
         } else {
             const reqs = friendsList.filter(f => f.startsWith("req_")).map(f => f.replace("req_", ""));
-            container.innerHTML = reqs.map(r => `<div class="friend-item"><span>📨 ${r}</span><div><button onclick="acceptFriend('${r}')">✅</button><button onclick="rejectFriend('${r}')" style="background:#e03a3a;">❌</button></div></div>`).join("");
+            container.innerHTML = reqs.map(r => `<div class="friend-item"><span>📨 ${escapeHtml(r)}</span><div><button onclick="acceptFriend('${escapeHtml(r)}')">✅</button><button onclick="rejectFriend('${escapeHtml(r)}')" style="background:#e03a3a;">❌</button></div></div>`).join("");
         }
     }
 
@@ -607,7 +635,7 @@
         modal.className = "modal";
         modal.innerHTML = `<div class="modal-card">
             <img src="${currentAvatar || `https://ui-avatars.com/api/?name=${currentUser}&background=5865f2&color=fff`}" style="width:80px;height:80px;border-radius:50%;margin:0 auto;display:block;">
-            <h3 style="text-align:center;">${currentUser}</h3>
+            <h3 style="text-align:center;">${escapeHtml(currentUser)}</h3>
             <p>Роль: ${currentRole}</p>
             <p>О себе: ${u?.bio || "не указано"}</p>
             <p>Регистрация: ${u?.createdAt ? new Date(u.createdAt).toLocaleDateString() : "неизвестно"}</p>
@@ -619,7 +647,7 @@
 
     document.getElementById("sendBtn").onclick = () => {
         const inp = document.getElementById("input");
-        if(inp.value.trim()) sendMessage(inp.value.trim());
+        sendMessage(inp.value);
         inp.value = "";
     };
     document.getElementById("input").onkeydown = (e) => { if(e.key === "Enter") document.getElementById("sendBtn").click(); };
@@ -654,21 +682,6 @@
         }
     };
 
-    function showNotif(msg) {
-        const n = document.createElement("div");
-        n.style.position = "fixed";
-        n.style.bottom = "20px";
-        n.style.right = "20px";
-        n.style.background = "#2b2d31";
-        n.style.padding = "12px 20px";
-        n.style.borderRadius = "12px";
-        n.style.borderLeft = "4px solid #5865f2";
-        n.innerText = msg;
-        document.body.appendChild(n);
-        setTimeout(() => n.remove(), 4000);
-    }
-
-    // комнаты
     document.getElementById("roomsList").innerHTML = `
         <div class="room active" onclick="switchRoom('general')"># general</div>
         <div class="room" onclick="switchRoom('gaming')">🎮 gaming</div>
