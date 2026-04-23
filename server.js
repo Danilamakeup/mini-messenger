@@ -9,7 +9,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-// папки
+// ========== ПАПКИ ==========
 const publicDir = path.join(__dirname, "public");
 const voicesDir = path.join(publicDir, "voices");
 const uploadsDir = path.join(publicDir, "uploads");
@@ -22,7 +22,7 @@ const avatarsDir = path.join(publicDir, "avatars");
 app.use(express.static(publicDir));
 app.use(express.json());
 
-// загрузки
+// ========== ЗАГРУЗКИ ==========
 const uploadAudio = multer({
     storage: multer.diskStorage({
         destination: voicesDir,
@@ -57,7 +57,7 @@ const uploadAvatar = multer({
     }
 });
 
-// базы
+// ========== БАЗЫ ДАННЫХ ==========
 const usersFile = path.join(__dirname, "users.json");
 let usersDB = {};
 if (fs.existsSync(usersFile)) usersDB = JSON.parse(fs.readFileSync(usersFile));
@@ -83,21 +83,76 @@ let coinsDB = {};
 if (fs.existsSync(coinsFile)) coinsDB = JSON.parse(fs.readFileSync(coinsFile));
 function saveCoins() { fs.writeFileSync(coinsFile, JSON.stringify(coinsDB, null, 2)); }
 
-// владелец
+// ========== ДРУЗЬЯ ==========
+const friendsFile = path.join(__dirname, "friends.json");
+let friendsDB = {};
+if (fs.existsSync(friendsFile)) friendsDB = JSON.parse(fs.readFileSync(friendsFile));
+function saveFriends() { fs.writeFileSync(friendsFile, JSON.stringify(friendsDB, null, 2)); }
+
+// ========== ЛИЧНЫЕ СООБЩЕНИЯ ==========
+const privateMessagesFile = path.join(__dirname, "private_messages.json");
+let privateMessagesDB = {};
+if (fs.existsSync(privateMessagesFile)) privateMessagesDB = JSON.parse(fs.readFileSync(privateMessagesFile));
+function savePrivateMessages() { fs.writeFileSync(privateMessagesFile, JSON.stringify(privateMessagesDB, null, 2)); }
+
+// ========== СЕРВЕРА ==========
+const serversFile = path.join(__dirname, "servers.json");
+let serversDB = {
+    main: {
+        id: "main",
+        name: "Главный сервер",
+        owner: "bigheaven3569",
+        rooms: {
+            general: { messages: [], users: new Set() },
+            gaming: { messages: [], users: new Set() },
+            music: { messages: [], users: new Set() },
+            "other-fuckin-shit": { messages: [], users: new Set() }
+        },
+        voiceRooms: { "voice-chat": new Set() },
+        members: new Set(["bigheaven3569"])
+    }
+};
+
+if (fs.existsSync(serversFile)) {
+    const data = JSON.parse(fs.readFileSync(serversFile));
+    for (let [id, server] of Object.entries(data)) {
+        serversDB[id] = server;
+        if (!serversDB[id].rooms) serversDB[id].rooms = {};
+        if (!serversDB[id].voiceRooms) serversDB[id].voiceRooms = {};
+        if (!serversDB[id].members) serversDB[id].members = new Set(server.members || []);
+        for (let room in serversDB[id].rooms) {
+            if (!serversDB[id].rooms[room].messages) serversDB[id].rooms[room].messages = [];
+            if (!serversDB[id].rooms[room].users) serversDB[id].rooms[room].users = new Set();
+        }
+    }
+}
+
+function saveServers() {
+    const saveData = {};
+    for (let [id, server] of Object.entries(serversDB)) {
+        const roomsData = {};
+        for (let [roomName, room] of Object.entries(server.rooms)) {
+            roomsData[roomName] = { messages: room.messages };
+        }
+        saveData[id] = {
+            id: server.id,
+            name: server.name,
+            owner: server.owner,
+            rooms: roomsData,
+            voiceRooms: server.voiceRooms,
+            members: Array.from(server.members)
+        };
+    }
+    fs.writeFileSync(serversFile, JSON.stringify(saveData, null, 2));
+}
+
+// ========== ВЛАДЕЛЕЦ ==========
 const OWNER_USERNAME = "bigheaven3569";
 const OWNER_PASSWORD = "swill1337";
 
-// комнаты
-let rooms = {
-    general: { messages: [], users: new Set() },
-    gaming: { messages: [], users: new Set() },
-    music: { messages: [], users: new Set() },
-    "other-fuckin-shit": { messages: [], users: new Set() }
-};
-
-const voiceRooms = { "voice-chat": new Set() };
-const activeSessions = {};
+// ========== СТАТУСЫ ==========
 let userStatus = {};
+let activeSessions = {};
 
 function getUserByUsername(username) {
     for (let [socketId, session] of Object.entries(activeSessions)) {
@@ -106,7 +161,7 @@ function getUserByUsername(username) {
     return null;
 }
 
-function sendSystemMessage(room, text) {
+function sendSystemMessage(serverId, room, text) {
     const msg = {
         id: Date.now() + "_" + Math.random(),
         type: "text",
@@ -117,11 +172,30 @@ function sendSystemMessage(room, text) {
         time: Date.now(),
         reactions: {}
     };
-    rooms[room].messages.push(msg);
-    io.to(room).emit("chat", msg);
+    serversDB[serverId].rooms[room].messages.push(msg);
+    io.to(`server:${serverId}:${room}`).emit("chat", msg);
 }
 
-// API
+function sendPrivateMessage(from, to, text) {
+    const chatId = [from, to].sort().join("_");
+    if (!privateMessagesDB[chatId]) privateMessagesDB[chatId] = [];
+    const msg = {
+        id: Date.now() + "_" + Math.random(),
+        type: "text",
+        author: from,
+        text,
+        time: Date.now(),
+        read: false
+    };
+    privateMessagesDB[chatId].push(msg);
+    savePrivateMessages();
+    const target = getUserByUsername(to);
+    if (target) {
+        io.to(target.socketId).emit("private-message", { from, msg });
+    }
+}
+
+// ========== API ==========
 app.post("/register", (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: "Заполните все поля" });
@@ -133,6 +207,8 @@ app.post("/register", (req, res) => {
     saveUsers();
     if (!coinsDB[username]) coinsDB[username] = 0;
     saveCoins();
+    if (!friendsDB[username]) friendsDB[username] = [];
+    saveFriends();
     res.json({ success: true, role: "новичок" });
 });
 
@@ -176,12 +252,16 @@ app.post("/change-nick", (req, res) => {
     if (usersDB[newUsername] && newUsername !== oldUsername) return res.status(400).json({ error: "НИК ЗАНЯТ ИДИ НАХУЙ!!" });
     
     const coins = coinsDB[oldUsername] || 0;
+    const friends = friendsDB[oldUsername] || [];
     usersDB[newUsername] = { ...user };
     delete usersDB[oldUsername];
     coinsDB[newUsername] = coins;
     delete coinsDB[oldUsername];
+    friendsDB[newUsername] = friends;
+    delete friendsDB[oldUsername];
     saveUsers();
     saveCoins();
+    saveFriends();
     res.json({ success: true, newUsername });
 });
 
@@ -197,11 +277,85 @@ app.post("/upload-avatar", uploadAvatar.single("avatar"), (req, res) => {
     }
 });
 
-// SOCKET
+app.post("/create-server", (req, res) => {
+    const { username, serverName } = req.body;
+    const user = usersDB[username];
+    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+    if (user.role !== "владелец" && user.role !== "админ" && user.role !== "модер") {
+        return res.status(403).json({ error: "Только модераторы и выше могут создавать сервера!" });
+    }
+    
+    const serverId = Date.now() + "_" + Math.random().toString(36).slice(4);
+    serversDB[serverId] = {
+        id: serverId,
+        name: serverName,
+        owner: username,
+        rooms: {
+            general: { messages: [], users: new Set() }
+        },
+        voiceRooms: { "voice-chat": new Set() },
+        members: new Set([username])
+    };
+    saveServers();
+    res.json({ success: true, serverId, serverName });
+});
+
+app.post("/delete-server", (req, res) => {
+    const { username, serverId } = req.body;
+    const user = usersDB[username];
+    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+    const server = serversDB[serverId];
+    if (!server) return res.status(404).json({ error: "Сервер не найден" });
+    if (server.owner !== username && user.role !== "владелец") {
+        return res.status(403).json({ error: "Только владелец сервера может его удалить!" });
+    }
+    delete serversDB[serverId];
+    saveServers();
+    res.json({ success: true });
+});
+
+app.post("/send-friend-request", (req, res) => {
+    const { from, to } = req.body;
+    if (!friendsDB[from]) friendsDB[from] = [];
+    if (!friendsDB[to]) friendsDB[to] = [];
+    if (friendsDB[from].includes(to)) return res.json({ error: "Уже в друзьях" });
+    if (friendsDB[from].includes(`request_${to}`)) return res.json({ error: "Заявка уже отправлена" });
+    friendsDB[from].push(`request_${to}`);
+    saveFriends();
+    const target = getUserByUsername(to);
+    if (target) io.to(target.socketId).emit("friend-request", { from });
+    res.json({ success: true });
+});
+
+app.post("/accept-friend", (req, res) => {
+    const { username, friend } = req.body;
+    if (friendsDB[username]) {
+        const index = friendsDB[username].indexOf(`request_${friend}`);
+        if (index !== -1) {
+            friendsDB[username].splice(index, 1);
+            if (!friendsDB[username].includes(friend)) friendsDB[username].push(friend);
+            if (!friendsDB[friend].includes(username)) friendsDB[friend].push(username);
+            saveFriends();
+        }
+    }
+    res.json({ success: true });
+});
+
+app.post("/reject-friend", (req, res) => {
+    const { username, friend } = req.body;
+    if (friendsDB[username]) {
+        const index = friendsDB[username].indexOf(`request_${friend}`);
+        if (index !== -1) friendsDB[username].splice(index, 1);
+        saveFriends();
+    }
+    res.json({ success: true });
+});
+
+// ========== SOCKET ==========
 io.on("connection", (socket) => {
     console.log("✅ Подключился:", socket.id);
 
-    socket.on("auth", ({ username, room }) => {
+    socket.on("auth", ({ username, serverId, room }) => {
         if (bansDB[username]) { socket.emit("auth-error", "ТЫ В БАНЕ, ПИЗДУЙ!"); return; }
         const user = usersDB[username];
         if (!user) { socket.emit("auth-error", "Пользователь не найден"); return; }
@@ -211,22 +365,28 @@ io.on("connection", (socket) => {
             return;
         }
 
-        const prev = activeSessions[socket.id]?.room;
-        if (prev && rooms[prev]) {
-            rooms[prev].users.delete(socket.id);
-            socket.leave(prev);
+        const prev = activeSessions[socket.id];
+        if (prev) {
+            const oldServer = serversDB[prev.serverId];
+            if (oldServer && oldServer.rooms[prev.room]) oldServer.rooms[prev.room].users.delete(socket.id);
+            socket.leave(`server:${prev.serverId}:${prev.room}`);
         }
 
-        activeSessions[socket.id] = { username, room };
-        socket.join(room);
-        rooms[room].users.add(socket.id);
+        if (!serversDB[serverId]) serverId = "main";
+        if (!serversDB[serverId].rooms[room]) room = "general";
+
+        activeSessions[socket.id] = { username, serverId, room };
+        socket.join(`server:${serverId}:${room}`);
+        serversDB[serverId].rooms[room].users.add(socket.id);
         
         if (!userStatus[username]) userStatus[username] = "online";
 
-        socket.emit("history", rooms[room].messages);
-        socket.emit("user-data", { username, role: user.role, avatar: user.avatar, status: userStatus[username], coins: coinsDB[username] || 0 });
-        io.emit("online", Object.keys(activeSessions).length);
-        io.to(room).emit("room-users", Array.from(rooms[room].users).map(id => activeSessions[id]?.username));
+        socket.emit("history", serversDB[serverId].rooms[room].messages);
+        socket.emit("user-data", { 
+            username, role: user.role, avatar: user.avatar, 
+            status: userStatus[username], coins: coinsDB[username] || 0, 
+            friends: friendsDB[username] || []
+        });
         
         const allUsers = [];
         for (let u of Object.keys(usersDB)) {
@@ -239,6 +399,12 @@ io.on("connection", (socket) => {
             });
         }
         io.emit("all-users", allUsers);
+        
+        const serversList = [];
+        for (let [id, srv] of Object.entries(serversDB)) {
+            serversList.push({ id, name: srv.name, owner: srv.owner, memberCount: srv.members.size });
+        }
+        socket.emit("servers-list", serversList);
     });
     
     socket.on("set-status", ({ status }) => {
@@ -256,8 +422,22 @@ io.on("connection", (socket) => {
         const user = usersDB[session.username];
         
         const msg = { id: Date.now() + "_" + Math.random(), type: "text", author: session.username, role: user.role, avatar: user.avatar, text, time: Date.now(), reactions: {} };
-        rooms[session.room].messages.push(msg);
-        io.to(session.room).emit("chat", msg);
+        serversDB[session.serverId].rooms[session.room].messages.push(msg);
+        io.to(`server:${session.serverId}:${session.room}`).emit("chat", msg);
+    });
+
+    socket.on("private-chat", ({ to, text }) => {
+        const session = activeSessions[socket.id];
+        if (!session) return;
+        sendPrivateMessage(session.username, to, text);
+    });
+
+    socket.on("get-private-messages", ({ withUser }) => {
+        const session = activeSessions[socket.id];
+        if (!session) return;
+        const chatId = [session.username, withUser].sort().join("_");
+        const messages = privateMessagesDB[chatId] || [];
+        socket.emit("private-messages-history", { withUser, messages });
     });
 
     socket.on("media", (url, fileType) => {
@@ -265,8 +445,8 @@ io.on("connection", (socket) => {
         if (!session) return;
         const user = usersDB[session.username];
         const msg = { id: Date.now() + "_" + Math.random(), type: "media", author: session.username, role: user.role, avatar: user.avatar, mediaUrl: url, mediaType: fileType, time: Date.now(), reactions: {} };
-        rooms[session.room].messages.push(msg);
-        io.to(session.room).emit("chat", msg);
+        serversDB[session.serverId].rooms[session.room].messages.push(msg);
+        io.to(`server:${session.serverId}:${session.room}`).emit("chat", msg);
     });
 
     socket.on("voice-msg", (url) => {
@@ -274,91 +454,95 @@ io.on("connection", (socket) => {
         if (!session) return;
         const user = usersDB[session.username];
         const msg = { id: Date.now() + "_" + Math.random(), type: "voice", author: session.username, role: user.role, avatar: user.avatar, audio: url, time: Date.now(), reactions: {} };
-        rooms[session.room].messages.push(msg);
-        io.to(session.room).emit("chat", msg);
+        serversDB[session.serverId].rooms[session.room].messages.push(msg);
+        io.to(`server:${session.serverId}:${session.room}`).emit("chat", msg);
     });
 
-    socket.on("delete-message", ({ room, msgId }) => {
+    socket.on("delete-message", ({ serverId, room, msgId }) => {
         const session = activeSessions[socket.id];
         if (!session) return;
         const user = usersDB[session.username];
-        const msgIndex = rooms[room].messages.findIndex(m => m.id == msgId);
+        const server = serversDB[serverId];
+        const msgIndex = server.rooms[room].messages.findIndex(m => m.id == msgId);
         if (msgIndex !== -1) {
-            const msg = rooms[room].messages[msgIndex];
+            const msg = server.rooms[room].messages[msgIndex];
             const canDelete = user.role === "владелец" || user.role === "админ" || user.role === "модер" || msg.author === session.username;
             if (canDelete) {
-                rooms[room].messages.splice(msgIndex, 1);
-                io.to(room).emit("message-deleted", { msgId });
+                server.rooms[room].messages.splice(msgIndex, 1);
+                io.to(`server:${serverId}:${room}`).emit("message-deleted", { msgId });
             }
         }
     });
 
-    socket.on("add-reaction", ({ room, msgId, emoji }) => {
+    socket.on("add-reaction", ({ serverId, room, msgId, emoji }) => {
         const session = activeSessions[socket.id];
         if (!session) return;
-        const msg = rooms[room].messages.find(m => m.id == msgId);
+        const server = serversDB[serverId];
+        const msg = server.rooms[room].messages.find(m => m.id == msgId);
         if (msg) {
             if (!msg.reactions[emoji]) msg.reactions[emoji] = [];
             if (!msg.reactions[emoji].includes(session.username)) msg.reactions[emoji].push(session.username);
-            io.to(room).emit("reaction-updated", { msgId, reactions: msg.reactions });
+            io.to(`server:${serverId}:${room}`).emit("reaction-updated", { msgId, reactions: msg.reactions });
         }
     });
 
-    socket.on("join-voice-channel", (channelName) => {
+    socket.on("join-voice-channel", ({ serverId, channelName }) => {
         const session = activeSessions[socket.id];
         if (!session) return;
+        const server = serversDB[serverId];
         
-        for (let [name, users] of Object.entries(voiceRooms)) {
+        for (let [name, users] of Object.entries(server.voiceRooms)) {
             if (users.has(socket.id)) {
                 users.delete(socket.id);
-                io.to("voice:" + name).emit("voice-users-update", Array.from(users).map(id => ({
+                io.to(`voice:${serverId}:${name}`).emit("voice-users-update", Array.from(users).map(id => ({
                     username: activeSessions[id]?.username,
                     avatar: usersDB[activeSessions[id]?.username]?.avatar,
                     status: userStatus[activeSessions[id]?.username] || "online"
                 })));
-                socket.leave("voice:" + name);
+                socket.leave(`voice:${serverId}:${name}`);
             }
         }
         
-        if (!voiceRooms[channelName]) voiceRooms[channelName] = new Set();
-        voiceRooms[channelName].add(socket.id);
-        socket.join("voice:" + channelName);
+        if (!server.voiceRooms[channelName]) server.voiceRooms[channelName] = new Set();
+        server.voiceRooms[channelName].add(socket.id);
+        socket.join(`voice:${serverId}:${channelName}`);
         
-        const usersInChannel = Array.from(voiceRooms[channelName]).map(id => ({
+        const usersInChannel = Array.from(server.voiceRooms[channelName]).map(id => ({
             username: activeSessions[id]?.username,
             avatar: usersDB[activeSessions[id]?.username]?.avatar,
             status: userStatus[activeSessions[id]?.username] || "online"
         }));
-        io.to("voice:" + channelName).emit("voice-users-update", usersInChannel);
+        io.to(`voice:${serverId}:${channelName}`).emit("voice-users-update", usersInChannel);
         
-        voiceRooms[channelName].forEach(id => {
+        server.voiceRooms[channelName].forEach(id => {
             if (id !== socket.id) socket.emit("voice-user", id);
         });
-        socket.to("voice:" + channelName).emit("user-joined", socket.id);
+        socket.to(`voice:${serverId}:${channelName}`).emit("user-joined", socket.id);
     });
     
-    socket.on("leave-voice-channel", () => {
-        for (let [name, users] of Object.entries(voiceRooms)) {
+    socket.on("leave-voice-channel", ({ serverId }) => {
+        const server = serversDB[serverId];
+        for (let [name, users] of Object.entries(server.voiceRooms)) {
             if (users.has(socket.id)) {
                 users.delete(socket.id);
-                io.to("voice:" + name).emit("voice-users-update", Array.from(users).map(id => ({
+                io.to(`voice:${serverId}:${name}`).emit("voice-users-update", Array.from(users).map(id => ({
                     username: activeSessions[id]?.username,
                     avatar: usersDB[activeSessions[id]?.username]?.avatar,
                     status: userStatus[activeSessions[id]?.username] || "online"
                 })));
-                socket.leave("voice:" + name);
+                socket.leave(`voice:${serverId}:${name}`);
                 break;
             }
         }
     });
 
-    socket.on("signal", ({ to, data }) => { io.to(to).emit("signal", { from: socket.id, data }); });
+    socket.on("signal", ({ serverId, to, data }) => { io.to(to).emit("signal", { from: socket.id, data }); });
 
     socket.on("disconnect", () => {
         const session = activeSessions[socket.id];
         if (session) {
-            const room = session.room;
-            rooms[room]?.users.delete(socket.id);
+            const server = serversDB[session.serverId];
+            if (server && server.rooms[session.room]) server.rooms[session.room].users.delete(socket.id);
             userStatus[session.username] = "offline";
             io.emit("user-status-update", { username: session.username, status: "offline" });
         }
