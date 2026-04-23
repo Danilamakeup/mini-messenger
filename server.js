@@ -14,8 +14,9 @@ const publicDir = path.join(__dirname, "public");
 const voicesDir = path.join(publicDir, "voices");
 const uploadsDir = path.join(publicDir, "uploads");
 const avatarsDir = path.join(publicDir, "avatars");
+const serverIconsDir = path.join(publicDir, "server_icons");
 
-[publicDir, voicesDir, uploadsDir, avatarsDir].forEach(dir => {
+[publicDir, voicesDir, uploadsDir, avatarsDir, serverIconsDir].forEach(dir => {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
@@ -57,6 +58,19 @@ const uploadAvatar = multer({
     }
 });
 
+const uploadServerIcon = multer({
+    storage: multer.diskStorage({
+        destination: serverIconsDir,
+        filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
+    }),
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (allowed.includes(file.mimetype)) cb(null, true);
+        else cb(new Error('Можно только PNG, JPG, GIF, WEBP!'), false);
+    }
+});
+
 // ========== БАЗЫ ДАННЫХ ==========
 const usersFile = path.join(__dirname, "users.json");
 let usersDB = {};
@@ -83,13 +97,11 @@ let coinsDB = {};
 if (fs.existsSync(coinsFile)) coinsDB = JSON.parse(fs.readFileSync(coinsFile));
 function saveCoins() { fs.writeFileSync(coinsFile, JSON.stringify(coinsDB, null, 2)); }
 
-// ========== ДРУЗЬЯ ==========
 const friendsFile = path.join(__dirname, "friends.json");
 let friendsDB = {};
 if (fs.existsSync(friendsFile)) friendsDB = JSON.parse(fs.readFileSync(friendsFile));
 function saveFriends() { fs.writeFileSync(friendsFile, JSON.stringify(friendsDB, null, 2)); }
 
-// ========== ЛИЧНЫЕ СООБЩЕНИЯ ==========
 const privateMessagesFile = path.join(__dirname, "private_messages.json");
 let privateMessagesDB = {};
 if (fs.existsSync(privateMessagesFile)) privateMessagesDB = JSON.parse(fs.readFileSync(privateMessagesFile));
@@ -97,29 +109,14 @@ function savePrivateMessages() { fs.writeFileSync(privateMessagesFile, JSON.stri
 
 // ========== СЕРВЕРА ==========
 const serversFile = path.join(__dirname, "servers.json");
-let serversDB = {
-    main: {
-        id: "main",
-        name: "Главный сервер",
-        owner: "bigheaven3569",
-        rooms: {
-            general: { messages: [], users: new Set() },
-            gaming: { messages: [], users: new Set() },
-            music: { messages: [], users: new Set() },
-            "other-fuckin-shit": { messages: [], users: new Set() }
-        },
-        voiceRooms: { "voice-chat": new Set() },
-        members: new Set(["bigheaven3569"])
-    }
-};
+let serversDB = {};
 
 if (fs.existsSync(serversFile)) {
-    const data = JSON.parse(fs.readFileSync(serversFile));
-    for (let [id, server] of Object.entries(data)) {
-        serversDB[id] = server;
+    serversDB = JSON.parse(fs.readFileSync(serversFile));
+    for (let id in serversDB) {
         if (!serversDB[id].rooms) serversDB[id].rooms = {};
         if (!serversDB[id].voiceRooms) serversDB[id].voiceRooms = {};
-        if (!serversDB[id].members) serversDB[id].members = new Set(server.members || []);
+        if (!serversDB[id].members) serversDB[id].members = new Set(serversDB[id].members || []);
         for (let room in serversDB[id].rooms) {
             if (!serversDB[id].rooms[room].messages) serversDB[id].rooms[room].messages = [];
             if (!serversDB[id].rooms[room].users) serversDB[id].rooms[room].users = new Set();
@@ -137,6 +134,7 @@ function saveServers() {
         saveData[id] = {
             id: server.id,
             name: server.name,
+            icon: server.icon,
             owner: server.owner,
             rooms: roomsData,
             voiceRooms: server.voiceRooms,
@@ -170,40 +168,50 @@ function sendSystemMessage(serverId, room, text) {
         avatar: null,
         text,
         time: Date.now(),
-        reactions: {}
+        reactions: {},
+        editable: false
     };
-    serversDB[serverId].rooms[room].messages.push(msg);
-    io.to(`server:${serverId}:${room}`).emit("chat", msg);
+    if (serversDB[serverId]?.rooms[room]) {
+        serversDB[serverId].rooms[room].messages.push(msg);
+        io.to(`server:${serverId}:${room}`).emit("chat", msg);
+    }
 }
 
-function sendPrivateMessage(from, to, text) {
+function sendPrivateMessage(from, to, text, isSystem = false) {
     const chatId = [from, to].sort().join("_");
     if (!privateMessagesDB[chatId]) privateMessagesDB[chatId] = [];
     const msg = {
         id: Date.now() + "_" + Math.random(),
         type: "text",
-        author: from,
+        author: isSystem ? "🛡️ СИСТЕМА" : from,
         text,
         time: Date.now(),
-        read: false
+        read: false,
+        editable: false
     };
     privateMessagesDB[chatId].push(msg);
     savePrivateMessages();
     const target = getUserByUsername(to);
     if (target) {
-        io.to(target.socketId).emit("private-message", { from, msg });
+        io.to(target.socketId).emit("private-message", { from: isSystem ? "🛡️ СИСТЕМА" : from, msg });
     }
 }
 
 // ========== API ==========
 app.post("/register", (req, res) => {
-    const { username, password } = req.body;
+    const { username, password, bio } = req.body;
     if (!username || !password) return res.status(400).json({ error: "Заполните все поля" });
     if (username === OWNER_USERNAME) return res.status(403).json({ error: "НИК ЗАНЯТ ИДИ НАХУЙ!!" });
     if (usersDB[username]) return res.status(400).json({ error: "НИК ЗАНЯТ ИДИ НАХУЙ!!" });
     if (bansDB[username]) return res.status(403).json({ error: "ТЫ В БАНЕ, ПИЗДУЙ!" });
     
-    usersDB[username] = { password, role: "новичок", createdAt: Date.now(), avatar: null };
+    usersDB[username] = { 
+        password, 
+        role: "новичок", 
+        createdAt: Date.now(), 
+        avatar: null,
+        bio: bio || ""
+    };
     saveUsers();
     if (!coinsDB[username]) coinsDB[username] = 0;
     saveCoins();
@@ -219,7 +227,7 @@ app.post("/login", (req, res) => {
     if (username === OWNER_USERNAME) {
         if (password === OWNER_PASSWORD) {
             if (!usersDB[OWNER_USERNAME]) {
-                usersDB[OWNER_USERNAME] = { password: OWNER_PASSWORD, role: "владелец", createdAt: Date.now(), avatar: null };
+                usersDB[OWNER_USERNAME] = { password: OWNER_PASSWORD, role: "владелец", createdAt: Date.now(), avatar: null, bio: "Владелец" };
                 saveUsers();
             }
             if (!coinsDB[OWNER_USERNAME]) coinsDB[OWNER_USERNAME] = 1000000;
@@ -241,7 +249,18 @@ app.post("/login", (req, res) => {
     }
     if (!coinsDB[username]) coinsDB[username] = 0;
     saveCoins();
-    res.json({ success: true, role: user.role, avatar: user.avatar });
+    res.json({ success: true, role: user.role, avatar: user.avatar, bio: user.bio, createdAt: user.createdAt });
+});
+
+app.post("/update-bio", (req, res) => {
+    const { username, bio } = req.body;
+    if (usersDB[username]) {
+        usersDB[username].bio = bio;
+        saveUsers();
+        res.json({ success: true });
+    } else {
+        res.status(404).json({ error: "Пользователь не найден" });
+    }
 });
 
 app.post("/change-nick", (req, res) => {
@@ -277,7 +296,7 @@ app.post("/upload-avatar", uploadAvatar.single("avatar"), (req, res) => {
     }
 });
 
-app.post("/create-server", (req, res) => {
+app.post("/create-server", uploadServerIcon.single("icon"), (req, res) => {
     const { username, serverName } = req.body;
     const user = usersDB[username];
     if (!user) return res.status(404).json({ error: "Пользователь не найден" });
@@ -289,6 +308,7 @@ app.post("/create-server", (req, res) => {
     serversDB[serverId] = {
         id: serverId,
         name: serverName,
+        icon: req.file ? "/server_icons/" + req.file.filename : null,
         owner: username,
         rooms: {
             general: { messages: [], users: new Set() }
@@ -322,8 +342,15 @@ app.post("/send-friend-request", (req, res) => {
     if (friendsDB[from].includes(`request_${to}`)) return res.json({ error: "Заявка уже отправлена" });
     friendsDB[from].push(`request_${to}`);
     saveFriends();
+    
+    // Уведомление через ЛС от бота
+    sendPrivateMessage("🛡️ СИСТЕМА", to, `📨 Пользователь ${from} хочет добавить тебя в друзья! Напиши /accept ${from} чтобы принять, или /reject ${from} чтобы отклонить.`, true);
+    
     const target = getUserByUsername(to);
-    if (target) io.to(target.socketId).emit("friend-request", { from });
+    if (target) {
+        io.to(target.socketId).emit("friend-request", { from });
+        io.to(target.socketId).emit("private-message", { from: "🛡️ СИСТЕМА", msg: { id: Date.now(), type: "text", author: "🛡️ СИСТЕМА", text: `📨 ${from} хочет добавить тебя в друзья! Напиши /accept ${from} чтобы принять, или /reject ${from} чтобы отклонить.`, time: Date.now() } });
+    }
     res.json({ success: true });
 });
 
@@ -336,6 +363,8 @@ app.post("/accept-friend", (req, res) => {
             if (!friendsDB[username].includes(friend)) friendsDB[username].push(friend);
             if (!friendsDB[friend].includes(username)) friendsDB[friend].push(username);
             saveFriends();
+            sendPrivateMessage("🛡️ СИСТЕМА", username, `✅ Ты принял заявку от ${friend}! Теперь вы друзья.`, true);
+            sendPrivateMessage("🛡️ СИСТЕМА", friend, `✅ ${username} принял твою заявку в друзья!`, true);
         }
     }
     res.json({ success: true });
@@ -347,6 +376,7 @@ app.post("/reject-friend", (req, res) => {
         const index = friendsDB[username].indexOf(`request_${friend}`);
         if (index !== -1) friendsDB[username].splice(index, 1);
         saveFriends();
+        sendPrivateMessage("🛡️ СИСТЕМА", username, `❌ Ты отклонил заявку от ${friend}.`, true);
     }
     res.json({ success: true });
 });
@@ -373,19 +403,23 @@ io.on("connection", (socket) => {
         }
 
         if (!serversDB[serverId]) serverId = "main";
-        if (!serversDB[serverId].rooms[room]) room = "general";
+        if (!serversDB[serverId]?.rooms[room]) room = "general";
 
         activeSessions[socket.id] = { username, serverId, room };
-        socket.join(`server:${serverId}:${room}`);
-        serversDB[serverId].rooms[room].users.add(socket.id);
+        if (serversDB[serverId]?.rooms[room]) {
+            socket.join(`server:${serverId}:${room}`);
+            serversDB[serverId].rooms[room].users.add(socket.id);
+            socket.emit("history", serversDB[serverId].rooms[room].messages);
+        }
         
         if (!userStatus[username]) userStatus[username] = "online";
 
-        socket.emit("history", serversDB[serverId].rooms[room].messages);
         socket.emit("user-data", { 
             username, role: user.role, avatar: user.avatar, 
             status: userStatus[username], coins: coinsDB[username] || 0, 
-            friends: friendsDB[username] || []
+            friends: friendsDB[username] || [],
+            bio: user.bio || "",
+            createdAt: user.createdAt
         });
         
         const allUsers = [];
@@ -395,14 +429,16 @@ io.on("connection", (socket) => {
                 username: u,
                 avatar: usersDB[u]?.avatar,
                 role: usersDB[u]?.role,
-                status: isOnline ? (userStatus[u] || "online") : "offline"
+                status: isOnline ? (userStatus[u] || "online") : "offline",
+                bio: usersDB[u]?.bio || "",
+                createdAt: usersDB[u]?.createdAt
             });
         }
         io.emit("all-users", allUsers);
         
         const serversList = [];
         for (let [id, srv] of Object.entries(serversDB)) {
-            serversList.push({ id, name: srv.name, owner: srv.owner, memberCount: srv.members.size });
+            serversList.push({ id, name: srv.name, icon: srv.icon, owner: srv.owner, memberCount: srv.members.size });
         }
         socket.emit("servers-list", serversList);
     });
@@ -421,9 +457,53 @@ io.on("connection", (socket) => {
         if (mutesDB[session.username] && mutesDB[session.username] > Date.now()) return;
         const user = usersDB[session.username];
         
-        const msg = { id: Date.now() + "_" + Math.random(), type: "text", author: session.username, role: user.role, avatar: user.avatar, text, time: Date.now(), reactions: {} };
-        serversDB[session.serverId].rooms[session.room].messages.push(msg);
-        io.to(`server:${session.serverId}:${session.room}`).emit("chat", msg);
+        // Обработка команд принятия/отклонения заявок
+        if (text.startsWith("/accept ")) {
+            const friend = text.split(" ")[1];
+            if (friend) {
+                fetch("http://localhost:3000/accept-friend", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: session.username, friend })
+                });
+                socket.emit("chat", { id: Date.now(), type: "text", author: "🛡️ СИСТЕМА", text: `✅ Ты принял заявку от ${friend}!`, time: Date.now() });
+            }
+            return;
+        }
+        if (text.startsWith("/reject ")) {
+            const friend = text.split(" ")[1];
+            if (friend) {
+                fetch("http://localhost:3000/reject-friend", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: session.username, friend })
+                });
+                socket.emit("chat", { id: Date.now(), type: "text", author: "🛡️ СИСТЕМА", text: `❌ Ты отклонил заявку от ${friend}.`, time: Date.now() });
+            }
+            return;
+        }
+        
+        const msg = { id: Date.now() + "_" + Math.random(), type: "text", author: session.username, role: user.role, avatar: user.avatar, text, time: Date.now(), reactions: {}, editable: true };
+        if (serversDB[session.serverId]?.rooms[session.room]) {
+            serversDB[session.serverId].rooms[session.room].messages.push(msg);
+            io.to(`server:${session.serverId}:${session.room}`).emit("chat", msg);
+        }
+    });
+
+    socket.on("edit-message", ({ serverId, room, msgId, newText }) => {
+        const session = activeSessions[socket.id];
+        if (!session) return;
+        const user = usersDB[session.username];
+        const server = serversDB[serverId];
+        const msgIndex = server.rooms[room].messages.findIndex(m => m.id == msgId);
+        if (msgIndex !== -1) {
+            const msg = server.rooms[room].messages[msgIndex];
+            if (msg.author === session.username || user.role === "владелец" || user.role === "админ" || user.role === "модер") {
+                msg.text = newText;
+                msg.edited = true;
+                io.to(`server:${serverId}:${room}`).emit("message-edited", { msgId, newText });
+            }
+        }
     });
 
     socket.on("private-chat", ({ to, text }) => {
@@ -444,18 +524,22 @@ io.on("connection", (socket) => {
         const session = activeSessions[socket.id];
         if (!session) return;
         const user = usersDB[session.username];
-        const msg = { id: Date.now() + "_" + Math.random(), type: "media", author: session.username, role: user.role, avatar: user.avatar, mediaUrl: url, mediaType: fileType, time: Date.now(), reactions: {} };
-        serversDB[session.serverId].rooms[session.room].messages.push(msg);
-        io.to(`server:${session.serverId}:${session.room}`).emit("chat", msg);
+        const msg = { id: Date.now() + "_" + Math.random(), type: "media", author: session.username, role: user.role, avatar: user.avatar, mediaUrl: url, mediaType: fileType, time: Date.now(), reactions: {}, editable: false };
+        if (serversDB[session.serverId]?.rooms[session.room]) {
+            serversDB[session.serverId].rooms[session.room].messages.push(msg);
+            io.to(`server:${session.serverId}:${session.room}`).emit("chat", msg);
+        }
     });
 
     socket.on("voice-msg", (url) => {
         const session = activeSessions[socket.id];
         if (!session) return;
         const user = usersDB[session.username];
-        const msg = { id: Date.now() + "_" + Math.random(), type: "voice", author: session.username, role: user.role, avatar: user.avatar, audio: url, time: Date.now(), reactions: {} };
-        serversDB[session.serverId].rooms[session.room].messages.push(msg);
-        io.to(`server:${session.serverId}:${session.room}`).emit("chat", msg);
+        const msg = { id: Date.now() + "_" + Math.random(), type: "voice", author: session.username, role: user.role, avatar: user.avatar, audio: url, time: Date.now(), reactions: {}, editable: false };
+        if (serversDB[session.serverId]?.rooms[session.room]) {
+            serversDB[session.serverId].rooms[session.room].messages.push(msg);
+            io.to(`server:${session.serverId}:${session.room}`).emit("chat", msg);
+        }
     });
 
     socket.on("delete-message", ({ serverId, room, msgId }) => {
@@ -490,8 +574,9 @@ io.on("connection", (socket) => {
         const session = activeSessions[socket.id];
         if (!session) return;
         const server = serversDB[serverId];
+        if (!server) return;
         
-        for (let [name, users] of Object.entries(server.voiceRooms)) {
+        for (let [name, users] of Object.entries(server.voiceRooms || {})) {
             if (users.has(socket.id)) {
                 users.delete(socket.id);
                 io.to(`voice:${serverId}:${name}`).emit("voice-users-update", Array.from(users).map(id => ({
@@ -522,7 +607,8 @@ io.on("connection", (socket) => {
     
     socket.on("leave-voice-channel", ({ serverId }) => {
         const server = serversDB[serverId];
-        for (let [name, users] of Object.entries(server.voiceRooms)) {
+        if (!server) return;
+        for (let [name, users] of Object.entries(server.voiceRooms || {})) {
             if (users.has(socket.id)) {
                 users.delete(socket.id);
                 io.to(`voice:${serverId}:${name}`).emit("voice-users-update", Array.from(users).map(id => ({
