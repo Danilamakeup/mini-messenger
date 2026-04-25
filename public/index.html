@@ -1,110 +1,107 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chat V2</title>
-
+<title>V3 Chat</title>
 <script src="/socket.io/socket.io.js"></script>
 
 <style>
 body {
-    margin: 0;
-    font-family: Arial;
-    background: #313338;
-    color: white;
-    display: flex;
-    height: 100vh;
+    margin:0;
+    display:flex;
+    height:100vh;
+    font-family:Arial;
+    background:#1e1f22;
+    color:white;
 }
 
+/* SIDEBAR */
 .sidebar {
-    width: 220px;
-    background: #2b2d31;
-    padding: 10px;
+    width:240px;
+    background:#2b2d31;
+    padding:10px;
 }
 
 .room {
-    padding: 8px;
-    cursor: pointer;
-    border-radius: 6px;
+    padding:8px;
+    cursor:pointer;
+    border-radius:6px;
 }
+.room:hover { background:#404249; }
 
-.room:hover {
-    background: #404249;
-}
-
+/* CHAT */
 .chat {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+    flex:1;
+    display:flex;
+    flex-direction:column;
 }
 
 .header {
-    padding: 10px;
-    background: #2b2d31;
+    padding:10px;
+    background:#2b2d31;
 }
 
 .messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 10px;
+    flex:1;
+    overflow:auto;
+    padding:10px;
 }
 
-.message-group {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 10px;
+/* MESSAGE */
+.msg {
+    display:flex;
+    gap:10px;
+    margin-bottom:10px;
 }
 
-.message-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+.msg img {
+    width:40px;
+    height:40px;
+    border-radius:50%;
 }
 
-.message-content {
-    background: #2b2d31;
-    padding: 8px;
-    border-radius: 8px;
-    max-width: 500px;
+.bubble {
+    background:#2b2d31;
+    padding:8px;
+    border-radius:8px;
+    max-width:500px;
 }
 
-.message-header {
-    font-size: 12px;
-    opacity: 0.8;
-    margin-bottom: 3px;
+.meta {
+    font-size:12px;
+    opacity:.7;
 }
 
+.actions span {
+    margin-right:8px;
+    cursor:pointer;
+    opacity:.7;
+}
+.actions span:hover { opacity:1; }
+
+/* INPUT */
 .input {
-    display: flex;
-    padding: 10px;
-    background: #2b2d31;
+    display:flex;
+    padding:10px;
+    background:#2b2d31;
 }
 
 .input input {
-    flex: 1;
-    padding: 10px;
-    border: none;
-    outline: none;
-    border-radius: 6px;
-    background: #404249;
-    color: white;
+    flex:1;
+    padding:10px;
+    background:#404249;
+    border:none;
+    color:white;
+    border-radius:6px;
 }
 
 .input button {
-    margin-left: 10px;
-    padding: 10px;
-    background: #5865f2;
-    border: none;
-    color: white;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-.media-preview {
-    max-width: 200px;
-    border-radius: 8px;
-    margin-top: 5px;
+    margin-left:10px;
+    background:#5865f2;
+    border:none;
+    color:white;
+    padding:10px;
+    border-radius:6px;
 }
 </style>
 </head>
@@ -112,167 +109,119 @@ body {
 <body>
 
 <div class="sidebar">
-    <h3>Rooms</h3>
-    <div class="room" onclick="joinRoom('general')"># general</div>
-    <div class="room" onclick="joinRoom('gaming')"># gaming</div>
-    <div class="room" onclick="joinRoom('music')"># music</div>
+    <h3>Channels</h3>
+    <div class="room" onclick="join('general')"># general</div>
+    <div class="room" onclick="join('gaming')"># gaming</div>
+    <div class="room" onclick="join('music')"># music</div>
 </div>
 
 <div class="chat">
 
-    <div class="header">
-        Room: <span id="currentRoomName">general</span> |
-        Online: <span id="online">0</span>
-    </div>
+<div class="header">
+Room: <span id="room">general</span> |
+Online: <span id="online">0</span>
+</div>
 
-    <div class="messages" id="messages"></div>
+<div class="messages" id="messages"></div>
 
-    <div id="typing" style="padding:5px 10px; opacity:0.7;"></div>
+<div id="typing"></div>
 
-    <div class="input">
-        <input id="input" placeholder="message...">
-        <input type="file" id="file" style="display:none">
-        <button onclick="sendText()">Send</button>
-        <button onclick="document.getElementById('file').click()">+</button>
-    </div>
+<div class="input">
+<input id="inp" placeholder="message">
+<button onclick="send()">Send</button>
+</div>
 
 </div>
 
 <script>
-let socket;
-let currentRoom = "general";
-let currentUser = "user" + Math.floor(Math.random() * 1000);
+let socket = io();
+let room = "general";
+let user = "user"+Math.floor(Math.random()*999);
 
-/* ================= SAFE ================= */
-function escapeHtml(text) {
-    return (text || "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;");
-}
+socket.emit("auth",{username:user,room});
 
-/* ================= SOCKET ================= */
-function initSocket() {
-    socket = io();
-
-    socket.emit("auth", {
-        username: currentUser,
-        room: currentRoom
-    });
-
-    socket.on("history", (msgs) => {
-        const box = document.getElementById("messages");
-        box.innerHTML = "";
-        msgs.forEach(renderMessage);
-    });
-
-    socket.on("chat", renderMessage);
-
-    socket.on("online", (n) => {
-        document.getElementById("online").innerText = n;
-    });
-
-    socket.on("typing", (user) => {
-        document.getElementById("typing").innerText = user + " печатает...";
-    });
-
-    socket.on("stop-typing", () => {
-        document.getElementById("typing").innerText = "";
-    });
-}
-
-/* ================= CHAT ================= */
-function sendText() {
-    const input = document.getElementById("input");
-    const text = input.value.trim();
-    if (!text) return;
-
-    socket.emit("chat", text);
-    socket.emit("stop-typing");
-
-    input.value = "";
-}
-
-/* ================= ROOMS ================= */
-function joinRoom(room) {
-    currentRoom = room;
-
-    document.getElementById("currentRoomName").innerText = room;
-
-    socket.emit("auth", {
-        username: currentUser,
-        room
-    });
-}
-
-/* ================= RENDER ================= */
-function renderMessage(msg) {
-    const box = document.getElementById("messages");
-
-    const div = document.createElement("div");
-    div.className = "message-group";
-
-    let content = "";
-
-    if (msg.type === "image") {
-        content = `<img class="media-preview" src="${msg.text}">`;
-    } else if (msg.type === "video") {
-        content = `<video class="media-preview" controls src="${msg.text}"></video>`;
-    } else if (msg.type === "audio") {
-        content = `<audio controls src="${msg.text}"></audio>`;
-    } else {
-        content = escapeHtml(msg.text || "");
-    }
-
-    div.innerHTML = `
-        <img class="message-avatar"
-            src="${msg.avatar || 'https://ui-avatars.com/api/?name=' + msg.author}">
-
-        <div class="message-content">
-            <div class="message-header">
-                <b>${escapeHtml(msg.author)}</b>
-                <span>${new Date(msg.time).toLocaleTimeString()}</span>
-            </div>
-            <div>${content}</div>
-        </div>
-    `;
-
-    box.appendChild(div);
-    box.scrollTop = box.scrollHeight;
-}
-
-/* ================= MEDIA ================= */
-document.getElementById("file").onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const fd = new FormData();
-    fd.append("file", file);
-
-    const res = await fetch("/upload-media", {
-        method: "POST",
-        body: fd
-    });
-
-    const data = await res.json();
-
-    socket.emit("media", data.url, data.fileType);
-};
-
-/* ================= TYPING ================= */
-const input = document.getElementById("input");
-
-input.addEventListener("input", () => {
-    socket.emit("typing", currentUser);
-
-    clearTimeout(window.typingTimer);
-    window.typingTimer = setTimeout(() => {
-        socket.emit("stop-typing");
-    }, 800);
+/* ===== LOAD ===== */
+socket.on("history",m=>{
+    m.forEach(render);
 });
 
-/* ================= START ================= */
-initSocket();
+socket.on("chat",render);
+
+socket.on("online",n=>{
+    document.getElementById("online").innerText=n;
+});
+
+/* UPDATE */
+socket.on("update",msg=>{
+    document.querySelector(`[data-id="${msg.id}"] .text`).innerText = msg.text;
+});
+
+socket.on("delete",id=>{
+    document.querySelector(`[data-id="${id}"]`).remove();
+});
+
+socket.on("reaction",data=>{
+    let el = document.querySelector(`[data-id="${data.id}"] .reactions`);
+    if(el) el.innerText = JSON.stringify(data.reactions);
+});
+
+/* TYPING */
+socket.on("typing",u=>{
+    document.getElementById("typing").innerText = u+" печатает...";
+});
+socket.on("stop-typing",()=>{
+    document.getElementById("typing").innerText = "";
+});
+
+/* SEND */
+function send(){
+    let i=document.getElementById("inp");
+    socket.emit("chat",i.value);
+    i.value="";
+}
+
+/* ROOM */
+function join(r){
+    room=r;
+    document.getElementById("room").innerText=r;
+    socket.emit("auth",{username:user,room:r});
+}
+
+/* RENDER */
+function render(m){
+    let div=document.createElement("div");
+    div.className="msg";
+    div.dataset.id=m.id;
+
+    div.innerHTML=`
+        <img src="https://ui-avatars.com/api/?name=${m.author}">
+        <div class="bubble">
+            <div class="meta">${m.author}</div>
+            <div class="text">${m.text}</div>
+            <div class="actions">
+                <span onclick="socket.emit('react',{id:'${m.id}',emoji:'🔥'})">🔥</span>
+                <span onclick="socket.emit('delete','${m.id}')">🗑</span>
+                <span onclick="edit('${m.id}')">✏</span>
+            </div>
+            <div class="reactions"></div>
+        </div>
+    `;
+    document.getElementById("messages").appendChild(div);
+}
+
+/* EDIT */
+function edit(id){
+    let newText = prompt("edit:");
+    socket.emit("edit",{id,newText});
+}
+
+/* TYPING */
+let inp=document.getElementById("inp");
+inp.oninput=()=>{
+    socket.emit("typing");
+    clearTimeout(window.t);
+    window.t=setTimeout(()=>socket.emit("stop-typing"),800);
+}
 </script>
 
 </body>
