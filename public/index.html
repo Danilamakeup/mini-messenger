@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NEXUS CHAT FIX</title>
+<title>Chat V2</title>
 
 <script src="/socket.io/socket.io.js"></script>
 
@@ -17,7 +17,6 @@ body {
     height: 100vh;
 }
 
-/* SIDEBAR */
 .sidebar {
     width: 220px;
     background: #2b2d31;
@@ -34,7 +33,6 @@ body {
     background: #404249;
 }
 
-/* CHAT */
 .chat {
     flex: 1;
     display: flex;
@@ -52,23 +50,29 @@ body {
     padding: 10px;
 }
 
-.msg {
+.message-group {
     display: flex;
     gap: 10px;
     margin-bottom: 10px;
 }
 
-.msg img {
+.message-avatar {
     width: 40px;
     height: 40px;
     border-radius: 50%;
 }
 
-.msg-box {
+.message-content {
     background: #2b2d31;
     padding: 8px;
     border-radius: 8px;
     max-width: 500px;
+}
+
+.message-header {
+    font-size: 12px;
+    opacity: 0.8;
+    margin-bottom: 3px;
 }
 
 .input {
@@ -97,7 +101,7 @@ body {
     cursor: pointer;
 }
 
-.media {
+.media-preview {
     max-width: 200px;
     border-radius: 8px;
     margin-top: 5px;
@@ -117,17 +121,17 @@ body {
 <div class="chat">
 
     <div class="header">
-        Room: <span id="roomName">general</span> |
+        Room: <span id="currentRoomName">general</span> |
         Online: <span id="online">0</span>
     </div>
 
     <div class="messages" id="messages"></div>
 
+    <div id="typing" style="padding:5px 10px; opacity:0.7;"></div>
+
     <div class="input">
         <input id="input" placeholder="message...">
-
         <input type="file" id="file" style="display:none">
-
         <button onclick="sendText()">Send</button>
         <button onclick="document.getElementById('file').click()">+</button>
     </div>
@@ -139,15 +143,16 @@ let socket;
 let currentRoom = "general";
 let currentUser = "user" + Math.floor(Math.random() * 1000);
 
-function escapeHtml(t){
-    return t
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;");
+/* ================= SAFE ================= */
+function escapeHtml(text) {
+    return (text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
 }
 
-/* SOCKET INIT */
-function init(){
+/* ================= SOCKET ================= */
+function initSocket() {
     socket = io();
 
     socket.emit("auth", {
@@ -155,22 +160,44 @@ function init(){
         room: currentRoom
     });
 
-    socket.on("history", (msgs)=>{
-        document.getElementById("messages").innerHTML = "";
-        msgs.forEach(render);
+    socket.on("history", (msgs) => {
+        const box = document.getElementById("messages");
+        box.innerHTML = "";
+        msgs.forEach(renderMessage);
     });
 
-    socket.on("chat", render);
+    socket.on("chat", renderMessage);
 
-    socket.on("online", (n)=>{
+    socket.on("online", (n) => {
         document.getElementById("online").innerText = n;
+    });
+
+    socket.on("typing", (user) => {
+        document.getElementById("typing").innerText = user + " печатает...";
+    });
+
+    socket.on("stop-typing", () => {
+        document.getElementById("typing").innerText = "";
     });
 }
 
-/* JOIN ROOM */
-function joinRoom(room){
+/* ================= CHAT ================= */
+function sendText() {
+    const input = document.getElementById("input");
+    const text = input.value.trim();
+    if (!text) return;
+
+    socket.emit("chat", text);
+    socket.emit("stop-typing");
+
+    input.value = "";
+}
+
+/* ================= ROOMS ================= */
+function joinRoom(room) {
     currentRoom = room;
-    document.getElementById("roomName").innerText = room;
+
+    document.getElementById("currentRoomName").innerText = room;
 
     socket.emit("auth", {
         username: currentUser,
@@ -178,35 +205,35 @@ function joinRoom(room){
     });
 }
 
-/* SEND TEXT */
-function sendText(){
-    let input = document.getElementById("input");
-    if(!input.value.trim()) return;
-
-    socket.emit("chat", input.value);
-    input.value = "";
-}
-
-/* RENDER MESSAGE */
-function render(msg){
+/* ================= RENDER ================= */
+function renderMessage(msg) {
     const box = document.getElementById("messages");
 
     const div = document.createElement("div");
-    div.className = "msg";
+    div.className = "message-group";
 
     let content = "";
 
-    if(msg.type === "image"){
-        content = `<img class="media" src="${msg.text}">`;
+    if (msg.type === "image") {
+        content = `<img class="media-preview" src="${msg.text}">`;
+    } else if (msg.type === "video") {
+        content = `<video class="media-preview" controls src="${msg.text}"></video>`;
+    } else if (msg.type === "audio") {
+        content = `<audio controls src="${msg.text}"></audio>`;
     } else {
         content = escapeHtml(msg.text || "");
     }
 
     div.innerHTML = `
-        <img src="https://ui-avatars.com/api/?name=${msg.author}">
-        <div class="msg-box">
-            <b>${msg.author}</b><br>
-            ${content}
+        <img class="message-avatar"
+            src="${msg.avatar || 'https://ui-avatars.com/api/?name=' + msg.author}">
+
+        <div class="message-content">
+            <div class="message-header">
+                <b>${escapeHtml(msg.author)}</b>
+                <span>${new Date(msg.time).toLocaleTimeString()}</span>
+            </div>
+            <div>${content}</div>
         </div>
     `;
 
@@ -214,16 +241,16 @@ function render(msg){
     box.scrollTop = box.scrollHeight;
 }
 
-/* MEDIA */
-document.getElementById("file").onchange = async (e)=>{
+/* ================= MEDIA ================= */
+document.getElementById("file").onchange = async (e) => {
     const file = e.target.files[0];
-    if(!file) return;
+    if (!file) return;
 
-    let fd = new FormData();
+    const fd = new FormData();
     fd.append("file", file);
 
     const res = await fetch("/upload-media", {
-        method:"POST",
+        method: "POST",
         body: fd
     });
 
@@ -232,7 +259,20 @@ document.getElementById("file").onchange = async (e)=>{
     socket.emit("media", data.url, data.fileType);
 };
 
-init();
+/* ================= TYPING ================= */
+const input = document.getElementById("input");
+
+input.addEventListener("input", () => {
+    socket.emit("typing", currentUser);
+
+    clearTimeout(window.typingTimer);
+    window.typingTimer = setTimeout(() => {
+        socket.emit("stop-typing");
+    }, 800);
+});
+
+/* ================= START ================= */
+initSocket();
 </script>
 
 </body>
