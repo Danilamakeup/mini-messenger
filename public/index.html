@@ -35,7 +35,7 @@
             align-items: center;
             gap: 10px;
         }
-        .avatar { width: 32px; height: 32px; border-radius: 50%; background: #5865f2; display: flex; align-items: center; justify-content: center; }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; background: #5865f2; display: flex; align-items: center; justify-content: center; font-weight: bold; }
         .chat {
             flex: 1;
             display: flex;
@@ -180,10 +180,8 @@
     let currentUser, currentRole;
     let currentRoom = "general", socket;
     let voiceStream, voicePeers = {}, inVoice = false;
-    let isMicMuted = false;
     let allUsers = [];
 
-    // сохранённая сессия
     const saved = localStorage.getItem("nexus_session");
     if (saved) {
         const { username, password } = JSON.parse(saved);
@@ -457,9 +455,6 @@
         voicePeers[id] = peer;
     }
     document.getElementById("joinVoiceBtn").onclick = joinVoice;
-    document.getElementById("micToggleBtn")?.addEventListener("click", () => {
-        if (voiceStream) voiceStream.getAudioTracks().forEach(t => t.enabled = !t.enabled);
-    });
 
     function sendMessage(text) {
         if (!text.trim()) return;
