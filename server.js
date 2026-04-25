@@ -90,6 +90,32 @@ let privateMessagesDB = {};
 if (fs.existsSync(privateMessagesFile)) privateMessagesDB = JSON.parse(fs.readFileSync(privateMessagesFile));
 function savePrivateMessages() { fs.writeFileSync(privateMessagesFile, JSON.stringify(privateMessagesDB, null, 2)); }
 
+// ---------- КОМНАТЫ (с сохранением) ----------
+const roomsFile = path.join(__dirname, "rooms.json");
+let rooms = {
+    general: { messages: [], users: new Set() },
+    gaming: { messages: [], users: new Set() },
+    music: { messages: [], users: new Set() },
+    "other-fuckin-shit": { messages: [], users: new Set() }
+};
+
+// Загружаем сохранённые комнаты
+if (fs.existsSync(roomsFile)) {
+    const savedRooms = JSON.parse(fs.readFileSync(roomsFile));
+    for (let name in savedRooms) {
+        rooms[name] = { messages: savedRooms[name].messages || [], users: new Set() };
+    }
+}
+
+function saveRooms() {
+    const toSave = {};
+    for (let name in rooms) {
+        toSave[name] = { messages: rooms[name].messages };
+    }
+    fs.writeFileSync(roomsFile, JSON.stringify(toSave, null, 2));
+}
+
+// ---------- СЕРВЕРА ----------
 const serversFile = path.join(__dirname, "servers.json");
 let serversDB = {};
 if (fs.existsSync(serversFile)) serversDB = JSON.parse(fs.readFileSync(serversFile));
@@ -110,11 +136,11 @@ function getUserByUsername(username) {
     return null;
 }
 
-function sendSystemMessage(serverId, room, text) {
-    const msg = { id: Date.now() + "_" + Math.random(), type: "text", author: "🛡️ СИСТЕМА", role: "владелец", text, time: Date.now(), reactions: {} };
-    if (serversDB[serverId]?.rooms[room]) {
-        serversDB[serverId].rooms[room].messages.push(msg);
-        io.to(`server:${serverId}:${room}`).emit("chat", msg);
+function sendSystemMessage(room, text) {
+    const msg = { id: Date.now() + "_" + Math.random(), type: "text", author: "🛡️ СИСТЕМА", role: "владелец", text, time: Date.now() };
+    if (rooms[room]) {
+        rooms[room].messages.push(msg);
+        io.to(room).emit("chat", msg);
     }
 }
 
@@ -231,7 +257,7 @@ app.post("/reject-friend", (req, res) => {
 
 // ---------- SOCKET ----------
 io.on("connection", (socket) => {
-    socket.on("auth", ({ username, serverId, room }) => {
+    socket.on("auth", ({ username, room }) => {
         if (bansDB[username]) return socket.emit("auth-error", "ТЫ В БАНЕ");
         const user = usersDB[username];
         if (!user) return socket.emit("auth-error", "Пользователь не найден");
@@ -240,22 +266,17 @@ io.on("connection", (socket) => {
             return socket.emit("auth-error", `Ты в муте ещё ${rem} минут`);
         }
         const prev = activeSessions[socket.id];
-        if (prev) {
-            const oldServer = serversDB[prev.serverId];
-            if (oldServer && oldServer.rooms[prev.room]) oldServer.rooms[prev.room].users?.delete(socket.id);
-            socket.leave(`server:${prev.serverId}:${prev.room}`);
+        if (prev && rooms[prev.room]) {
+            rooms[prev.room].users.delete(socket.id);
+            socket.leave(prev.room);
         }
-        const finalServerId = serversDB[serverId] ? serverId : "main";
-        const finalRoom = serversDB[finalServerId]?.rooms[room] ? room : "general";
-        activeSessions[socket.id] = { username, serverId: finalServerId, room: finalRoom };
-        socket.join(`server:${finalServerId}:${finalRoom}`);
-        if (!serversDB[finalServerId]) serversDB[finalServerId] = { rooms: {}, voiceRooms: {}, members: [] };
-        if (!serversDB[finalServerId].rooms[finalRoom]) serversDB[finalServerId].rooms[finalRoom] = { messages: [], users: new Set() };
-        serversDB[finalServerId].rooms[finalRoom].users.add(socket.id);
+        const finalRoom = rooms[room] ? room : "general";
+        activeSessions[socket.id] = { username, room: finalRoom };
+        socket.join(finalRoom);
+        rooms[finalRoom].users.add(socket.id);
         userStatus[username] = "online";
-        socket.emit("history", serversDB[finalServerId].rooms[finalRoom].messages);
+        socket.emit("history", rooms[finalRoom].messages);
         socket.emit("user-data", { username, role: user.role, avatar: user.avatar, friends: friendsDB[username] || [], coins: coinsDB[username] || 0 });
-        socket.emit("servers-list", Object.entries(serversDB).map(([id, s]) => ({ id, name: s.name, icon: s.icon, owner: s.owner })));
         const allUsers = [];
         for (let u of Object.keys(usersDB)) {
             const online = getUserByUsername(u) !== null;
@@ -263,6 +284,7 @@ io.on("connection", (socket) => {
         }
         io.emit("all-users", allUsers);
         io.emit("user-status-update", { username, status: "online" });
+        io.to(finalRoom).emit("room-users", Array.from(rooms[finalRoom].users).map(id => activeSessions[id]?.username));
     });
 
     socket.on("chat", (text) => {
@@ -270,177 +292,86 @@ io.on("connection", (socket) => {
         if (!s) return;
         const user = usersDB[s.username];
         if (!user) return;
-        if (text.startsWith("/accept ")) {
-            const friend = text.split(" ")[1];
-            if (friend) fetch(`http://localhost:3000/accept-friend`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: s.username, friend }) });
-            return;
-        }
-        if (text.startsWith("/reject ")) {
-            const friend = text.split(" ")[1];
-            if (friend) fetch(`http://localhost:3000/reject-friend`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: s.username, friend }) });
-            return;
-        }
-        if (text.startsWith("/") && user.role === "владелец") {
+        if (text.startsWith("/clear") && user.role === "владелец") {
             const parts = text.split(" ");
-            const cmd = parts[0].toLowerCase();
-            const server = serversDB[s.serverId];
-            const room = s.room;
-            if (cmd === "/функции" || cmd === "/help") {
-                sendSystemMessage(s.serverId, s.room, `📋 КОМАНДЫ: /give @user роль, /kick, /ban, /unban, /clear N, /mute, /warn, /whois, /stats, /nuke, /create-room, /delete-room, /resetpass, /пароли`);
-                return;
+            const count = parseInt(parts[1]);
+            if (!isNaN(count) && count > 0) {
+                rooms[s.room].messages = rooms[s.room].messages.slice(0, -count);
+                io.to(s.room).emit("clear-chat");
+                sendSystemMessage(s.room, `🧹 Очищено ${count} сообщений`);
+                saveRooms();
             }
-            if (cmd === "/пароли") {
-                let list = "📋 ПАРОЛИ:\n";
-                for (let [u, d] of Object.entries(usersDB)) list += `${u} → ${d.password}\n`;
-                sendSystemMessage(s.serverId, s.room, list);
-                return;
+            return;
+        }
+        // 👇 НОВАЯ КОМАНДА ДЛЯ СОЗДАНИЯ КОМНАТЫ
+        if (text.startsWith("/create-room") && user.role === "владелец") {
+            const parts = text.split(" ");
+            const newRoom = parts[1]?.replace("#", "").toLowerCase();
+            if (newRoom && !rooms[newRoom]) {
+                rooms[newRoom] = { messages: [], users: new Set() };
+                io.emit("new-room", newRoom);
+                sendSystemMessage(s.room, `📁 Создана комната #${newRoom}`);
+                saveRooms();
+            } else {
+                sendSystemMessage(s.room, `❌ Комната ${newRoom} уже существует или имя не указано`);
             }
-            if (cmd === "/give" && parts[2]) {
-                const target = parts[1].replace("@", "");
-                const role = parts[2].toLowerCase();
-                if (usersDB[target]) {
-                    usersDB[target].role = role;
-                    saveUsers();
-                    sendSystemMessage(s.serverId, s.room, `✅ ${target} теперь ${role}`);
-                    const t = getUserByUsername(target);
-                    if (t) io.to(t.socketId).emit("user-data", { username: target, role, avatar: usersDB[target].avatar, friends: friendsDB[target] });
-                } else sendSystemMessage(s.serverId, s.room, `❌ ${target} не найден`);
-                return;
+            return;
+        }
+        // 👇 НОВАЯ КОМАНДА ДЛЯ УДАЛЕНИЯ КОМНАТЫ
+        if (text.startsWith("/delete-room") && user.role === "владелец") {
+            const parts = text.split(" ");
+            const delRoom = parts[1]?.replace("#", "").toLowerCase();
+            if (delRoom && delRoom !== "general" && rooms[delRoom]) {
+                delete rooms[delRoom];
+                io.emit("delete-room", delRoom);
+                sendSystemMessage(s.room, `🗑️ Удалена комната #${delRoom}`);
+                saveRooms();
+            } else {
+                sendSystemMessage(s.room, `❌ Нельзя удалить general или несуществующую комнату`);
             }
-            if (cmd === "/kick" && parts[1]) {
-                const target = parts[1].replace("@", "");
-                const t = getUserByUsername(target);
-                if (t) {
-                    io.to(t.socketId).emit("kick", "Тебя кикнули");
-                    t.session.socket.disconnect();
-                    sendSystemMessage(s.serverId, s.room, `👢 ${target} кикнут`);
-                } else sendSystemMessage(s.serverId, s.room, `❌ ${target} не найден`);
-                return;
-            }
-            if (cmd === "/ban" && parts[1]) {
-                const target = parts[1].replace("@", "");
-                if (target === OWNER_NAME) { sendSystemMessage(s.serverId, s.room, "❌ Нельзя забанить владельца"); return; }
-                bansDB[target] = true;
-                saveBans();
-                const t = getUserByUsername(target);
-                if (t) { io.to(t.socketId).emit("ban", "Ты в бане"); t.session.socket.disconnect(); }
-                sendSystemMessage(s.serverId, s.room, `🔨 ${target} забанен`);
-                return;
-            }
-            if (cmd === "/unban" && parts[1]) {
-                const target = parts[1].replace("@", "");
-                if (bansDB[target]) {
-                    delete bansDB[target];
-                    saveBans();
-                    sendSystemMessage(s.serverId, s.room, `✅ ${target} разбанен`);
-                } else sendSystemMessage(s.serverId, s.room, `❌ ${target} не в бане`);
-                return;
-            }
-            if (cmd === "/clear" && parts[1]) {
-                const count = parseInt(parts[1]);
-                if (!isNaN(count) && count > 0) {
-                    server.rooms[room].messages = server.rooms[room].messages.slice(0, -count);
-                    io.to(`server:${s.serverId}:${room}`).emit("clear-chat");
-                    sendSystemMessage(s.serverId, s.room, `🧹 Очищено ${count} сообщений`);
-                }
-                return;
-            }
-            if (cmd === "/mute" && parts[1]) {
-                const target = parts[1].replace("@", "");
-                let minutes = 5;
-                if (parts[2]) minutes = parseInt(parts[2]);
-                if (!isNaN(minutes) && minutes > 0) {
-                    mutesDB[target] = Date.now() + minutes * 60000;
-                    saveMutes();
-                    sendSystemMessage(s.serverId, s.room, `🤐 ${target} замучен на ${minutes} минут`);
-                    const t = getUserByUsername(target);
-                    if (t) io.to(t.socketId).emit("mute", `Ты в муте ${minutes} минут`);
-                }
-                return;
-            }
-            if (cmd === "/warn" && parts[1]) {
-                const target = parts[1].replace("@", "");
-                warnsDB[target] = (warnsDB[target] || 0) + 1;
-                saveWarns();
-                sendSystemMessage(s.serverId, s.room, `⚠️ ${target} получил предупреждение (${warnsDB[target]}/3)`);
-                if (warnsDB[target] >= 3) {
-                    bansDB[target] = true;
-                    saveBans();
-                    const t = getUserByUsername(target);
-                    if (t) { io.to(t.socketId).emit("ban", "3 варна = бан"); t.session.socket.disconnect(); }
-                    sendSystemMessage(s.serverId, s.room, `🔨 ${target} забанен (3 варна)`);
-                }
-                return;
-            }
-            if (cmd === "/whois" && parts[1]) {
-                const target = parts[1].replace("@", "");
-                const u = usersDB[target];
-                if (!u) { sendSystemMessage(s.serverId, s.room, `❌ ${target} не найден`); return; }
-                const isOnline = !!getUserByUsername(target);
-                const warns = warnsDB[target] || 0;
-                sendSystemMessage(s.serverId, s.room, `📋 ${target}: роль ${u.role}, рег: ${new Date(u.createdAt).toLocaleDateString()}, онлайн: ${isOnline ? "да" : "нет"}, варны: ${warns}/3`);
-                return;
-            }
-            if (cmd === "/stats") {
-                const totalUsers = Object.keys(usersDB).length;
-                const onlineNow = Object.keys(activeSessions).length;
-                let totalMessages = 0;
-                for (let id in serversDB) {
-                    for (let r in serversDB[id].rooms) totalMessages += serversDB[id].rooms[r].messages.length;
-                }
-                sendSystemMessage(s.serverId, s.room, `📊 Статистика: юзеров ${totalUsers}, онлайн ${onlineNow}, сообщений ${totalMessages}`);
-                return;
-            }
-            if (cmd === "/nuke") {
-                for (let id in serversDB) {
-                    for (let r in serversDB[id].rooms) {
-                        serversDB[id].rooms[r].messages = [];
-                        io.to(`server:${id}:${r}`).emit("clear-chat");
-                    }
-                }
-                sendSystemMessage(s.serverId, s.room, "💀 ВСЕ ЧАТЫ ОЧИЩЕНЫ");
-                return;
-            }
-            if ((cmd === "/create-room" || cmd === "/create") && parts[1]) {
-                const newRoom = parts[1].replace("#", "").toLowerCase();
-                if (!server.rooms[newRoom]) {
-                    server.rooms[newRoom] = { messages: [], users: new Set() };
-                    io.emit("new-room", newRoom);
-                    sendSystemMessage(s.serverId, s.room, `📁 Создана комната #${newRoom}`);
-                    saveServers();
-                } else sendSystemMessage(s.serverId, s.room, `❌ Комната ${newRoom} уже есть`);
-                return;
-            }
-            if ((cmd === "/delete-room" || cmd === "/delete") && parts[1]) {
-                const delRoom = parts[1].replace("#", "").toLowerCase();
-                if (delRoom !== "general" && server.rooms[delRoom]) {
-                    delete server.rooms[delRoom];
-                    io.emit("delete-room", delRoom);
-                    sendSystemMessage(s.serverId, s.room, `🗑️ Удалена комната #${delRoom}`);
-                    saveServers();
-                } else sendSystemMessage(s.serverId, s.room, `❌ Нельзя удалить general`);
-                return;
-            }
-            if (cmd === "/resetpass" && parts[1]) {
-                const target = parts[1].replace("@", "");
-                if (usersDB[target]) {
-                    const newPass = Math.random().toString(36).slice(-8);
-                    usersDB[target].password = newPass;
-                    saveUsers();
-                    sendSystemMessage(s.serverId, s.room, `🔑 Новый пароль ${target}: ${newPass}`);
-                } else sendSystemMessage(s.serverId, s.room, `❌ ${target} не найден`);
-                return;
-            }
+            return;
         }
         const msg = { id: Date.now() + "_" + Math.random(), type: "text", author: s.username, role: user.role, text, time: Date.now() };
-        serversDB[s.serverId].rooms[s.room].messages.push(msg);
-        io.to(`server:${s.serverId}:${s.room}`).emit("chat", msg);
+        rooms[s.room].messages.push(msg);
+        io.to(s.room).emit("chat", msg);
+        saveRooms(); // сохраняем сообщение
+    });
+
+    socket.on("voice-msg", (url) => {
+        const s = activeSessions[socket.id];
+        if (!s) return;
+        const user = usersDB[s.username];
+        const msg = { id: Date.now() + "_" + Math.random(), type: "voice", author: s.username, role: user.role, audio: url, time: Date.now() };
+        rooms[s.room].messages.push(msg);
+        io.to(s.room).emit("chat", msg);
+        saveRooms();
+    });
+
+    socket.on("edit-message", ({ room, msgId, newText }) => {
+        const s = activeSessions[socket.id];
+        const idx = rooms[room]?.messages.findIndex(m => m.id == msgId);
+        if (idx !== -1 && rooms[room].messages[idx].author === s.username) {
+            rooms[room].messages[idx].text = newText;
+            io.to(room).emit("message-edited", { msgId, newText });
+            saveRooms();
+        }
+    });
+
+    socket.on("delete-message", ({ room, msgId }) => {
+        const s = activeSessions[socket.id];
+        const idx = rooms[room]?.messages.findIndex(m => m.id == msgId);
+        if (idx !== -1 && rooms[room].messages[idx].author === s.username) {
+            rooms[room].messages.splice(idx, 1);
+            io.to(room).emit("message-deleted", { msgId });
+            saveRooms();
+        }
     });
 
     socket.on("private-chat", ({ to, text }) => {
         const s = activeSessions[socket.id];
         if (s) sendPrivateMessage(s.username, to, text);
     });
+
     socket.on("get-private-messages", ({ withUser }) => {
         const s = activeSessions[socket.id];
         if (s) {
@@ -448,71 +379,36 @@ io.on("connection", (socket) => {
             socket.emit("private-messages-history", { withUser, messages: privateMessagesDB[chatId] || [] });
         }
     });
-    socket.on("voice-msg", (url) => {
+
+    socket.on("media", (url, fileType) => {
         const s = activeSessions[socket.id];
         const user = usersDB[s.username];
-        const msg = { id: Date.now() + "_" + Math.random(), type: "voice", author: s.username, role: user.role, audio: url, time: Date.now() };
-        serversDB[s.serverId].rooms[s.room].messages.push(msg);
-        io.to(`server:${s.serverId}:${s.room}`).emit("chat", msg);
+        const msg = { id: Date.now() + "_" + Math.random(), type: "media", author: s.username, role: user.role, mediaUrl: url, mediaType: fileType, time: Date.now() };
+        rooms[s.room].messages.push(msg);
+        io.to(s.room).emit("chat", msg);
+        saveRooms();
     });
-    socket.on("edit-message", ({ serverId, room, msgId, newText }) => {
+
+    socket.on("join-voice", () => {
         const s = activeSessions[socket.id];
-        const idx = serversDB[serverId]?.rooms[room]?.messages.findIndex(m => m.id == msgId);
-        if (idx !== -1 && serversDB[serverId].rooms[room].messages[idx].author === s.username) {
-            serversDB[serverId].rooms[room].messages[idx].text = newText;
-            io.to(`server:${serverId}:${room}`).emit("message-edited", { msgId, newText });
-        }
+        if (!s) return;
+        socket.join("voice");
+        socket.to("voice").emit("user-joined", socket.id);
     });
-    socket.on("delete-message", ({ serverId, room, msgId }) => {
-        const s = activeSessions[socket.id];
-        const idx = serversDB[serverId]?.rooms[room]?.messages.findIndex(m => m.id == msgId);
-        if (idx !== -1 && serversDB[serverId].rooms[room].messages[idx].author === s.username) {
-            serversDB[serverId].rooms[room].messages.splice(idx, 1);
-            io.to(`server:${serverId}:${room}`).emit("message-deleted", { msgId });
-        }
+
+    socket.on("leave-voice", () => {
+        socket.leave("voice");
     });
-    socket.on("join-voice-channel", ({ serverId, channelName }) => {
-        const s = activeSessions[socket.id];
-        const server = serversDB[serverId];
-        if (!server) return;
-        for (let [name, users] of Object.entries(server.voiceRooms || {})) {
-            if (users.has(socket.id)) {
-                users.delete(socket.id);
-                io.to(`voice:${serverId}:${name}`).emit("voice-users-update", Array.from(users).map(id => ({ username: activeSessions[id]?.username, avatar: usersDB[activeSessions[id]?.username]?.avatar })));
-                socket.leave(`voice:${serverId}:${name}`);
-            }
-        }
-        if (!server.voiceRooms[channelName]) server.voiceRooms[channelName] = new Set();
-        server.voiceRooms[channelName].add(socket.id);
-        socket.join(`voice:${serverId}:${channelName}`);
-        const usersIn = Array.from(server.voiceRooms[channelName]).map(id => ({ username: activeSessions[id]?.username, avatar: usersDB[activeSessions[id]?.username]?.avatar }));
-        io.to(`voice:${serverId}:${channelName}`).emit("voice-users-update", usersIn);
-        server.voiceRooms[channelName].forEach(id => { if (id !== socket.id) socket.emit("voice-user", id); });
-        socket.to(`voice:${serverId}:${channelName}`).emit("user-joined", socket.id);
-    });
-    socket.on("leave-voice-channel", ({ serverId }) => {
-        const server = serversDB[serverId];
-        for (let [name, users] of Object.entries(server?.voiceRooms || {})) {
-            if (users.has(socket.id)) {
-                users.delete(socket.id);
-                io.to(`voice:${serverId}:${name}`).emit("voice-users-update", Array.from(users).map(id => ({ username: activeSessions[id]?.username, avatar: usersDB[activeSessions[id]?.username]?.avatar })));
-                socket.leave(`voice:${serverId}:${name}`);
-                break;
-            }
-        }
-    });
+
     socket.on("signal", ({ to, data }) => { io.to(to).emit("signal", { from: socket.id, data }); });
-    socket.on("set-status", ({ status }) => {
-        const s = activeSessions[socket.id];
-        if (s) { userStatus[s.username] = status; io.emit("user-status-update", { username: s.username, status }); }
-    });
+
     socket.on("disconnect", () => {
         const s = activeSessions[socket.id];
         if (s) {
-            const server = serversDB[s.serverId];
-            if (server && server.rooms[s.room]) server.rooms[s.room].users?.delete(socket.id);
+            rooms[s.room]?.users.delete(socket.id);
             userStatus[s.username] = "offline";
             io.emit("user-status-update", { username: s.username, status: "offline" });
+            io.to(s.room).emit("room-users", Array.from(rooms[s.room].users).map(id => activeSessions[id]?.username));
         }
         delete activeSessions[socket.id];
     });
