@@ -9,132 +9,146 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const publicDir = path.join(__dirname, "public");
-const uploadsDir = path.join(publicDir, "uploads");
-const avatarsDir = path.join(publicDir, "avatars");
-
-[publicDir, uploadsDir, avatarsDir].forEach(d => {
-    if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
-});
-
-app.use(express.static(publicDir));
+app.use(express.static("public"));
 app.use(express.json());
 
-// ---------------- USERS ----------------
-const usersDB = {};
-const bansDB = {};
-const mutesDB = {};
-const warnsDB = {};
-const userStatus = {};
-const activeSessions = {};
+const uploads = path.join(__dirname, "public/uploads");
+if (!fs.existsSync(uploads)) fs.mkdirSync(uploads, { recursive: true });
 
-// ---------------- ROOMS ----------------
+/* ================= DATA ================= */
 const rooms = {
     general: { messages: [], users: new Set() },
     gaming: { messages: [], users: new Set() },
-    music: { messages: [], users: new Set() },
+    music: { messages: [], users: new Set() }
 };
 
-// ---------------- FILE UPLOAD ----------------
-const uploadMedia = multer({
+const sessions = {};
+
+/* ================= UPLOAD ================= */
+const upload = multer({
     storage: multer.diskStorage({
-        destination: uploadsDir,
+        destination: uploads,
         filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
     })
 });
 
-app.post("/upload-media", uploadMedia.single("file"), (req, res) => {
-    if (!req.file) return res.status(400).json({ error: "no file" });
-
-    const type = req.file.mimetype.startsWith("image") ? "image"
-        : req.file.mimetype.startsWith("video") ? "video"
+app.post("/upload-media", upload.single("file"), (req, res) => {
+    const type = req.file.mimetype.startsWith("image")
+        ? "image"
+        : req.file.mimetype.startsWith("video")
+        ? "video"
         : "audio";
 
     res.json({
         url: "/uploads/" + req.file.filename,
-        fileType: type
+        type
     });
 });
 
-// ---------------- AUTH ----------------
-app.post("/register", (req, res) => {
-    const { username, password } = req.body;
-    if (usersDB[username]) return res.status(400).json({ error: "exists" });
-
-    usersDB[username] = {
-        password,
-        role: "user",
-        avatar: null
-    };
-
-    res.json({ success: true });
-});
-
-app.post("/login", (req, res) => {
-    const { username, password } = req.body;
-
-    if (!usersDB[username]) return res.status(400).json({ error: "no user" });
-    if (usersDB[username].password !== password)
-        return res.status(400).json({ error: "wrong pass" });
-
-    res.json({
-        success: true,
-        role: usersDB[username].role,
-        avatar: usersDB[username].avatar
-    });
-});
-
-// ---------------- SOCKET ----------------
+/* ================= SOCKET ================= */
 io.on("connection", (socket) => {
 
     socket.on("auth", ({ username, room }) => {
-        activeSessions[socket.id] = { username, room };
+        sessions[socket.id] = { username, room };
 
         socket.join(room);
 
         socket.emit("history", rooms[room].messages);
 
-        io.emit("online", Object.keys(activeSessions).length);
+        io.emit("online", Object.keys(sessions).length);
     });
 
     socket.on("chat", (text) => {
-        const session = activeSessions[socket.id];
-        if (!session) return;
+        const s = sessions[socket.id];
+        if (!s) return;
 
         const msg = {
-            id: Date.now(),
-            author: session.username,
+            id: Date.now().toString(),
+            author: s.username,
             text,
             time: Date.now(),
-            avatar: null
+            reactions: {},
+            replies: null,
+            edited: false
         };
 
-        rooms[session.room].messages.push(msg);
-        io.to(session.room).emit("chat", msg);
+        rooms[s.room].messages.push(msg);
+        io.to(s.room).emit("chat", msg);
     });
 
     socket.on("media", (url, type) => {
-        const session = activeSessions[socket.id];
-        if (!session) return;
+        const s = sessions[socket.id];
+        if (!s) return;
 
         const msg = {
-            id: Date.now(),
-            author: session.username,
-            type,
+            id: Date.now().toString(),
+            author: s.username,
             text: url,
-            time: Date.now()
+            type,
+            time: Date.now(),
+            reactions: {},
+            replies: null
         };
 
-        rooms[session.room].messages.push(msg);
-        io.to(session.room).emit("chat", msg);
+        rooms[s.room].messages.push(msg);
+        io.to(s.room).emit("chat", msg);
+    });
+
+    /* ================= EDIT ================= */
+    socket.on("edit", ({ id, newText }) => {
+        const s = sessions[socket.id];
+        if (!s) return;
+
+        const msg = rooms[s.room].messages.find(m => m.id === id);
+        if (!msg) return;
+
+        msg.text = newText;
+        msg.edited = true;
+
+        io.to(s.room).emit("update", msg);
+    });
+
+    /* ================= DELETE ================= */
+    socket.on("delete", (id) => {
+        const s = sessions[socket.id];
+        if (!s) return;
+
+        rooms[s.room].messages = rooms[s.room].messages.filter(m => m.id !== id);
+
+        io.to(s.room).emit("delete", id);
+    });
+
+    /* ================= REACTION ================= */
+    socket.on("react", ({ id, emoji }) => {
+        const s = sessions[socket.id];
+        if (!s) return;
+
+        const msg = rooms[s.room].messages.find(m => m.id === id);
+        if (!msg) return;
+
+        if (!msg.reactions[emoji]) msg.reactions[emoji] = 0;
+        msg.reactions[emoji]++;
+
+        io.to(s.room).emit("reaction", { id, reactions: msg.reactions });
+    });
+
+    /* ================= TYPING ================= */
+    socket.on("typing", () => {
+        const s = sessions[socket.id];
+        if (!s) return;
+        socket.to(s.room).emit("typing", s.username);
+    });
+
+    socket.on("stop-typing", () => {
+        const s = sessions[socket.id];
+        if (!s) return;
+        socket.to(s.room).emit("stop-typing", s.username);
     });
 
     socket.on("disconnect", () => {
-        delete activeSessions[socket.id];
-        io.emit("online", Object.keys(activeSessions).length);
+        delete sessions[socket.id];
+        io.emit("online", Object.keys(sessions).length);
     });
 });
 
-server.listen(3000, () => {
-    console.log("Server running on http://localhost:3000");
-});
+server.listen(3000, () => console.log("http://localhost:3000"));
