@@ -15,231 +15,337 @@
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             height: 100vh;
             overflow: hidden;
-            transition: background 0.3s ease, color 0.2s ease;
+            transition: background 0.3s ease;
         }
         
-        /* === ТЁМНАЯ ТЕМА (по умолчанию) === */
+        /* ТЁМНАЯ ТЕМА */
         body.dark {
-            background: radial-gradient(circle at 20% 30%, #0f0f12, #0a0a0e);
-            color: #eef2ff;
+            background: #1e1f22;
+            color: #dbdee1;
         }
         body.dark .sidebar {
-            background: rgba(20, 22, 27, 0.85);
-            backdrop-filter: blur(12px);
-            border-right: 1px solid rgba(88, 101, 242, 0.3);
+            background: #2b2d31;
+            border-right: 1px solid #1e1f22;
         }
         body.dark .server-header {
-            background: linear-gradient(135deg, #1e1f24, #18191e);
-            border-bottom: 1px solid rgba(88, 101, 242, 0.4);
-            text-shadow: 0 0 8px rgba(88,101,242,0.5);
+            background: #1e1f22;
+            border-bottom: 1px solid #1e1f22;
         }
         body.dark .room {
-            color: #b9bbcf;
+            color: #949ba4;
         }
         body.dark .room:hover {
-            background: linear-gradient(90deg, rgba(88,101,242,0.2), transparent);
-            color: white;
+            background: #3b3f48;
+            color: #dbdee1;
         }
         body.dark .room.active {
-            background: linear-gradient(90deg, rgba(88,101,242,0.4), rgba(88,101,242,0.05));
-            color: white;
-            border-left: 3px solid #5865f2;
+            background: #3b3f48;
+            color: #fff;
         }
-        body.dark .user-section, body.dark .chat, body.dark .right-sidebar {
-            background: rgba(30, 32, 38, 0.7);
-            backdrop-filter: blur(8px);
+        body.dark .user-section {
+            background: #232428;
+            border-top: 1px solid #1e1f22;
+        }
+        body.dark .stats {
+            background: #1e1f22;
+        }
+        body.dark .current-user {
+            background: #1e1f22;
+        }
+        body.dark .chat {
+            background: #313338;
         }
         body.dark .chat-header {
-            background: rgba(35, 37, 43, 0.8);
-            border-bottom: 1px solid rgba(88,101,242,0.2);
-        }
-        body.dark .input-wrapper {
-            background: rgba(20, 22, 27, 0.9);
-            border: 1px solid rgba(88,101,242,0.4);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-        body.dark .btn-icon {
-            background: rgba(88,101,242,0.2);
-            color: #eef2ff;
-            transition: all 0.2s;
-        }
-        body.dark .btn-icon:hover {
-            background: #5865f2;
-            transform: scale(1.05);
-            box-shadow: 0 0 12px #5865f2;
+            background: #2b2d31;
+            border-bottom: 1px solid #1e1f22;
         }
         body.dark .message-group:hover {
-            background: rgba(88,101,242,0.08);
-            border-radius: 16px;
+            background: #2b2d31;
         }
-        body.dark .login-box, body.dark .settings-box {
-            background: rgba(30, 32, 38, 0.95);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(88,101,242,0.5);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        body.dark .input-panel {
+            background: #2b2d31;
+        }
+        body.dark .input-wrapper {
+            background: #1e1f22;
+            border: 1px solid #3b3f48;
+        }
+        body.dark .input-wrapper input {
+            color: white;
+        }
+        body.dark .btn-icon {
+            background: #3b3f48;
+            color: white;
+        }
+        body.dark .voice-bubble {
+            background: #2b2d31;
+        }
+        body.dark .reaction {
+            background: #2b2d31;
+        }
+        body.dark .message-menu {
+            background: #2b2d31;
+        }
+        body.dark .voice-user {
+            background: #1e1f22;
+        }
+        body.dark .login-box {
+            background: #2b2d31;
+        }
+        body.dark .login-box input {
+            background: #1e1f22;
+            color: white;
+            border: none;
+        }
+        body.dark .settings-box {
+            background: #2b2d31;
+        }
+        body.dark .right-sidebar {
+            background: #2b2d31;
+            border-left: 1px solid #1e1f22;
+        }
+        body.dark .online-user {
+            background: #1e1f22;
+        }
+        body.dark .online-user:hover {
+            background: #3b3f48;
         }
         
-        /* === СВЕТЛАЯ ТЕМА === */
+        /* СВЕТЛАЯ ТЕМА */
         body.light {
-            background: linear-gradient(135deg, #f5f7fe, #eef2f9);
-            color: #1e1f2c;
+            background: #f2f3f5;
+            color: #2c2f33;
         }
         body.light .sidebar {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            border-right: 1px solid rgba(0,0,0,0.08);
+            background: #ffffff;
+            border-right: 1px solid #e3e5e8;
         }
         body.light .server-header {
-            background: linear-gradient(135deg, #ffffff, #f0f2f8);
-            color: #5865f2;
+            background: #f6f6f7;
+            border-bottom: 1px solid #e3e5e8;
+        }
+        body.light .room {
+            color: #4f545c;
+        }
+        body.light .room:hover {
+            background: #e3e5e8;
+            color: #2c2f33;
         }
         body.light .room.active {
-            background: linear-gradient(90deg, rgba(88,101,242,0.15), transparent);
-            color: #5865f2;
-            font-weight: 600;
+            background: #e3e5e8;
+            color: #2c2f33;
+        }
+        body.light .user-section {
+            background: #f6f6f7;
+            border-top: 1px solid #e3e5e8;
+        }
+        body.light .stats {
+            background: #ffffff;
+        }
+        body.light .current-user {
+            background: #ffffff;
+        }
+        body.light .chat {
+            background: #ffffff;
+        }
+        body.light .chat-header {
+            background: #f6f6f7;
+            border-bottom: 1px solid #e3e5e8;
+        }
+        body.light .message-group:hover {
+            background: #f6f6f7;
+        }
+        body.light .input-panel {
+            background: #ffffff;
         }
         body.light .input-wrapper {
-            background: white;
-            border: 1px solid #cdd2e0;
+            background: #e3e5e8;
+            border: 1px solid #c4c9d1;
+        }
+        body.light .input-wrapper input {
+            color: #2c2f33;
         }
         body.light .btn-icon {
-            background: #eef2ff;
-            color: #5865f2;
+            background: #e3e5e8;
+            color: #2c2f33;
+        }
+        body.light .login-box {
+            background: #ffffff;
+        }
+        body.light .login-box input {
+            background: #f6f6f7;
+            border: 1px solid #e3e5e8;
+        }
+        body.light .settings-box {
+            background: #ffffff;
+        }
+        body.light .right-sidebar {
+            background: #ffffff;
+            border-left: 1px solid #e3e5e8;
+        }
+        body.light .online-user {
+            background: #f6f6f7;
         }
         
-        /* === ОБЩИЕ СТИЛИ === */
-        .app { display: flex; height: 100vh; overflow: hidden; }
+        ::-webkit-scrollbar { width: 6px; }
+        body.dark ::-webkit-scrollbar-track { background: #2b2d31; }
+        body.light ::-webkit-scrollbar-track { background: #e3e5e8; }
+        ::-webkit-scrollbar-thumb { background: #5865f2; border-radius: 10px; }
+        
+        /* Логин модалка */
+        .login-modal {
+            position: fixed;
+            inset: 0;
+            backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        body.dark .login-modal { background: rgba(0,0,0,0.9); }
+        body.light .login-modal { background: rgba(255,255,255,0.95); }
+        .login-box {
+            border-radius: 28px;
+            padding: 32px;
+            width: 340px;
+            text-align: center;
+            border: 1px solid rgba(88,101,242,0.3);
+        }
+        .login-box h2 { margin-bottom: 20px; color: #5865f2; }
+        .login-box input {
+            width: 100%;
+            padding: 14px;
+            margin: 10px 0;
+            border-radius: 16px;
+            outline: none;
+        }
+        .login-box button {
+            background: #5865f2;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 40px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+        .switch-mode {
+            margin-top: 16px;
+            font-size: 13px;
+            color: #5865f2;
+            cursor: pointer;
+        }
+        .login-error { color: #e03a3a; margin-top: 12px; font-size: 13px; }
+        
+        /* Основной интерфейс */
+        .app { display: flex; height: 100vh; }
         
         .sidebar {
-            width: 280px;
+            width: 260px;
             display: flex;
             flex-direction: column;
-            transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-            z-index: 20;
-            border-radius: 0 24px 24px 0;
+            transition: transform 0.2s;
+            z-index: 10;
         }
-        
         .server-header {
-            padding: 20px 18px;
-            font-weight: 800;
-            font-size: 20px;
-            letter-spacing: -0.3px;
-            border-radius: 0 24px 0 0;
+            padding: 18px 16px;
+            font-weight: 700;
+            font-size: 16px;
         }
-        
-        .rooms-list {
-            flex: 1;
-            padding: 12px;
-            overflow-y: auto;
-        }
-        
+        .rooms-list { flex: 1; padding: 12px; overflow-y: auto; }
         .room {
-            padding: 10px 14px;
+            padding: 10px 12px;
             margin: 4px 0;
-            border-radius: 14px;
+            border-radius: 12px;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 12px;
-            transition: all 0.2s;
-            font-weight: 500;
+            gap: 10px;
+            transition: 0.1s;
         }
-        
-        .room.notification {
-            background: rgba(88,101,242,0.2);
-            animation: gentlePulse 1s infinite;
-        }
-        
-        @keyframes gentlePulse {
-            0% { box-shadow: 0 0 0 0 rgba(88,101,242,0.4); }
-            70% { box-shadow: 0 0 0 6px rgba(88,101,242,0); }
-            100% { box-shadow: 0 0 0 0 rgba(88,101,242,0); }
+        .room.notification { 
+            border: 1px solid #5865f2; 
+            box-shadow: 0 0 8px rgba(88,101,242,0.3); 
+            background: rgba(88,101,242,0.1); 
         }
         
         .voice-channel {
-            margin-top: 24px;
+            margin-top: 20px;
+            border-top: 1px solid;
             padding-top: 12px;
-            border-top: 1px solid rgba(88,101,242,0.3);
         }
-        
+        body.dark .voice-channel { border-top-color: #1e1f22; }
+        body.light .voice-channel { border-top-color: #e3e5e8; }
         .voice-channel-title {
-            font-size: 11px;
+            font-size: 12px;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             padding-left: 8px;
             opacity: 0.7;
         }
         
+        .voice-users-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 8px;
+        }
         .voice-user {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 6px 10px;
-            border-radius: 12px;
-            transition: 0.15s;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 10px;
             cursor: pointer;
+        }
+        .voice-user:hover { background: #3b3f48; }
+        .voice-user-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            object-fit: cover;
         }
         
         .user-section {
             padding: 16px;
-            border-radius: 24px 24px 0 0;
-            margin-top: auto;
         }
-        
         .stats {
-            background: rgba(0,0,0,0.2);
-            backdrop-filter: blur(4px);
             padding: 12px;
-            border-radius: 18px;
+            border-radius: 16px;
             margin-bottom: 12px;
             font-size: 13px;
-            font-weight: 500;
         }
-        
-        .stat-value {
-            color: #5865f2;
-            font-weight: 800;
-            font-size: 16px;
-        }
-        
+        .stat-value { color: #5865f2; font-weight: bold; }
         .current-user {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             padding: 10px 12px;
-            border-radius: 20px;
-            background: rgba(0,0,0,0.15);
-            margin-bottom: 12px;
+            border-radius: 16px;
         }
-        
         .avatar {
-            width: 44px;
-            height: 44px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             object-fit: cover;
-            border: 2px solid #5865f2;
-            transition: 0.2s;
+            background: #5865f2;
+            position: relative;
         }
-        
         .status-dot {
             position: absolute;
-            bottom: 2px;
-            right: 2px;
-            width: 12px;
-            height: 12px;
+            bottom: 0;
+            right: 0;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             border: 2px solid;
         }
-        body.dark .status-dot { border-color: #1e1f24; }
-        body.light .status-dot { border-color: white; }
-        .status-online { background: #23a55a; box-shadow: 0 0 6px #23a55a; }
+        body.dark .status-dot { border-color: #2b2d31; }
+        body.light .status-dot { border-color: #ffffff; }
+        .status-online { background: #23a55a; }
         .status-idle { background: #f0b232; }
         .status-dnd { background: #f23f42; }
-        .status-loading { background: #f09b42; }
         .status-offline { background: #80848e; }
         
-        /* Кнопки управления */
         .profile-controls {
             display: flex;
             gap: 8px;
@@ -247,41 +353,76 @@
         }
         .profile-btn {
             flex: 1;
-            background: rgba(88,101,242,0.2);
+            background: #3b3f48;
             border: none;
-            padding: 8px;
-            border-radius: 40px;
+            padding: 6px;
+            border-radius: 20px;
             cursor: pointer;
             font-size: 12px;
-            font-weight: 600;
-            transition: 0.2s;
         }
-        .profile-btn:hover {
-            background: #5865f2;
-            color: white;
-            transform: scale(0.98);
-        }
+        body.dark .profile-btn { background: #3b3f48; color: white; }
+        body.light .profile-btn { background: #e3e5e8; color: #2c2f33; }
+        .profile-btn.mic-off { background: #e03a3a; }
         
-        /* Статус баджи */
         .status-select {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             justify-content: center;
-            margin: 12px 0;
+            margin: 10px 0;
         }
         .status-option {
-            width: 34px;
-            height: 34px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             cursor: pointer;
-            transition: 0.15s;
             border: 2px solid transparent;
+            transition: 0.1s;
         }
-        .status-option.selected {
-            border-color: #5865f2;
-            transform: scale(1.1);
-            box-shadow: 0 0 8px #5865f2;
+        .status-option.selected { border-color: #5865f2; transform: scale(1.1); }
+        .status-online-bg { background: #23a55a; }
+        .status-idle-bg { background: #f0b232; }
+        .status-dnd-bg { background: #f23f42; }
+        .status-offline-bg { background: #80848e; }
+        
+        /* Правый сайдбар */
+        .right-sidebar {
+            width: 260px;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
         }
+        .right-sidebar-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            opacity: 0.7;
+        }
+        .online-users-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .online-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .online-user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+            position: relative;
+        }
+        .online-user-info { flex: 1; }
+        .online-user-name { font-size: 14px; font-weight: 500; }
+        .online-user-role { font-size: 10px; opacity: 0.7; }
         
         /* Чат */
         .chat {
@@ -290,98 +431,86 @@
             flex-direction: column;
         }
         .chat-header {
-            padding: 18px 24px;
-            font-weight: 700;
-            font-size: 18px;
-            backdrop-filter: blur(8px);
+            padding: 16px 20px;
+            font-weight: 600;
+            font-size: 16px;
         }
         .messages {
             flex: 1;
             overflow-y: auto;
-            padding: 16px 20px;
-            scroll-behavior: smooth;
+            padding: 16px 0;
         }
         .message-group {
-            padding: 12px 16px;
-            margin-bottom: 8px;
+            padding: 10px 20px;
             display: flex;
             gap: 16px;
-            transition: 0.1s;
-            border-radius: 18px;
+            transition: background 0.1s;
             position: relative;
         }
         .message-avatar {
-            width: 44px;
-            height: 44px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             object-fit: cover;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            flex-shrink: 0;
         }
-        .message-author {
-            font-weight: 700;
-            font-size: 15px;
+        .message-content { flex: 1; }
+        .message-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
         }
-        .rgb-role {
-            animation: rgbText 1.8s infinite linear;
-            font-weight: bold;
-        }
-        @keyframes rgbText {
-            0% { color: #ff3366; text-shadow: 0 0 3px #ff3366; }
-            33% { color: #33ff66; text-shadow: 0 0 3px #33ff66; }
-            66% { color: #33aaff; text-shadow: 0 0 3px #33aaff; }
-            100% { color: #ff3366; text-shadow: 0 0 3px #ff3366; }
-        }
+        .message-author { font-weight: 600; font-size: 15px; }
+        .message-time { font-size: 11px; color: #6e727a; }
+        .message-text { font-size: 14px; line-height: 1.4; word-break: break-word; }
         .media-preview {
             max-width: 300px;
             max-height: 200px;
-            border-radius: 20px;
-            margin-top: 8px;
+            border-radius: 16px;
+            margin-top: 6px;
             cursor: pointer;
-            transition: 0.2s;
         }
-        .media-preview:hover { transform: scale(1.02); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+        .voice-bubble { padding: 8px 16px; border-radius: 20px; display: inline-block; margin-top: 4px; }
+        audio { border-radius: 30px; height: 34px; max-width: 250px; }
         
-        .reactions {
-            display: flex;
-            gap: 8px;
-            margin-top: 10px;
-            flex-wrap: wrap;
-        }
+        .reactions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
         .reaction {
-            border-radius: 40px;
-            padding: 4px 12px;
+            border-radius: 20px;
+            padding: 3px 10px;
             font-size: 13px;
             cursor: pointer;
-            background: rgba(88,101,242,0.15);
-            transition: 0.1s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
         }
-        .reaction:hover { background: #5865f2; transform: scale(1.05); }
-        
+        .reaction:hover { filter: brightness(0.9); }
         .message-menu {
             position: absolute;
-            right: 16px;
+            right: 20px;
             top: 8px;
-            opacity: 0;
-            transition: 0.1s;
+            border-radius: 12px;
+            padding: 5px;
+            display: none;
+            gap: 5px;
         }
-        .message-group:hover .message-menu { opacity: 1; }
+        .message-group:hover .message-menu { display: flex; }
         .menu-btn {
             background: #e03a3a;
             border: none;
             padding: 6px 12px;
-            border-radius: 40px;
-            color: white;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 12px;
+            color: white;
         }
         
-        .input-panel { padding: 16px 24px 28px; }
+        .input-panel { padding: 16px 20px 24px; }
         .input-wrapper {
             display: flex;
-            gap: 12px;
-            border-radius: 60px;
-            padding: 8px 12px 8px 24px;
-            transition: 0.2s;
+            gap: 10px;
+            border-radius: 44px;
+            padding: 6px 6px 6px 20px;
         }
         .input-wrapper input {
             flex: 1;
@@ -389,160 +518,184 @@
             border: none;
             padding: 12px 0;
             outline: none;
-            font-size: 15px;
         }
         .btn-icon {
             border: none;
             font-size: 18px;
-            width: 44px;
-            height: 44px;
-            border-radius: 40px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .right-sidebar {
-            width: 280px;
-            display: flex;
-            flex-direction: column;
-            padding: 18px;
-            border-left: 1px solid rgba(88,101,242,0.2);
-        }
-        .online-users-list {
-            flex: 1;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .online-user {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 14px;
-            border-radius: 18px;
-            transition: 0.15s;
+            width: 42px;
+            height: 42px;
+            border-radius: 30px;
             cursor: pointer;
         }
-        .online-user:hover { background: rgba(88,101,242,0.15); transform: translateX(4px); }
+        .btn-icon:hover { background: #5865f2; color: white; }
+        .btn-send { background: #5865f2; color: white; }
         
-        /* Модалки */
-        .login-modal, .settings-modal {
+        .rgb-role { animation: rgbText 1.5s infinite linear; font-weight: bold; }
+        @keyframes rgbText {
+            0% { color: #ff0000; }
+            33% { color: #00ff00; }
+            66% { color: #0088ff; }
+            100% { color: #ff0000; }
+        }
+        
+        .recording-active { animation: pulse 1s infinite; background: #e03a3a !important; }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+        
+        .wave-container { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; }
+        .wave { width: 3px; height: 12px; background: #ff6666; border-radius: 2px; animation: waveAnim 0.5s infinite alternate; }
+        @keyframes waveAnim { from { transform: scaleY(0.5); } to { transform: scaleY(1.5); } }
+        
+        .settings-modal {
+            display: none;
             position: fixed;
             inset: 0;
-            backdrop-filter: blur(24px);
-            display: flex;
+            backdrop-filter: blur(12px);
             justify-content: center;
             align-items: center;
             z-index: 1000;
         }
-        .login-box, .settings-box {
-            border-radius: 42px;
-            padding: 40px;
-            width: 380px;
+        body.dark .settings-modal { background: rgba(0,0,0,0.8); }
+        body.light .settings-modal { background: rgba(255,255,255,0.8); }
+        .settings-box {
+            border-radius: 28px;
+            padding: 28px;
+            width: 340px;
             text-align: center;
+            border: 1px solid rgba(88,101,242,0.3);
         }
-        input {
+        .settings-box input {
             width: 100%;
-            padding: 14px 18px;
+            padding: 12px;
             margin: 12px 0;
-            border-radius: 40px;
+            border-radius: 16px;
             outline: none;
-            border: 1px solid rgba(88,101,242,0.4);
-            background: rgba(0,0,0,0.2);
-            color: inherit;
         }
-        button {
-            background: linear-gradient(135deg, #5865f2, #4752c4);
+        .settings-box button {
+            background: #5865f2;
             border: none;
-            padding: 12px 24px;
+            padding: 10px 20px;
             border-radius: 40px;
-            font-weight: 700;
+            color: white;
+            margin: 5px;
             cursor: pointer;
-            transition: 0.2s;
         }
-        button:hover { transform: scale(1.02); filter: brightness(1.05); }
+        .settings-divider {
+            margin: 15px 0;
+            border-top: 1px solid;
+        }
+        body.dark .settings-divider { border-color: #1e1f22; }
+        body.light .settings-divider { border-color: #e3e5e8; }
         
-        .recording-active { animation: pulseRed 1s infinite; background: #e03a3a !important; }
-        @keyframes pulseRed {
-            0% { box-shadow: 0 0 0 0 rgba(224,58,58,0.7); }
-            70% { box-shadow: 0 0 0 12px rgba(224,58,58,0); }
-            100% { box-shadow: 0 0 0 0 rgba(224,58,58,0); }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 22px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #3b3f48;
+            transition: 0.2s;
+            border-radius: 22px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.2s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #5865f2; }
+        input:checked + .slider:before { transform: translateX(24px); }
+        
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 101;
+            background: #5865f2;
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 30px;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            cursor: pointer;
         }
         
         @media (max-width: 900px) {
             .right-sidebar { display: none; }
+        }
+        @media (max-width: 700px) {
             .sidebar {
                 position: fixed;
-                left: -300px;
+                left: -260px;
                 top: 0;
                 bottom: 0;
-                z-index: 30;
+                z-index: 100;
             }
             .sidebar.open { left: 0; }
-            .menu-toggle {
+            .menu-toggle { display: flex; }
+            .message-menu {
                 display: flex;
-                position: fixed;
-                bottom: 20px;
-                left: 20px;
-                z-index: 31;
-                background: #5865f2;
-                border: none;
-                width: 52px;
-                height: 52px;
-                border-radius: 30px;
-                align-items: center;
-                justify-content: center;
-                font-size: 24px;
-                cursor: pointer;
-                box-shadow: 0 4px 12px black;
+                position: static;
+                margin-top: 6px;
+                background: none;
+                gap: 8px;
             }
         }
-        @media (min-width: 901px) { .menu-toggle { display: none; } }
-        
-        .wave-container { display: inline-flex; align-items: center; gap: 3px; margin-left: 10px; }
-        .wave { width: 3px; height: 14px; background: #5865f2; border-radius: 2px; animation: waveAnim 0.5s infinite alternate; }
-        .wave:nth-child(2) { animation-delay: 0.1s; }
-        .wave:nth-child(3) { animation-delay: 0.2s; }
-        .wave:nth-child(4) { animation-delay: 0.3s; }
-        @keyframes waveAnim { from { transform: scaleY(0.5); } to { transform: scaleY(1.8); } }
     </style>
 </head>
 <body class="dark">
 
 <div id="loginModal" class="login-modal">
     <div class="login-box">
-        <h2 id="formTitle"><i class="fas fa-comet"></i> NEXUS</h2>
-        <input type="text" id="loginUsername" placeholder="Никнейм">
-        <input type="password" id="loginPassword" placeholder="Пароль">
-        <button id="submitBtn"><i class="fas fa-arrow-right"></i> Войти</button>
-        <div class="switch-mode" id="switchMode" style="margin-top:16px; cursor:pointer; color:#5865f2;">Нет аккаунта? Регистрация</div>
-        <div class="login-error" id="loginError" style="color:#e03a3a; margin-top:12px;"></div>
+        <h2 id="formTitle">🔐 Вход</h2>
+        <input type="text" id="loginUsername" placeholder="Никнейм (3-20 символов)">
+        <input type="password" id="loginPassword" placeholder="Пароль (мин. 4 символа)">
+        <button id="submitBtn">Войти</button>
+        <div class="switch-mode" id="switchMode">Нет аккаунта? Зарегистрироваться</div>
+        <div class="login-error" id="loginError"></div>
     </div>
 </div>
 
 <div class="app" style="display: none;" id="app">
     <div class="sidebar" id="sidebar">
-        <div class="server-header"><i class="fas fa-crown" style="color:#f5b042;"></i> NEXUS</div>
+        <div class="server-header">✨ NEXUS</div>
         <div class="rooms-list" id="roomsList">
-            <div class="room" data-room="general" onclick="joinRoom('general')"><i class="fas fa-hashtag"></i> general</div>
-            <div class="room" data-room="gaming" onclick="joinRoom('gaming')"><i class="fas fa-gamepad"></i> gaming</div>
-            <div class="room" data-room="music" onclick="joinRoom('music')"><i class="fas fa-music"></i> music</div>
-            <div class="room" data-room="other-fuckin-shit" onclick="joinRoom('other-fuckin-shit')"><i class="fas fa-skull"></i> other-fuckin-shit</div>
+            <div class="room" data-room="general" onclick="joinRoom('general')"># general</div>
+            <div class="room" data-room="gaming" onclick="joinRoom('gaming')">🎮 gaming</div>
+            <div class="room" data-room="music" onclick="joinRoom('music')">🎵 music</div>
+            <div class="room" data-room="other-fuckin-shit" onclick="joinRoom('other-fuckin-shit')">💩 other-fuckin-shit</div>
             
             <div class="voice-channel">
-                <div class="voice-channel-title"><i class="fas fa-microphone-alt"></i> ГОЛОСОВЫЕ КАНАЛЫ</div>
-                <div class="room" data-room="voice-chat" onclick="joinVoiceChannel('voice-chat')"><i class="fas fa-head-side-vr"></i> Голосовой чат</div>
+                <div class="voice-channel-title">🔊 ГОЛОСОВЫЕ КАНАЛЫ</div>
+                <div class="room" data-room="voice-chat" onclick="joinVoiceChannel('voice-chat')">🎤 Голосовой чат</div>
                 <div id="voiceUsersList" class="voice-users-list"></div>
             </div>
         </div>
         
         <div class="user-section">
             <div class="stats">
-                <div><i class="fas fa-globe"></i> Онлайн: <span class="stat-value" id="online">0</span></div>
-                <div><i class="fas fa-headset"></i> В голосе: <span class="stat-value" id="voiceOnline">0</span></div>
+                <div>🌐 Online: <span class="stat-value" id="online">0</span></div>
+                <div>🎙️ Voice: <span class="stat-value" id="voiceOnline">0</span></div>
             </div>
             <div class="current-user">
                 <div style="position: relative;">
@@ -550,71 +703,78 @@
                     <div class="status-dot" id="myStatusDot"></div>
                 </div>
                 <div style="flex:1">
-                    <div id="currentNickDisplay" style="font-weight:700;"></div>
-                    <div id="currentRoleDisplay" style="font-size:11px; opacity:0.7;"></div>
+                    <div id="currentNickDisplay" style="font-weight:600;"></div>
+                    <div id="currentRoleDisplay" style="font-size:11px;"></div>
                 </div>
-                <button onclick="openSettings()" style="background:rgba(0,0,0,0.3); border:none; width:36px; height:36px; border-radius:50%; cursor:pointer;"><i class="fas fa-cog"></i></button>
+                <button onclick="openSettings()" style="background:#3b3f48; border:none; width:32px; height:32px; border-radius:50%; cursor:pointer;">⚙️</button>
             </div>
             <div class="profile-controls">
-                <button id="profileMicBtn" class="profile-btn" onclick="toggleMic()"><i class="fas fa-microphone"></i> Микрофон</button>
-                <button id="profileSpeakerBtn" class="profile-btn" onclick="toggleSpeaker()"><i class="fas fa-volume-up"></i> Звук</button>
+                <button id="profileMicBtn" class="profile-btn" onclick="toggleMic()">🎤 Микрофон</button>
+                <button id="profileSpeakerBtn" class="profile-btn" onclick="toggleSpeaker()">🔊 Звук</button>
             </div>
             <div class="status-select" id="statusSelect">
                 <div class="status-option status-online-bg" data-status="online" title="В сети"></div>
                 <div class="status-option status-idle-bg" data-status="idle" title="Отошёл"></div>
                 <div class="status-option status-dnd-bg" data-status="dnd" title="Не беспокоить"></div>
-                <div class="status-option status-loading-bg" data-status="loading" title="Загружаюсь"></div>
                 <div class="status-option status-offline-bg" data-status="offline" title="Не в сети"></div>
             </div>
         </div>
     </div>
 
     <div class="chat">
-        <div class="chat-header"><i class="fas fa-pound-sign"></i> <span id="currentRoomName">general</span></div>
+        <div class="chat-header"># <span id="currentRoomName">general</span></div>
         <div id="messages" class="messages"></div>
         <div class="input-panel">
             <div class="input-wrapper">
                 <input id="input" placeholder="Сообщение..." onkeydown="if(event.key==='Enter') sendText()">
-                <label class="btn-icon" style="cursor:pointer;"><i class="fas fa-paperclip"></i><input type="file" id="mediaInput" accept="image/*,video/*,audio/*" style="display:none;"></label>
-                <button class="btn-icon" id="recordBtn"><i class="fas fa-microphone"></i></button>
-                <button class="btn-icon" id="cancelVoiceBtn" style="display:none; background:#e03a3a;"><i class="fas fa-times"></i></button>
-                <span id="recTimer" style="font-size:12px;"></span>
+                <label class="btn-icon" style="display:inline-flex; align-items:center; justify-content:center; cursor:pointer;">📎<input type="file" id="mediaInput" accept="image/*,video/*,audio/*" style="display:none;"></label>
+                <button class="btn-icon" id="recordBtn">🎙️</button>
+                <button class="btn-icon" id="cancelVoiceBtn" style="display:none; background:#e03a3a;">❌</button>
+                <span id="recTimer"></span>
                 <div id="waveVisual" class="wave-container" style="display:none;"><div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div></div>
-                <button class="btn-icon btn-send" onclick="sendText()"><i class="fas fa-paper-plane"></i></button>
+                <button class="btn-icon btn-send" onclick="sendText()">➤</button>
             </div>
         </div>
     </div>
 
     <div class="right-sidebar" id="rightSidebar">
-        <div class="right-sidebar-title"><i class="fas fa-users"></i> УЧАСТНИКИ — <span id="onlineCount">0</span></div>
+        <div class="right-sidebar-title">👥 ПОЛЬЗОВАТЕЛИ — <span id="onlineCount">0</span></div>
         <div class="online-users-list" id="onlineUsersList"></div>
     </div>
 </div>
 
-<button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+<button class="menu-toggle" onclick="toggleSidebar()">☰</button>
 
 <div id="settingsModal" class="settings-modal">
     <div class="settings-box">
-        <h3><i class="fas fa-sliders-h"></i> Настройки</h3>
-        <input type="text" id="newNickInput" placeholder="Новый никнейм">
-        <button onclick="changeNickname()" style="width:100%;"><i class="fas fa-user-edit"></i> Сменить ник</button>
-        <div style="margin: 15px 0;">
-            <label><i class="fas fa-camera"></i> Аватарка (JPEG/PNG/GIF/WEBP)</label>
-            <input type="file" id="settingsAvatarInput" accept="image/jpeg,image/png,image/gif,image/webp">
+        <h3>⚙️ НАСТРОЙКИ</h3>
+        <input type="text" id="newNickInput" placeholder="Новый никнейм (3-20 символов)">
+        <button onclick="changeNickname()" style="width:100%;">Сменить ник</button>
+        
+        <div class="settings-divider"></div>
+        
+        <div style="margin: 10px 0;">
+            <label>📷 Сменить аватарку (PNG/JPG/GIF/WEBP, до 5 МБ)</label>
+            <input type="file" id="settingsAvatarInput" accept="image/jpeg,image/png,image/gif,image/webp" style="padding: 8px;">
         </div>
-        <div style="display: flex; align-items: center; justify-content: space-between; margin: 15px 0;">
-            <span><i class="fas fa-moon"></i> Тёмная тема</span>
+        
+        <div class="settings-divider"></div>
+        
+        <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0;">
+            <span>🌓 Тема (светлая/тёмная)</span>
             <label class="switch">
                 <input type="checkbox" id="themeToggle">
                 <span class="slider round"></span>
             </label>
         </div>
-        <button onclick="closeSettings()" style="background:#4e5058;"><i class="fas fa-check"></i> Закрыть</button>
+        
+        <button onclick="closeSettings()" style="background:#4e5058; width:100%;">Закрыть</button>
     </div>
 </div>
 
 <script>
     const PROTECTED_NAME = "bigheaven3569";
+    
     let currentUser = null, currentRole = null, currentAvatar = null, currentRoom = "general", socket = null;
     let roomNotifications = {};
     let voiceStream = null, voicePeers = {}, inVoiceChannel = false, currentVoiceChannel = null;
@@ -625,345 +785,552 @@
     const appDiv = document.getElementById("app");
     const loginError = document.getElementById("loginError");
     
-    // звуки
+    // Звуки
     const audioCtxSounds = new (window.AudioContext || window.webkitAudioContext)();
-    function playBeep(freq=800, dur=0.1, vol=0.1) {
+    function playBeep(freq = 800, dur = 0.1, vol = 0.15) {
         try {
             const osc = audioCtxSounds.createOscillator();
             const gain = audioCtxSounds.createGain();
-            osc.connect(gain); gain.connect(audioCtxSounds.destination);
+            osc.connect(gain);
+            gain.connect(audioCtxSounds.destination);
             osc.frequency.value = freq;
             gain.gain.value = vol;
+            osc.type = "sine";
             osc.start();
             gain.gain.exponentialRampToValueAtTime(0.00001, audioCtxSounds.currentTime + dur);
             osc.stop(audioCtxSounds.currentTime + dur);
         } catch(e) {}
     }
-    function playJoinSound() { playBeep(440,0.12,0.2); setTimeout(()=>playBeep(660,0.12,0.2),100); }
-    function playLeaveSound() { playBeep(660,0.12,0.2); setTimeout(()=>playBeep(440,0.12,0.2),100); }
-    function playMessageSound() { playBeep(600,0.07,0.1); }
+    function playJoinSound() { playBeep(440, 0.15, 0.2); setTimeout(() => playBeep(660, 0.15, 0.2), 100); }
+    function playLeaveSound() { playBeep(660, 0.15, 0.2); setTimeout(() => playBeep(440, 0.15, 0.2), 100); }
+    function playMessageSound() { playBeep(600, 0.08, 0.1); }
     
+    // Тема
     let isDarkTheme = localStorage.getItem("theme") !== "light";
     function applyTheme() {
-        if (isDarkTheme) document.body.classList.replace("light","dark");
-        else document.body.classList.replace("dark","light");
+        const body = document.body;
+        if (isDarkTheme) {
+            body.classList.remove("light");
+            body.classList.add("dark");
+            if(document.getElementById("themeToggle")) document.getElementById("themeToggle").checked = false;
+        } else {
+            body.classList.remove("dark");
+            body.classList.add("light");
+            if(document.getElementById("themeToggle")) document.getElementById("themeToggle").checked = true;
+        }
         localStorage.setItem("theme", isDarkTheme ? "dark" : "light");
-        if(document.getElementById("themeToggle")) document.getElementById("themeToggle").checked = !isDarkTheme;
+    }
+    if(document.getElementById("themeToggle")) {
+        document.getElementById("themeToggle").addEventListener("change", (e) => {
+            isDarkTheme = !e.target.checked;
+            applyTheme();
+        });
     }
     applyTheme();
-    document.getElementById("themeToggle")?.addEventListener("change", (e) => { isDarkTheme = !e.target.checked; applyTheme(); });
     
+    // Автологин
     const savedSession = localStorage.getItem("nexus_session");
-    if(savedSession){
-        try{
-            const {username, password} = JSON.parse(savedSession);
-            fetch("/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password})})
-            .then(r=>r.json()).then(data=>{
-                if(data.success){
-                    currentUser=username; currentRole=data.role; currentAvatar=data.avatar;
-                    loginModal.style.display="none"; appDiv.style.display="flex";
-                    initSocket();
-                    document.getElementById("currentNickDisplay").innerText=currentUser;
-                    updateRoleUI(currentRole); updateAvatar(); updateStatusDot("online");
-                } else localStorage.removeItem("nexus_session");
-            });
-        }catch(e){localStorage.removeItem("nexus_session");}
+    if (savedSession) {
+        try {
+            const { username, password } = JSON.parse(savedSession);
+            fetch("/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password }) })
+                .then(res => res.json()).then(data => {
+                    if (data.success) {
+                        currentUser = username; currentRole = data.role; currentAvatar = data.avatar;
+                        loginModal.style.display = "none"; appDiv.style.display = "flex";
+                        initSocket();
+                        document.getElementById("currentNickDisplay").innerText = currentUser;
+                        updateRoleUI(currentRole);
+                        updateAvatar();
+                        updateStatusDot("online");
+                    } else { localStorage.removeItem("nexus_session"); }
+                }).catch(() => localStorage.removeItem("nexus_session"));
+        } catch(e) { localStorage.removeItem("nexus_session"); }
     }
     
-    function saveSession(u,p){ localStorage.setItem("nexus_session",JSON.stringify({username:u,password:p})); }
-    function updateAvatar(){ 
-        let url = currentAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser)}&background=5865f2&color=fff&size=44`;
-        document.getElementById("myAvatar").src = url;
+    function saveSession(username, password) { localStorage.setItem("nexus_session", JSON.stringify({ username, password })); }
+    
+    function updateAvatar() {
+        const avatarUrl = currentAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser)}&background=5865f2&color=fff&size=36`;
+        document.getElementById("myAvatar").src = avatarUrl;
     }
-    function updateStatusDot(status){
+    
+    function updateStatusDot(status) {
         const dot = document.getElementById("myStatusDot");
         dot.className = "status-dot";
-        if(status==="online") dot.classList.add("status-online");
-        else if(status==="idle") dot.classList.add("status-idle");
-        else if(status==="dnd") dot.classList.add("status-dnd");
-        else if(status==="loading") dot.classList.add("status-loading");
+        if (status === "online") dot.classList.add("status-online");
+        else if (status === "idle") dot.classList.add("status-idle");
+        else if (status === "dnd") dot.classList.add("status-dnd");
         else dot.classList.add("status-offline");
     }
     
-    let isLoginMode=true;
-    document.getElementById("switchMode").onclick = () => {
-        isLoginMode=!isLoginMode;
-        document.getElementById("formTitle").innerHTML = isLoginMode ? '<i class="fas fa-sign-in-alt"></i> Вход' : '<i class="fas fa-user-plus"></i> Регистрация';
-        document.getElementById("switchMode").innerText = isLoginMode ? "Нет аккаунта? Регистрация" : "Уже есть аккаунт? Войти";
-        loginError.innerText="";
+    // Логин/регистрация
+    let isLoginMode = true;
+    const formTitle = document.getElementById("formTitle");
+    const submitBtn = document.getElementById("submitBtn");
+    const switchMode = document.getElementById("switchMode");
+    
+    switchMode.onclick = () => {
+        isLoginMode = !isLoginMode;
+        formTitle.innerText = isLoginMode ? "🔐 Вход" : "📝 Регистрация";
+        switchMode.innerText = isLoginMode ? "Нет аккаунта? Зарегистрироваться" : "Уже есть аккаунт? Войти";
+        loginError.innerText = "";
     };
-    document.getElementById("submitBtn").onclick = async () => {
+    
+    submitBtn.onclick = async () => {
         const username = document.getElementById("loginUsername").value.trim();
         const password = document.getElementById("loginPassword").value.trim();
-        if(!username || !password){ loginError.innerText="Заполните поля"; return; }
-        if(!isLoginMode && username.toLowerCase()===PROTECTED_NAME.toLowerCase()){ loginError.innerText="НИК ЗАНЯТ!"; return; }
-        const res = await fetch(isLoginMode ? "/login":"/register", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password})});
-        const data=await res.json();
-        if(res.ok){
-            currentUser=username; currentRole=data.role; currentAvatar=data.avatar||null;
-            saveSession(username,password);
-            loginModal.style.display="none"; appDiv.style.display="flex";
-            initSocket();
-            document.getElementById("currentNickDisplay").innerText=currentUser;
-            updateRoleUI(currentRole); updateAvatar(); updateStatusDot("online");
-        } else loginError.innerText=data.error;
+        if (!username || !password) { loginError.innerText = "Заполните все поля"; return; }
+        if (username.length < 3 || username.length > 20) { loginError.innerText = "Ник должен быть 3-20 символов"; return; }
+        if (password.length < 4) { loginError.innerText = "Пароль минимум 4 символа"; return; }
+        
+        if (!isLoginMode && username.toLowerCase() === PROTECTED_NAME.toLowerCase()) {
+            loginError.innerText = "НИК ЗАНЯТ ИДИ НАХУЙ!!";
+            return;
+        }
+        
+        const endpoint = isLoginMode ? "/login" : "/register";
+        try {
+            const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password }) });
+            const data = await res.json();
+            if (res.ok) {
+                currentUser = username; currentRole = data.role; currentAvatar = data.avatar || null;
+                saveSession(username, password);
+                loginModal.style.display = "none"; appDiv.style.display = "flex";
+                initSocket();
+                document.getElementById("currentNickDisplay").innerText = currentUser;
+                updateRoleUI(currentRole);
+                updateAvatar();
+                updateStatusDot("online");
+            } else { loginError.innerText = data.error; }
+        } catch(e) { loginError.innerText = "Ошибка соединения"; }
     };
     
-    document.getElementById("settingsAvatarInput").onchange = async(e)=>{
-        const file=e.target.files[0];
-        if(!file || !file.type.match(/image\/(jpeg|png|gif|webp)/)){ alert("Только изображения!"); return; }
-        const fd=new FormData(); fd.append("avatar",file); fd.append("username",currentUser);
-        const res=await fetch("/upload-avatar",{method:"POST",body:fd});
-        const data=await res.json();
-        if(data.url){ currentAvatar=data.url; updateAvatar(); }
-    };
-    document.getElementById("mediaInput").onchange = async(e)=>{
-        const file=e.target.files[0];
-        if(!file) return;
-        if(file.size>15*1024*1024){ alert("❌ Файл >15 МБ"); return; }
-        const fd=new FormData(); fd.append("file",file);
-        const res=await fetch("/upload-media",{method:"POST",body:fd});
-        const data=await res.json();
-        if(data.url) socket.emit("media",data.url,data.fileType);
-        else alert("Ошибка");
+    // Смена аватарки
+    document.getElementById("settingsAvatarInput").onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file || !file.type.match(/image\/(jpeg|png|gif|webp)/)) { alert("Можно только PNG, JPG, GIF, WEBP!"); return; }
+        if (file.size > 5 * 1024 * 1024) { alert("Файл не больше 5 МБ!"); return; }
+        const fd = new FormData(); fd.append("avatar", file); fd.append("username", currentUser);
+        const res = await fetch("/upload-avatar", { method: "POST", body: fd });
+        const data = await res.json();
+        if (data.url) { currentAvatar = data.url; updateAvatar(); }
     };
     
-    function toggleMic(){
-        if(!voiceStream){ alert("Зайдите в голосовой канал"); return; }
-        isMicMuted=!isMicMuted;
-        voiceStream.getAudioTracks().forEach(t=>t.enabled=!isMicMuted);
-        const btn=document.getElementById("profileMicBtn");
-        btn.innerHTML = isMicMuted ? '<i class="fas fa-microphone-slash"></i> Микрофон' : '<i class="fas fa-microphone"></i> Микрофон';
-        btn.classList.toggle("mic-off",isMicMuted);
+    // Медиа загрузка
+    document.getElementById("mediaInput").onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 15 * 1024 * 1024) { alert("❌ Файл больше 15 МБ!"); return; }
+        const fd = new FormData(); fd.append("file", file);
+        const res = await fetch("/upload-media", { method: "POST", body: fd });
+        const data = await res.json();
+        if (data.url) socket.emit("media", data.url, data.fileType);
+        else alert("Ошибка загрузки");
+    };
+    
+    function toggleMic() {
+        if (!voiceStream) { alert("Сначала зайдите в голосовой канал"); return; }
+        isMicMuted = !isMicMuted;
+        voiceStream.getAudioTracks().forEach(track => track.enabled = !isMicMuted);
+        const micBtn = document.getElementById("profileMicBtn");
+        micBtn.innerHTML = isMicMuted ? "🎤🔇 МИКРОФОН" : "🎤🎙️ МИКРОФОН";
+        micBtn.classList.toggle("mic-off", isMicMuted);
     }
-    function toggleSpeaker(){
-        isSpeakerMuted=!isSpeakerMuted;
-        const btn=document.getElementById("profileSpeakerBtn");
-        btn.innerHTML = isSpeakerMuted ? '<i class="fas fa-volume-mute"></i> Звук' : '<i class="fas fa-volume-up"></i> Звук';
-        document.querySelectorAll("audio").forEach(a=>a.volume = isSpeakerMuted ? 0 : 0.8);
+    
+    function toggleSpeaker() {
+        isSpeakerMuted = !isSpeakerMuted;
+        const speakerBtn = document.getElementById("profileSpeakerBtn");
+        speakerBtn.innerHTML = isSpeakerMuted ? "🔊🔇 ЗВУК" : "🔊🔈 ЗВУК";
+        const allAudios = document.querySelectorAll("audio");
+        allAudios.forEach(audio => audio.volume = isSpeakerMuted ? 0 : 0.8);
     }
     
-    function setupStatusSelect(){
-        document.querySelectorAll(".status-option").forEach(opt=>{
-            opt.addEventListener("click",()=>{
-                const status=opt.getAttribute("data-status");
-                currentStatus=status;
+    function setupStatusSelect() {
+        const options = document.querySelectorAll(".status-option");
+        options.forEach(opt => {
+            opt.addEventListener("click", () => {
+                const status = opt.getAttribute("data-status");
+                currentStatus = status;
                 updateStatusDot(status);
-                socket.emit("set-status",{status});
-                document.querySelectorAll(".status-option").forEach(o=>o.classList.remove("selected"));
+                if (socket) socket.emit("set-status", { status });
+                options.forEach(o => o.classList.remove("selected"));
                 opt.classList.add("selected");
             });
         });
     }
     
-    function updateOnlineUsers(users){
-        const container=document.getElementById("onlineUsersList");
-        if(!container) return;
-        container.innerHTML = users.map(user=>{
-            let statusEmoji = user.status==="online"?"🟢":user.status==="idle"?"🟡":user.status==="dnd"?"🔴":user.status==="loading"?"🟠":"⚫";
-            return `<div class="online-user">
-                <div style="position:relative;"><img class="online-user-avatar" style="width:36px;height:36px;border-radius:50%;" src="${user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=5865f2&color=fff&size=36`}"><div class="status-dot ${user.status==='online'?'status-online':user.status==='idle'?'status-idle':user.status==='dnd'?'status-dnd':user.status==='loading'?'status-loading':'status-offline'}" style="width:9px;height:9px;"></div></div>
-                <div style="flex:1"><div><strong>${escapeHtml(user.username)}</strong></div><div style="font-size:10px;">${user.role||"пользователь"}</div></div>
-                <div>${statusEmoji}</div>
-            </div>`;
+    function updateOnlineUsers(users) {
+        const container = document.getElementById("onlineUsersList");
+        if (!container) return;
+        container.innerHTML = users.map(user => {
+            const statusClass = user.status === "online" ? "status-online" : user.status === "idle" ? "status-idle" : user.status === "dnd" ? "status-dnd" : "status-offline";
+            return `
+                <div class="online-user">
+                    <div style="position: relative;">
+                        <img class="online-user-avatar" src="${user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=5865f2&color=fff&size=32`}">
+                        <div class="status-dot ${statusClass}" style="width: 8px; height: 8px;"></div>
+                    </div>
+                    <div class="online-user-info">
+                        <div class="online-user-name">${escapeHtml(user.username)}</div>
+                        <div class="online-user-role">${user.role || "пользователь"}</div>
+                    </div>
+                </div>
+            `;
         }).join("");
         document.getElementById("onlineCount").innerText = users.length;
     }
     
-    async function joinVoiceChannel(channelName){
-        if(inVoiceChannel && currentVoiceChannel===channelName){ leaveVoiceChannel(); return; }
-        if(inVoiceChannel) leaveVoiceChannel();
-        currentVoiceChannel=channelName; inVoiceChannel=true;
-        try{
-            voiceStream = await navigator.mediaDevices.getUserMedia({audio:true});
-            socket.emit("join-voice-channel",channelName);
+    // Голосовой чат
+    async function joinVoiceChannel(channelName) {
+        if (inVoiceChannel && currentVoiceChannel === channelName) {
+            leaveVoiceChannel();
+            return;
+        }
+        if (inVoiceChannel) leaveVoiceChannel();
+        
+        currentVoiceChannel = channelName;
+        inVoiceChannel = true;
+        
+        try {
+            voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            socket.emit("join-voice-channel", channelName);
             playJoinSound();
-            socket.on("voice-user",(id)=>{ if(voiceStream) createVoicePeer(id,true); });
-            socket.on("user-joined",(id)=>{ if(voiceStream) createVoicePeer(id,false); playJoinSound(); });
-            socket.on("voice-users-update",(users)=>{
-                const container=document.getElementById("voiceUsersList");
-                if(container){
-                    container.innerHTML=users.map(u=>`<div class="voice-user"><div style="position:relative;"><img class="voice-user-avatar" style="width:30px;height:30px;border-radius:50%;" src="${u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.username)}&background=5865f2&color=fff&size=30`}"><div class="status-dot ${u.status==='online'?'status-online':u.status==='idle'?'status-idle':u.status==='dnd'?'status-dnd':u.status==='loading'?'status-loading':'status-offline'}" style="width:8px;height:8px;"></div></div><span>${escapeHtml(u.username)}</span></div>`).join("");
+            
+            socket.on("voice-user", (userId) => { if (voiceStream) createVoicePeer(userId, true); });
+            socket.on("user-joined", (userId) => { if (voiceStream) createVoicePeer(userId, false); playJoinSound(); });
+            
+            socket.on("voice-users-update", (users) => {
+                const container = document.getElementById("voiceUsersList");
+                if (container) {
+                    container.innerHTML = users.map(user => `
+                        <div class="voice-user" data-username="${user.username}">
+                            <div style="position: relative;">
+                                <img class="voice-user-avatar" src="${user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=5865f2&color=fff&size=28`}">
+                                <div class="status-dot ${user.status === 'online' ? 'status-online' : user.status === 'idle' ? 'status-idle' : user.status === 'dnd' ? 'status-dnd' : 'status-offline'}" style="width: 7px; height: 7px;"></div>
+                            </div>
+                            <span class="voice-user-name">${escapeHtml(user.username)}</span>
+                        </div>
+                    `).join("");
                 }
-                document.getElementById("voiceOnline").innerText=users.length;
+                document.getElementById("voiceOnline").innerText = users.length;
             });
-            socket.on("voice-count",(c)=>document.getElementById("voiceOnline").innerText=c);
-        }catch(e){ console.error(e); inVoiceChannel=false; }
+            
+            socket.on("voice-count", (count) => { document.getElementById("voiceOnline").innerText = count; });
+            
+        } catch(e) { console.error("Микрофон не доступен", e); inVoiceChannel = false; }
     }
-    function createVoicePeer(id,init){
-        if(!voiceStream) return;
-        let peer = new SimplePeer({initiator:init, trickle:false, stream:voiceStream, config:{iceServers:[{urls:"stun:stun.l.google.com:19302"}]}});
-        peer.on("signal",data=>socket.emit("signal",{to:id,data}));
-        peer.on("stream",remote=>{ let a=new Audio(); a.srcObject=remote; a.autoplay=true; if(isSpeakerMuted) a.volume=0; else a.volume=0.8; });
-        peer.on("close",()=>delete voicePeers[id]);
-        voicePeers[id]=peer;
+    
+    function createVoicePeer(id, init) {
+        if (!voiceStream) return;
+        let peer = new SimplePeer({
+            initiator: init,
+            trickle: false,
+            stream: voiceStream,
+            config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] }
+        });
+        peer.on("signal", data => socket.emit("signal", { to: id, data }));
+        peer.on("stream", remote => { 
+            let a = new Audio(); 
+            a.srcObject = remote; 
+            a.autoplay = true;
+            a.volume = isSpeakerMuted ? 0 : 0.8;
+        });
+        peer.on("close", () => delete voicePeers[id]);
+        voicePeers[id] = peer;
     }
-    function leaveVoiceChannel(){
-        if(!inVoiceChannel) return;
-        inVoiceChannel=false; currentVoiceChannel=null;
+    
+    function leaveVoiceChannel() {
+        if (!inVoiceChannel) return;
+        inVoiceChannel = false;
+        currentVoiceChannel = null;
         playLeaveSound();
-        Object.values(voicePeers).forEach(p=>p.destroy());
-        voicePeers={};
-        if(voiceStream) voiceStream.getTracks().forEach(t=>t.stop());
-        voiceStream=null;
-        socket.emit("leave-voice-channel");
-        socket.off("voice-users-update"); socket.off("voice-count");
-        document.getElementById("voiceUsersList").innerHTML="";
-        document.getElementById("voiceOnline").innerText="0";
-    }
-    
-    function initSocket(){
-        socket=io();
-        socket.on("connect",()=>socket.emit("auth",{username:currentUser,room:currentRoom}));
-        socket.on("auth-error",(msg)=>alert(msg));
-        socket.on("kick",(msg)=>{alert(msg); location.reload();});
-        socket.on("ban",(msg)=>{alert(msg); localStorage.removeItem("nexus_session"); location.reload();});
-        socket.on("mute",(msg)=>alert(msg));
-        socket.on("user-data",({username,role,avatar,status})=>{
-            currentUser=username; currentRole=role; if(avatar) currentAvatar=avatar;
-            document.getElementById("currentNickDisplay").innerText=username;
-            updateRoleUI(role); updateAvatar();
-            if(status) updateStatusDot(status);
-        });
-        socket.on("all-users",(users)=>updateOnlineUsers(users));
-        socket.on("user-status-update",({username,status})=>{ if(username===currentUser) updateStatusDot(status); });
-        socket.on("history",(msgs)=>{ const c=document.getElementById("messages"); if(c){ c.innerHTML=""; msgs.forEach(m=>addMessageToUI(m)); } });
-        socket.on("chat",(msg)=>{ addMessageToUI(msg); if(msg.author!==currentUser && msg.author!=="🛡️ СИСТЕМА") playMessageSound(); if(msg.author!==currentUser && msg.room!==currentRoom) document.querySelector(`.room[data-room="${msg.room}"]`)?.classList.add("notification"); });
-        socket.on("message-deleted",({msgId})=>{ document.querySelector(`.message-group[data-msg-id="${msgId}"]`)?.remove(); });
-        socket.on("reaction-updated",({msgId,reactions})=>{ /* не обязательно перерисовывать всё, но оставим */ });
-        socket.on("online",n=>document.getElementById("online").innerText=n);
-        socket.on("clear-chat",()=>{ document.getElementById("messages").innerHTML=""; });
-        socket.on("new-room",(roomName)=>{
-            const roomsList=document.getElementById("roomsList");
-            const newRoom=document.createElement("div"); newRoom.className="room"; newRoom.setAttribute("data-room",roomName); newRoom.setAttribute("onclick",`joinRoom('${roomName}')`); newRoom.innerHTML=`<i class="fas fa-hashtag"></i> ${roomName}`;
-            const voiceChannel=roomsList.querySelector(".voice-channel");
-            roomsList.insertBefore(newRoom,voiceChannel);
-        });
-        socket.on("delete-room",(roomName)=>{ document.querySelector(`.room[data-room="${roomName}"]`)?.remove(); if(currentRoom===roomName) joinRoom("general"); });
-        socket.on("signal",({from,data})=>{ if(!voicePeers[from]) createVoicePeer(from,false); voicePeers[from]?.signal(data); });
-    }
-    
-    function joinRoom(room){
-        currentRoom=room;
-        document.getElementById("currentRoomName").innerText=room;
-        document.querySelectorAll(".room").forEach(r=>r.classList.remove("active","notification"));
-        document.querySelector(`.room[data-room="${room}"]`)?.classList.add("active");
-        roomNotifications[room]=false;
-        document.getElementById("messages").innerHTML="";
-        socket.emit("auth",{username:currentUser,room});
-        if(window.innerWidth<=700) toggleSidebar();
-    }
-    function sendText(){ let i=document.getElementById("input"); if(i.value.trim()){ socket.emit("chat",i.value); i.value=""; } }
-    function deleteMessage(msgId,author){ let can = currentRole==="владелец"||currentRole==="админ"||currentRole==="модер"||author===currentUser; if(can) socket.emit("delete-message",{room:currentRoom,msgId}); }
-    function addReaction(msgId,emoji){ socket.emit("add-reaction",{room:currentRoom,msgId,emoji}); }
-    function addMessageToUI(msg){
-        const c=document.getElementById("messages"); if(!c) return;
-        const div=document.createElement("div"); div.className="message-group"; div.setAttribute("data-msg-id",msg.id);
-        const avatarUrl=msg.avatar||`https://ui-avatars.com/api/?name=${encodeURIComponent(msg.author)}&background=5865f2&color=fff&size=44`;
-        const roleTag=`<span class="role-tag" style="${msg.role==='владелец'?'animation: rgbText 1.5s infinite linear;':''}">${msg.role}</span>`;
-        let contentHtml='';
-        if(msg.type==='text') contentHtml=`<div class="message-text">${escapeHtml(msg.text)}</div>`;
-        else if(msg.type==='voice') contentHtml=`<div class="voice-bubble"><audio controls src="${msg.audio}"></audio></div>`;
-        else if(msg.type==='media'){
-            if(msg.mediaType==='video') contentHtml=`<video controls class="media-preview" src="${msg.mediaUrl}"></video>`;
-            else if(msg.mediaType==='audio') contentHtml=`<audio controls src="${msg.mediaUrl}"></audio>`;
-            else contentHtml=`<img class="media-preview" src="${msg.mediaUrl}" onclick="window.open('${msg.mediaUrl}')">`;
+        Object.values(voicePeers).forEach(p => p.destroy());
+        voicePeers = {};
+        if (voiceStream) voiceStream.getTracks().forEach(t => t.stop());
+        voiceStream = null;
+        if (socket) {
+            socket.emit("leave-voice-channel");
+            socket.off("voice-users-update");
+            socket.off("voice-count");
         }
-        let reactionsHtml='';
-        if(msg.reactions){
-            for(let [emoji,users] of Object.entries(msg.reactions)) reactionsHtml+=`<div class="reaction" onclick="addReaction('${msg.id}','${emoji}')">${emoji} <span class="reaction-count">${users.length}</span></div>`;
-        }
-        div.innerHTML = `<img class="message-avatar" src="${avatarUrl}"><div class="message-content"><div class="message-header"><div class="message-author">${escapeHtml(msg.author)} ${roleTag}</div><div class="message-time">${new Date(msg.time).toLocaleTimeString()}</div></div>${contentHtml}<div class="reactions">${reactionsHtml}</div></div><div class="message-menu"><button class="menu-btn" onclick="deleteMessage('${msg.id}','${msg.author}')"><i class="fas fa-trash"></i></button></div>`;
-        c.appendChild(div); c.scrollTop=c.scrollHeight;
+        document.getElementById("voiceUsersList").innerHTML = "";
+        document.getElementById("voiceOnline").innerText = "0";
     }
-    function escapeHtml(s){ return s.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
-    function updateRoleUI(role){ currentRole=role; const span=document.getElementById("currentRoleDisplay"); if(span) span.innerHTML=role; if(role==="владелец"&&span) span.classList.add("rgb-role"); else if(span) span.classList.remove("rgb-role"); }
     
-    // голосовые сообщения
-    let mediaRec=null, isRecording=false, audioCtx=null, recordedSamples=[], recordTimer=null;
-    const recordBtn=document.getElementById("recordBtn"), cancelBtn=document.getElementById("cancelVoiceBtn"), recTimerSpan=document.getElementById("recTimer"), waveVisual=document.getElementById("waveVisual");
-    async function startRecording(){
-        if(isRecording) return;
-        try{
-            const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-            audioCtx=new AudioContext();
-            const source=audioCtx.createMediaStreamSource(stream);
-            const processor=audioCtx.createScriptProcessor(4096,1,1);
-            recordedSamples=[];
-            processor.onaudioprocess=(e)=>{ if(isRecording) recordedSamples.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
-            source.connect(processor); processor.connect(audioCtx.destination);
-            isRecording=true;
-            recordBtn.classList.add("recording-active"); recordBtn.innerHTML='<i class="fas fa-stop"></i>';
-            cancelBtn.style.display="inline-flex"; waveVisual.style.display="inline-flex";
-            playBeep(880,0.1,0.2);
-            let seconds=0;
-            recordTimer=setInterval(()=>{ seconds++; if(recTimerSpan) recTimerSpan.innerText=`🔴 ${seconds}s / 20s`; if(seconds>=20) stopAndSend(); },1000);
-        }catch(e){ if(recTimerSpan) recTimerSpan.innerText="❌ Ошибка"; }
-    }
-    function stopAndSend(){
-        if(!isRecording) return;
-        isRecording=false; clearInterval(recordTimer);
-        if(audioCtx) audioCtx.close();
-        const total=recordedSamples.reduce((a,b)=>a+b.length,0);
-        const combined=new Float32Array(total); let off=0;
-        for(let arr of recordedSamples){ combined.set(arr,off); off+=arr.length; }
-        if(combined.length>3000){
-            const int16=new Int16Array(combined.length);
-            for(let i=0;i<combined.length;i++) int16[i]=combined[i]*0x7FFF;
-            const encoder=new lamejs.Mp3Encoder(1,44100,128);
-            let mp3Data=[];
-            for(let i=0;i<int16.length;i+=1152){
-                let chunk=int16.subarray(i,i+1152);
-                let buf=encoder.encodeBuffer(chunk);
-                if(buf.length) mp3Data.push(buf);
+    // Socket
+    function initSocket() {
+        socket = io();
+        socket.on("connect", () => socket.emit("auth", { username: currentUser, room: currentRoom }));
+        socket.on("auth-error", (msg) => alert(msg));
+        socket.on("kick", (msg) => { alert(msg); location.reload(); });
+        socket.on("ban", (msg) => { alert(msg); localStorage.removeItem("nexus_session"); location.reload(); });
+        socket.on("mute", (msg) => alert(msg));
+        
+        socket.on("user-data", ({ username, role, avatar, status }) => {
+            currentUser = username;
+            currentRole = role;
+            if (avatar) currentAvatar = avatar;
+            document.getElementById("currentNickDisplay").innerText = username;
+            updateRoleUI(role);
+            updateAvatar();
+            if (status) updateStatusDot(status);
+        });
+        
+        socket.on("all-users", (users) => { updateOnlineUsers(users); });
+        
+        socket.on("user-status-update", ({ username, status }) => {
+            if (username === currentUser) updateStatusDot(status);
+        });
+        
+        socket.on("history", (msgs) => {
+            const container = document.getElementById("messages");
+            if (container) {
+                container.innerHTML = "";
+                msgs.forEach(msg => addMessageToUI(msg));
             }
-            let end=encoder.flush(); if(end.length) mp3Data.push(end);
-            const blob=new Blob(mp3Data,{type:"audio/mp3"});
-            const fd=new FormData(); fd.append("audio",blob);
-            const res=await fetch("/upload-audio",{method:"POST",body:fd}); const data=await res.json();
-            socket.emit("voice-msg",data.url);
-            playBeep(440,0.2,0.2);
-        }
-        recordBtn.classList.remove("recording-active"); recordBtn.innerHTML='<i class="fas fa-microphone"></i>';
-        cancelBtn.style.display="none"; waveVisual.style.display="none"; if(recTimerSpan) recTimerSpan.innerText="";
+        });
+        
+        socket.on("chat", (msg) => {
+            addMessageToUI(msg);
+            if (msg.author !== currentUser && msg.author !== "🛡️ СИСТЕМА") playMessageSound();
+            if (msg.author !== currentUser && msg.room !== currentRoom) {
+                const roomEl = document.querySelector(`.room[data-room="${msg.room}"]`);
+                if (roomEl) roomEl.classList.add("notification");
+                roomNotifications[msg.room] = true;
+            }
+        });
+        
+        socket.on("message-deleted", ({ msgId }) => {
+            document.querySelector(`.message-group[data-msg-id="${msgId}"]`)?.remove();
+        });
+        
+        socket.on("reaction-updated", ({ msgId, reactions }) => {
+            const msgDiv = document.querySelector(`.message-group[data-msg-id="${msgId}"]`);
+            if (msgDiv) {
+                let reactionsDiv = msgDiv.querySelector('.reactions');
+                if (reactionsDiv) {
+                    let html = '';
+                    for (let [emoji, users] of Object.entries(reactions)) {
+                        html += `<div class="reaction" onclick="addReaction('${msgId}','${emoji}')">${emoji} <span class="reaction-count">${users.length}</span></div>`;
+                    }
+                    reactionsDiv.innerHTML = html;
+                }
+            }
+        });
+        
+        socket.on("online", n => document.getElementById("online").innerText = n);
+        
+        socket.on("clear-chat", () => { document.getElementById("messages").innerHTML = ""; });
+        
+        socket.on("new-room", (roomName) => {
+            const roomsList = document.getElementById("roomsList");
+            const newRoom = document.createElement("div");
+            newRoom.className = "room";
+            newRoom.setAttribute("data-room", roomName);
+            newRoom.setAttribute("onclick", `joinRoom('${roomName}')`);
+            newRoom.innerHTML = `# ${roomName}`;
+            const voiceChannel = roomsList.querySelector(".voice-channel");
+            roomsList.insertBefore(newRoom, voiceChannel);
+        });
+        
+        socket.on("delete-room", (roomName) => {
+            document.querySelector(`.room[data-room="${roomName}"]`)?.remove();
+            if (currentRoom === roomName) joinRoom("general");
+        });
+        
+        socket.on("signal", ({ from, data }) => {
+            if (!voicePeers[from]) createVoicePeer(from, false);
+            voicePeers[from]?.signal(data);
+        });
     }
-    function cancelRecording(){
-        if(isRecording){
-            isRecording=false; clearInterval(recordTimer);
-            if(audioCtx) audioCtx.close();
-            recordBtn.classList.remove("recording-active"); recordBtn.innerHTML='<i class="fas fa-microphone"></i>';
-            cancelBtn.style.display="none"; waveVisual.style.display="none";
-            if(recTimerSpan) recTimerSpan.innerText="Отменено";
-            setTimeout(()=>{ if(recTimerSpan) recTimerSpan.innerText=""; },1000);
-        }
-    }
-    if(recordBtn) recordBtn.onclick=()=>{ if(isRecording) stopAndSend(); else startRecording(); };
-    if(cancelBtn) cancelBtn.onclick=cancelRecording;
     
-    function toggleSidebar(){ document.getElementById("sidebar").classList.toggle("open"); }
-    function openSettings(){ document.getElementById("settingsModal").style.display="flex"; document.getElementById("newNickInput").value=currentUser; }
-    function closeSettings(){ document.getElementById("settingsModal").style.display="none"; }
-    async function changeNickname(){
-        let newNick=document.getElementById("newNickInput").value.trim();
-        if(!newNick){ alert("Введите новый ник"); return; }
-        if(newNick===currentUser){ closeSettings(); return; }
-        if(newNick.toLowerCase()===PROTECTED_NAME.toLowerCase() && currentUser!==PROTECTED_NAME){ alert("❌ Этот ник владельца!"); return; }
-        const saved=JSON.parse(localStorage.getItem("nexus_session"));
-        if(saved){
-            const res=await fetch("/change-nick",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({oldUsername:currentUser,newUsername:newNick,password:saved.password})});
-            const data=await res.json();
-            if(data.success){
-                currentUser=newNick;
-                document.getElementById("currentNickDisplay").innerText=currentNick;
-                saveSession(newNick,saved.password);
-                socket.emit("auth",{username:currentUser,room:currentRoom});
-                closeSettings();
-                alert(`Ник изменён на ${newNick}`);
-            }else alert(data.error);
-        }else alert("Сессия потеряна");
+    function joinRoom(room) {
+        currentRoom = room;
+        document.getElementById("currentRoomName").innerText = room;
+        document.querySelectorAll(".room").forEach(r => r.classList.remove("active", "notification"));
+        const roomEl = document.querySelector(`.room[data-room="${room}"]`);
+        if (roomEl) roomEl.classList.add("active");
+        roomNotifications[room] = false;
+        document.getElementById("messages").innerHTML = "";
+        socket.emit("auth", { username: currentUser, room });
+        if (window.innerWidth <= 700) toggleSidebar();
     }
     
-    setTimeout(()=>{ setupStatusSelect(); }, 100);
+    function sendText() {
+        let input = document.getElementById("input");
+        if (input.value.trim()) { socket.emit("chat", input.value); input.value = ""; }
+    }
+    
+    function deleteMessage(msgId, author) {
+        let canDelete = currentRole === "владелец" || currentRole === "админ" || currentRole === "модер" || author === currentUser;
+        if (canDelete) socket.emit("delete-message", { room: currentRoom, msgId });
+    }
+    
+    function addReaction(msgId, emoji) { socket.emit("add-reaction", { room: currentRoom, msgId, emoji }); }
+    
+    function addMessageToUI(msg) {
+        const container = document.getElementById("messages");
+        if (!container) return;
+        const div = document.createElement("div");
+        div.className = "message-group";
+        div.setAttribute("data-msg-id", msg.id);
+        
+        const avatarUrl = msg.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.author)}&background=5865f2&color=fff&size=40`;
+        const roleTag = `<span style="${msg.role === 'владелец' ? 'animation: rgbText 1.5s infinite linear;' : ''}">${msg.role}</span>`;
+        
+        let contentHtml = '';
+        if (msg.type === 'text') contentHtml = `<div class="message-text">${escapeHtml(msg.text)}</div>`;
+        else if (msg.type === 'voice') contentHtml = `<div class="voice-bubble"><audio controls src="${msg.audio}"></audio></div>`;
+        else if (msg.type === 'media') {
+            if (msg.mediaType === 'video') contentHtml = `<video controls class="media-preview" src="${msg.mediaUrl}"></video>`;
+            else if (msg.mediaType === 'audio') contentHtml = `<audio controls src="${msg.mediaUrl}"></audio>`;
+            else contentHtml = `<img class="media-preview" src="${msg.mediaUrl}" onclick="window.open('${msg.mediaUrl}')">`;
+        }
+        
+        let reactionsHtml = '';
+        if (msg.reactions) {
+            for (let [emoji, users] of Object.entries(msg.reactions)) {
+                reactionsHtml += `<div class="reaction" onclick="addReaction('${msg.id}','${emoji}')">${emoji} <span class="reaction-count">${users.length}</span></div>`;
+            }
+        }
+        
+        div.innerHTML = `
+            <img class="message-avatar" src="${avatarUrl}">
+            <div class="message-content">
+                <div class="message-header">
+                    <div class="message-author">${escapeHtml(msg.author)} ${roleTag}</div>
+                    <div class="message-time">${new Date(msg.time).toLocaleTimeString()}</div>
+                </div>
+                ${contentHtml}
+                <div class="reactions">${reactionsHtml}</div>
+            </div>
+            <div class="message-menu"><button class="menu-btn" onclick="deleteMessage('${msg.id}','${msg.author}')">🗑️</button></div>
+        `;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+    
+    function escapeHtml(str) { return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
+    
+    function updateRoleUI(role) { 
+        currentRole = role; 
+        const span = document.getElementById("currentRoleDisplay"); 
+        if (span) span.innerHTML = role; 
+        if (role === "владелец" && span) span.classList.add("rgb-role"); 
+        else if (span) span.classList.remove("rgb-role");
+    }
+    
+    // Запись голоса
+    let isRecording = false, audioCtx = null, recordedSamples = [], recordTimer = null;
+    const recordBtn = document.getElementById("recordBtn"), cancelBtn = document.getElementById("cancelVoiceBtn"), recTimerSpan = document.getElementById("recTimer"), waveVisual = document.getElementById("waveVisual");
+    
+    async function startRecording() {
+        if (isRecording) return;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioCtx = new AudioContext();
+            const source = audioCtx.createMediaStreamSource(stream);
+            const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+            recordedSamples = [];
+            processor.onaudioprocess = (e) => { if (isRecording) recordedSamples.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
+            source.connect(processor); processor.connect(audioCtx.destination);
+            isRecording = true;
+            recordBtn.classList.add("recording-active"); recordBtn.innerText = "⏹️";
+            cancelBtn.style.display = "inline-flex"; waveVisual.style.display = "inline-flex";
+            playBeep(880, 0.1, 0.2);
+            let seconds = 0;
+            recordTimer = setInterval(() => {
+                seconds++;
+                if (recTimerSpan) recTimerSpan.innerText = `🔴 ${seconds}s / 20s`;
+                if (seconds >= 20) stopAndSend();
+            }, 1000);
+        } catch(e) { if(recTimerSpan) recTimerSpan.innerText = "❌"; }
+    }
+    
+    async function stopAndSend() {
+        if (!isRecording) return;
+        isRecording = false;
+        clearInterval(recordTimer);
+        if (audioCtx) audioCtx.close();
+        const total = recordedSamples.reduce((a,b)=>a+b.length,0);
+        const combined = new Float32Array(total);
+        let off = 0;
+        for (let arr of recordedSamples) { combined.set(arr, off); off += arr.length; }
+        if (combined.length > 3000) {
+            const int16 = new Int16Array(combined.length);
+            for (let i = 0; i < combined.length; i++) int16[i] = combined[i] * 0x7FFF;
+            const mp3encoder = new lamejs.Mp3Encoder(1, 44100, 128);
+            let mp3Data = [];
+            for (let i = 0; i < int16.length; i += 1152) {
+                let chunk = int16.subarray(i, i + 1152);
+                let buf = mp3encoder.encodeBuffer(chunk);
+                if (buf.length) mp3Data.push(buf);
+            }
+            let end = mp3encoder.flush();
+            if (end.length) mp3Data.push(end);
+            const blob = new Blob(mp3Data, { type: "audio/mp3" });
+            const fd = new FormData(); fd.append("audio", blob);
+            const res = await fetch("/upload-audio", { method: "POST", body: fd });
+            const data = await res.json();
+            socket.emit("voice-msg", data.url);
+            playBeep(440, 0.2, 0.2);
+        }
+        recordBtn.classList.remove("recording-active"); recordBtn.innerText = "🎙️";
+        cancelBtn.style.display = "none"; waveVisual.style.display = "none";
+        if(recTimerSpan) recTimerSpan.innerText = "";
+    }
+    
+    function cancelRecording() {
+        if (isRecording) {
+            isRecording = false;
+            clearInterval(recordTimer);
+            if (audioCtx) audioCtx.close();
+            recordBtn.classList.remove("recording-active"); recordBtn.innerText = "🎙️";
+            cancelBtn.style.display = "none"; waveVisual.style.display = "none";
+            if(recTimerSpan) recTimerSpan.innerText = "🗑 Отменено";
+            setTimeout(() => { if(recTimerSpan) recTimerSpan.innerText = ""; }, 1000);
+        }
+    }
+    
+    if(recordBtn) recordBtn.onclick = () => { if (isRecording) stopAndSend(); else startRecording(); };
+    if(cancelBtn) cancelBtn.onclick = cancelRecording;
+    
+    function toggleSidebar() { document.getElementById("sidebar").classList.toggle("open"); }
+    function openSettings() { document.getElementById("settingsModal").style.display = "flex"; document.getElementById("newNickInput").value = currentUser; }
+    function closeSettings() { document.getElementById("settingsModal").style.display = "none"; }
+    
+    async function changeNickname() {
+        let newNick = document.getElementById("newNickInput").value.trim();
+        if (!newNick) { alert("Введите новый ник"); return; }
+        if (newNick.length < 3 || newNick.length > 20) { alert("Ник должен быть 3-20 символов"); return; }
+        if (newNick === currentUser) { closeSettings(); return; }
+        if (newNick.toLowerCase() === PROTECTED_NAME.toLowerCase() && currentUser !== PROTECTED_NAME) {
+            alert("❌ ЭТОТ НИК ПРИНАДЛЕЖИТ ВЛАДЕЛЬЦУ!");
+            return;
+        }
+        
+        const saved = JSON.parse(localStorage.getItem("nexus_session"));
+        if (!saved) { alert("Сессия потеряна, перезайдите"); location.reload(); return; }
+        
+        const res = await fetch("/change-nick", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ oldUsername: currentUser, newUsername: newNick, password: saved.password })
+        });
+        const data = await res.json();
+        if (data.success) {
+            currentUser = newNick;
+            document.getElementById("currentNickDisplay").innerText = currentUser;
+            saveSession(newNick, saved.password);
+            socket.emit("auth", { username: currentUser, room: currentRoom });
+            updateAvatar();
+            closeSettings();
+            alert(`Ник изменён на ${newNick}`);
+        } else { alert(data.error); }
+    }
+    
+    setTimeout(() => { setupStatusSelect(); }, 100);
 </script>
 </body>
 </html>
