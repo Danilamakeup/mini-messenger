@@ -10,48 +10,42 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; height: 100vh; overflow: hidden; }
-        body.dark { background: #1e1f22; color: #dbdee1; }
-        body.light { background: #f2f3f5; color: #2c2f33; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; height: 100vh; overflow: hidden; transition: all 0.3s ease; }
         
-        body.dark .sidebar { background: #2b2d31; border-right: 1px solid #1e1f22; }
-        body.dark .server-header { background: #313338; border-bottom: 1px solid #1e1f22; }
-        body.dark .room, body.dark .dm-item { color: #949ba4; }
-        body.dark .room:hover, body.dark .dm-item:hover { background: #3b3f48; color: #dbdee1; }
-        body.dark .room.active, body.dark .dm-item.active { background: #3b3f48; color: #fff; }
-        body.dark .user-section { background: #232428; border-top: 1px solid #1e1f22; }
-        body.dark .stats { background: #1e1f22; }
-        body.dark .current-user { background: #1e1f22; }
-        body.dark .chat { background: #313338; }
-        body.dark .chat-header { background: #2b2d31; border-bottom: 1px solid #1e1f22; }
-        body.dark .message-group:hover { background: #2b2d31; }
-        body.dark .input-panel { background: #2b2d31; }
-        body.dark .input-wrapper { background: #1e1f22; border: 1px solid #3b3f48; }
-        body.dark .input-wrapper input { color: white; }
-        body.dark .btn-icon { background: #3b3f48; color: white; }
-        body.dark .right-sidebar { background: #2b2d31; border-left: 1px solid #1e1f22; }
-        body.dark .online-user { background: #1e1f22; }
-        body.dark .online-user:hover { background: #3b3f48; }
-        body.dark .friend-request { background: #1e1f22; border-color: #3b3f48; }
+        /* Кастомные темы */
+        body.theme-dark { background: #0a0c10; color: #e1e7f0; }
+        body.theme-dark .sidebar { background: #111318; border-right: 1px solid #1e2128; }
+        body.theme-dark .server-header { background: #0f1117; border-bottom: 1px solid #1e2128; }
+        body.theme-dark .room, body.theme-dark .dm-item { color: #8b93a3; }
+        body.theme-dark .room:hover, body.theme-dark .dm-item:hover { background: #1a1d26; color: #fff; }
+        body.theme-dark .room.active, body.theme-dark .dm-item.active { background: #2c2f3a; color: #fff; }
+        body.theme-dark .chat { background: #0f1117; }
+        body.theme-dark .chat-header { background: #0f1117; border-bottom: 1px solid #1e2128; }
+        body.theme-dark .message-group:hover { background: #161922; }
+        body.theme-dark .input-panel { background: #0f1117; }
+        body.theme-dark .input-wrapper { background: #1a1d26; border: 1px solid #2c2f3a; }
+        body.theme-dark .right-sidebar { background: #111318; border-left: 1px solid #1e2128; }
+        body.theme-dark .user-section { background: #0d0f14; border-top: 1px solid #1e2128; }
         
-        body.light .sidebar { background: #ffffff; border-right: 1px solid #e3e5e8; }
-        body.light .server-header { background: #f6f6f7; border-bottom: 1px solid #e3e5e8; color: #2c2f33; }
-        body.light .room, body.light .dm-item { color: #4f545c; }
-        body.light .room:hover, body.light .dm-item:hover { background: #e3e5e8; color: #2c2f33; }
-        body.light .room.active, body.light .dm-item.active { background: #e3e5e8; color: #2c2f33; }
-        body.light .user-section { background: #f6f6f7; border-top: 1px solid #e3e5e8; }
-        body.light .stats { background: #ffffff; color: #2c2f33; }
-        body.light .current-user { background: #ffffff; }
-        body.light .chat { background: #ffffff; }
-        body.light .chat-header { background: #f6f6f7; border-bottom: 1px solid #e3e5e8; color: #2c2f33; }
-        body.light .message-group:hover { background: #f6f6f7; }
-        body.light .input-panel { background: #ffffff; }
-        body.light .input-wrapper { background: #e3e5e8; border: 1px solid #c4c9d1; }
-        body.light .input-wrapper input { color: #2c2f33; }
-        body.light .btn-icon { background: #e3e5e8; color: #2c2f33; }
-        body.light .right-sidebar { background: #ffffff; border-left: 1px solid #e3e5e8; }
-        body.light .online-user { background: #f6f6f7; }
-        body.light .online-user:hover { background: #e3e5e8; }
+        body.theme-light { background: #f8f9fc; color: #1a1d26; }
+        body.theme-light .sidebar { background: #ffffff; border-right: 1px solid #e4e6eb; }
+        body.theme-light .server-header { background: #ffffff; border-bottom: 1px solid #e4e6eb; }
+        body.theme-light .room, body.theme-light .dm-item { color: #5a6270; }
+        body.theme-light .room:hover, body.theme-light .dm-item:hover { background: #f0f2f5; color: #1a1d26; }
+        body.theme-light .chat { background: #ffffff; }
+        body.theme-light .chat-header { background: #ffffff; border-bottom: 1px solid #e4e6eb; }
+        body.theme-light .message-group:hover { background: #f8f9fc; }
+        body.theme-light .input-wrapper { background: #f0f2f5; border: 1px solid #e4e6eb; }
+        body.theme-light .right-sidebar { background: #ffffff; border-left: 1px solid #e4e6eb; }
+        
+        body.theme-oled { background: #000000; color: #00ff41; }
+        body.theme-oled .sidebar, body.theme-oled .chat, body.theme-oled .right-sidebar { background: #000000; border-color: #00ff41; }
+        body.theme-oled .room, body.theme-oled .dm-item { color: #00ff41; }
+        body.theme-oled .input-wrapper { background: #001100; border-color: #00ff41; }
+        
+        body.theme-matrix { background: #0a0f0a; color: #33ff33; font-family: monospace; }
+        body.theme-matrix .sidebar, body.theme-matrix .chat, body.theme-matrix .right-sidebar { background: #0a0f0a; border-color: #33ff33; }
+        body.theme-matrix .room { font-family: monospace; }
         
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -59,146 +53,146 @@
         
         .app { display: flex; height: 100vh; }
         
-        .sidebar { width: 260px; display: flex; flex-direction: column; transition: transform 0.2s; z-index: 10; }
+        .sidebar { width: 280px; display: flex; flex-direction: column; transition: transform 0.2s; z-index: 10; }
         .server-header { padding: 18px 16px; font-weight: 700; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
         .server-header button { background: none; border: none; font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
-        body.dark .server-header button { color: #dbdee1; }
-        body.light .server-header button { color: #2c2f33; }
         
         .nav-tabs { display: flex; padding: 0 12px; gap: 8px; margin-bottom: 12px; }
         .nav-tab { flex: 1; text-align: center; padding: 8px; border-radius: 12px; cursor: pointer; font-size: 13px; font-weight: 500; }
-        body.dark .nav-tab { color: #949ba4; }
-        body.dark .nav-tab.active { background: #3b3f48; color: #fff; }
-        body.light .nav-tab { color: #4f545c; }
-        body.light .nav-tab.active { background: #e3e5e8; color: #2c2f33; }
+        .nav-tab.active { background: #5865f2; color: white; }
         
         .rooms-list, .dms-list { flex: 1; padding: 12px; overflow-y: auto; display: none; }
         .rooms-list.active, .dms-list.active { display: block; }
         
-        .room, .dm-item { padding: 10px 12px; margin: 4px 0; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
-        .dm-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
-        .dm-name { flex: 1; font-size: 14px; }
+        .room, .dm-item { padding: 10px 12px; margin: 4px 0; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: 0.1s; }
+        .dm-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+        .dm-name { flex: 1; font-size: 14px; font-weight: 500; }
         .dm-status { width: 8px; height: 8px; border-radius: 50%; }
         .dm-status.online { background: #23a55a; }
         .dm-status.offline { background: #80848e; }
         
-        .friend-requests-header { padding: 12px; font-size: 12px; text-transform: uppercase; color: #949ba4; border-bottom: 1px solid; margin-bottom: 8px; }
-        body.dark .friend-requests-header { border-color: #1e1f22; }
-        body.light .friend-requests-header { border-color: #e3e5e8; }
-        
-        .friend-request { padding: 12px; margin: 8px 0; border-radius: 12px; border: 1px solid; }
+        .friend-requests-header { padding: 12px; font-size: 11px; text-transform: uppercase; opacity: 0.7; border-bottom: 1px solid; margin-bottom: 8px; }
+        .friend-request { padding: 12px; margin: 8px 0; border-radius: 12px; background: rgba(88,101,242,0.1); border: 1px solid rgba(88,101,242,0.3); }
         .friend-request-actions { display: flex; gap: 8px; margin-top: 8px; }
         .friend-request-actions button { padding: 6px 12px; border-radius: 20px; border: none; cursor: pointer; }
         .accept-btn { background: #23a55a; color: white; }
         .decline-btn { background: #e03a3a; color: white; }
         
-        .friend-card { display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin: 4px 0; border-radius: 12px; cursor: pointer; }
-        .friend-card:hover { background: #3b3f48; }
+        .friend-card { display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin: 4px 0; border-radius: 12px; cursor: pointer; transition: 0.1s; }
+        .friend-card:hover { background: rgba(88,101,242,0.1); }
         
-        .right-sidebar { width: 260px; display: flex; flex-direction: column; padding: 16px; }
-        .right-sidebar-title { font-size: 12px; text-transform: uppercase; margin-bottom: 12px; padding: 0 8px; }
-        body.dark .right-sidebar-title { color: #949ba4; }
-        body.light .right-sidebar-title { color: #4f545c; }
+        .right-sidebar { width: 280px; display: flex; flex-direction: column; padding: 16px; }
+        .right-sidebar-title { font-size: 11px; text-transform: uppercase; margin-bottom: 12px; padding: 0 8px; opacity: 0.7; }
         .online-users-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-        .online-user { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; cursor: pointer; }
-        .online-user-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+        .online-user { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; cursor: pointer; transition: 0.1s; }
+        .online-user:hover { background: rgba(88,101,242,0.1); }
+        .online-user-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
         .online-user-info { flex: 1; }
-        .online-user-name { font-size: 14px; font-weight: 500; }
-        .online-user-role { font-size: 10px; opacity: 0.7; }
+        .online-user-name { font-size: 14px; font-weight: 600; }
+        .online-user-role { font-size: 10px; opacity: 0.6; }
+        .online-user-bio { font-size: 11px; opacity: 0.5; font-style: italic; margin-top: 2px; }
         
-        .user-section { padding: 16px; }
-        .stats { padding: 12px; border-radius: 16px; margin-bottom: 12px; font-size: 13px; }
+        .user-section { padding: 16px; margin-top: auto; }
+        .stats { padding: 12px; border-radius: 16px; margin-bottom: 12px; font-size: 13px; background: rgba(88,101,242,0.1); }
         .stat-value { color: #5865f2; font-weight: bold; }
-        .current-user { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; }
-        .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; position: relative; }
-        .status-dot { position: absolute; bottom: 0; right: 0; width: 10px; height: 10px; border-radius: 50%; border: 2px solid; }
-        body.dark .status-dot { border-color: #2b2d31; }
-        body.light .status-dot { border-color: #ffffff; }
+        .current-user { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 16px; }
+        .avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; position: relative; }
+        .status-dot { position: absolute; bottom: 2px; right: 2px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid; }
         .status-online { background: #23a55a; }
         .status-idle { background: #f0b232; }
         .status-dnd { background: #f23f42; }
         .status-offline { background: #80848e; }
         
         .profile-controls { display: flex; gap: 8px; margin-top: 8px; }
-        .profile-btn { flex: 1; background: #3b3f48; border: none; padding: 6px; border-radius: 20px; cursor: pointer; font-size: 12px; }
-        .status-select { display: flex; gap: 8px; justify-content: center; margin: 10px 0; }
-        .status-option { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
-        .status-option.selected { border-color: #5865f2; }
+        .profile-btn { flex: 1; border: none; padding: 6px; border-radius: 20px; cursor: pointer; font-size: 12px; background: rgba(88,101,242,0.2); }
+        .status-select { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+        .status-option { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: 0.1s; }
+        .status-option.selected { border-color: #5865f2; transform: scale(1.1); }
         .status-online-bg { background: #23a55a; }
         .status-idle-bg { background: #f0b232; }
         .status-dnd-bg { background: #f23f42; }
         .status-offline-bg { background: #80848e; }
         
         .chat { flex: 1; display: flex; flex-direction: column; }
-        .chat-header { padding: 16px 20px; font-weight: 600; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
+        .chat-header { padding: 16px 20px; font-weight: 600; font-size: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid; }
         .messages { flex: 1; overflow-y: auto; padding: 16px 0; }
-        .message-group { padding: 10px 20px; display: flex; gap: 16px; position: relative; }
-        .message-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+        .message-group { padding: 10px 20px; display: flex; gap: 16px; position: relative; transition: 0.05s; }
+        .message-group.ping-highlight { background: rgba(88,101,242,0.2); animation: pingFlash 1s ease; }
+        @keyframes pingFlash { 0% { background: rgba(88,101,242,0.5); } 100% { background: transparent; } }
+        
+        .message-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
         .message-content { flex: 1; }
-        .message-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
-        .message-author { font-weight: 600; font-size: 15px; }
-        .message-time { font-size: 11px; color: #6e727a; }
-        .message-text { font-size: 14px; line-height: 1.4; }
+        .message-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+        .message-displayname { font-weight: 700; font-size: 15px; color: #5865f2; }
+        .message-username { font-size: 12px; opacity: 0.6; }
+        .message-time { font-size: 10px; opacity: 0.5; }
+        .message-bio { font-size: 11px; opacity: 0.5; font-style: italic; margin-left: 4px; }
+        .message-text { font-size: 14px; line-height: 1.5; word-break: break-word; }
+        .message-text .ping { background: rgba(88,101,242,0.3); border-radius: 12px; padding: 2px 6px; font-weight: 600; cursor: pointer; }
+        .message-text .ping:hover { background: #5865f2; color: white; }
         .media-preview { max-width: 300px; max-height: 200px; border-radius: 16px; margin-top: 6px; cursor: pointer; }
-        .voice-bubble { padding: 8px 16px; border-radius: 20px; display: inline-block; }
-        audio { border-radius: 30px; height: 34px; }
+        .voice-bubble { padding: 8px 16px; border-radius: 20px; display: inline-block; background: rgba(88,101,242,0.2); }
         
-        .reactions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-        .reaction { border-radius: 20px; padding: 3px 10px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
-        .reaction:hover { background: #3b3f48; }
+        .reactions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+        .reaction { border-radius: 20px; padding: 2px 8px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; background: rgba(88,101,242,0.15); transition: 0.05s; }
+        .reaction:hover { background: #5865f2; transform: scale(1.05); }
         
-        .message-menu { position: absolute; right: 20px; top: 8px; border-radius: 12px; padding: 5px; display: none; gap: 5px; }
+        .message-menu { position: absolute; right: 20px; top: 8px; border-radius: 12px; padding: 5px; display: none; gap: 5px; background: rgba(0,0,0,0.5); }
         .message-group:hover .message-menu { display: flex; }
-        .menu-btn { background: none; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
-        .menu-btn:hover { background: #e03a3a; color: white; }
+        .menu-btn { background: none; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; color: white; }
+        .menu-btn:hover { background: #e03a3a; }
         
         .input-panel { padding: 16px 20px 24px; }
         .input-wrapper { display: flex; gap: 10px; border-radius: 44px; padding: 6px 6px 6px 20px; }
         .input-wrapper input { flex: 1; background: transparent; border: none; padding: 12px 0; outline: none; }
-        .btn-icon { border: none; font-size: 18px; width: 42px; height: 42px; border-radius: 30px; cursor: pointer; }
-        .btn-icon:hover { background: #5865f2; color: white; }
+        .btn-icon { border: none; font-size: 18px; width: 42px; height: 42px; border-radius: 30px; cursor: pointer; transition: 0.1s; }
+        .btn-icon:hover { background: #5865f2; color: white; transform: scale(1.05); }
         .btn-send { background: #5865f2; color: white; }
         
-        .reaction-picker { position: fixed; background: #2b2d31; border-radius: 20px; padding: 8px; display: flex; gap: 6px; z-index: 1000; flex-wrap: wrap; max-width: 200px; border: 1px solid #5865f2; }
-        .reaction-picker span { font-size: 24px; cursor: pointer; padding: 4px; border-radius: 12px; }
-        .reaction-picker span:hover { background: #3b3f48; }
+        .reaction-picker { position: fixed; border-radius: 24px; padding: 12px; display: flex; gap: 8px; z-index: 1000; flex-wrap: wrap; max-width: 260px; background: #1a1d26; border: 1px solid #5865f2; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+        .reaction-picker span { font-size: 28px; cursor: pointer; padding: 6px; border-radius: 12px; transition: 0.05s; }
+        .reaction-picker span:hover { background: #5865f2; transform: scale(1.2); }
         
         .rgb-role { animation: rgbText 1.5s infinite linear; font-weight: bold; }
         @keyframes rgbText { 0% { color: #ff0000; } 33% { color: #00ff00; } 66% { color: #0088ff; } 100% { color: #ff0000; } }
         
         .recording-active { background: #e03a3a; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-        .wave-container { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; }
-        .wave { width: 3px; height: 12px; background: #ff6666; border-radius: 2px; animation: waveAnim 0.5s infinite alternate; }
-        @keyframes waveAnim { from { transform: scaleY(0.5); } to { transform: scaleY(1.5); } }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        .wave-container { display: inline-flex; align-items: center; gap: 3px; }
+        .wave { width: 3px; height: 12px; background: #ff6666; border-radius: 2px; animation: waveAnim 0.4s infinite alternate; }
+        @keyframes waveAnim { from { height: 8px; } to { height: 20px; } }
         
-        .login-modal, .settings-modal, .add-friend-modal {
+        .login-modal, .settings-modal, .add-friend-modal, .profile-modal {
             position: fixed;
             inset: 0;
-            backdrop-filter: blur(20px);
-            display: flex;
+            backdrop-filter: blur(24px);
+            display: none;
             justify-content: center;
             align-items: center;
             z-index: 1000;
         }
-        body.dark .login-modal, body.dark .settings-modal, body.dark .add-friend-modal { background: rgba(0,0,0,0.9); }
-        body.light .login-modal, body.light .settings-modal, body.light .add-friend-modal { background: rgba(255,255,255,0.95); }
-        .login-box, .settings-box, .add-friend-box {
-            border-radius: 28px;
+        .login-modal { display: flex; }
+        .login-box, .settings-box, .add-friend-box, .profile-box {
+            border-radius: 32px;
             padding: 32px;
-            width: 340px;
+            width: 380px;
             text-align: center;
-            border: 1px solid rgba(88,101,242,0.3);
+            background: rgba(0,0,0,0.9);
+            border: 1px solid rgba(88,101,242,0.5);
+            backdrop-filter: blur(10px);
         }
-        .login-box input, .settings-box input, .add-friend-box input {
+        .login-box input, .settings-box input, .add-friend-box input, .profile-box input, .profile-box textarea {
             width: 100%;
             padding: 14px;
             margin: 10px 0;
             border-radius: 16px;
             outline: none;
+            background: #1a1d26;
+            color: white;
+            border: none;
         }
-        body.dark .login-box input, body.dark .settings-box input, body.dark .add-friend-box input { background: #1e1f22; color: white; border: none; }
-        .login-box button, .settings-box button, .add-friend-box button {
+        .profile-box textarea { resize: vertical; font-family: inherit; }
+        .login-box button, .settings-box button, .add-friend-box button, .profile-box button {
             background: #5865f2;
             border: none;
             padding: 12px 24px;
@@ -211,30 +205,30 @@
         }
         .switch-mode { margin-top: 16px; font-size: 13px; color: #5865f2; cursor: pointer; }
         .login-error { color: #e03a3a; margin-top: 12px; font-size: 13px; }
-        .settings-divider { margin: 15px 0; border-top: 1px solid; }
+        .settings-divider { margin: 15px 0; border-top: 1px solid #2c2f3a; }
         
-        .switch { position: relative; display: inline-block; width: 46px; height: 22px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #3b3f48; transition: 0.2s; border-radius: 22px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: 0.2s; border-radius: 50%; }
-        input:checked + .slider { background-color: #5865f2; }
-        input:checked + .slider:before { transform: translateX(24px); }
+        .theme-option { padding: 10px; margin: 6px 0; border-radius: 12px; cursor: pointer; background: rgba(88,101,242,0.2); }
+        .theme-option:hover { background: #5865f2; }
         
         .menu-toggle { display: none; position: fixed; bottom: 20px; left: 20px; z-index: 101; background: #5865f2; border: none; width: 48px; height: 48px; border-radius: 30px; font-size: 24px; color: white; cursor: pointer; align-items: center; justify-content: center; }
         @media (max-width: 700px) {
-            .sidebar { position: fixed; left: -260px; top: 0; bottom: 0; z-index: 100; }
+            .sidebar { position: fixed; left: -280px; top: 0; bottom: 0; z-index: 100; }
             .sidebar.open { left: 0; }
             .menu-toggle { display: flex; }
             .right-sidebar { display: none; }
         }
         @media (min-width: 701px) { .menu-toggle { display: none; } }
+        
+        .ping-suggestions { position: absolute; bottom: 70px; left: 20px; background: #1a1d26; border-radius: 16px; padding: 8px; max-width: 200px; z-index: 99; border: 1px solid #5865f2; }
+        .ping-suggestion { padding: 6px 12px; cursor: pointer; border-radius: 8px; }
+        .ping-suggestion:hover { background: #5865f2; }
     </style>
 </head>
-<body class="dark">
+<body class="theme-dark">
 
 <div id="loginModal" class="login-modal">
     <div class="login-box">
-        <h2 id="formTitle">🔐 Вход</h2>
+        <h2>🔐 NEXUS</h2>
         <input type="text" id="loginUsername" placeholder="Никнейм">
         <input type="password" id="loginPassword" placeholder="Пароль">
         <button id="submitBtn">Войти</button>
@@ -247,37 +241,35 @@
     <div class="sidebar" id="sidebar">
         <div class="server-header">
             ✨ NEXUS
-            <button onclick="openAddFriendModal()" title="Добавить друга">👥+</button>
+            <button onclick="openAddFriendModal()" title="Добавить друга">➕</button>
         </div>
         <div class="nav-tabs">
-            <div class="nav-tab active" data-tab="servers" onclick="switchTab('servers')">Серверы</div>
-            <div class="nav-tab" data-tab="friends" onclick="switchTab('friends')">Друзья</div>
+            <div class="nav-tab active" data-tab="servers" onclick="switchTab('servers')">💬 Серверы</div>
+            <div class="nav-tab" data-tab="friends" onclick="switchTab('friends')">👥 Друзья</div>
         </div>
-        
         <div class="rooms-list active" id="roomsList">
             <div class="room" data-room="general" onclick="joinRoom('general')"># general</div>
             <div class="room" data-room="gaming" onclick="joinRoom('gaming')">🎮 gaming</div>
             <div class="room" data-room="music" onclick="joinRoom('music')">🎵 music</div>
             <div class="room" data-room="other-fuckin-shit" onclick="joinRoom('other-fuckin-shit')">💩 other-fuckin-shit</div>
         </div>
-        
         <div class="dms-list" id="dmsList"></div>
-        
         <div class="user-section">
             <div class="stats">
                 <div>🌐 Online: <span class="stat-value" id="online">0</span></div>
                 <div>👥 Друзья: <span class="stat-value" id="friendsCount">0</span></div>
             </div>
-            <div class="current-user">
+            <div class="current-user" onclick="openProfileModal()" style="cursor:pointer;">
                 <div style="position: relative;">
                     <img class="avatar" id="myAvatar" src="">
                     <div class="status-dot" id="myStatusDot"></div>
                 </div>
                 <div style="flex:1">
-                    <div id="currentNickDisplay" style="font-weight:600;"></div>
-                    <div id="currentRoleDisplay" style="font-size:11px;"></div>
+                    <div id="currentNickDisplay" style="font-weight:700;"></div>
+                    <div id="currentDisplayNameDisplay" style="font-size:11px; opacity:0.7;"></div>
+                    <div id="currentBioDisplay" style="font-size:10px; opacity:0.5; font-style:italic;"></div>
                 </div>
-                <button onclick="openSettings()" style="background:#3b3f48; border:none; width:32px; height:32px; border-radius:50%; cursor:pointer;">⚙️</button>
+                <button onclick="event.stopPropagation(); openSettings()" style="background:none; border:none; font-size:18px; cursor:pointer;">⚙️</button>
             </div>
             <div class="profile-controls">
                 <button id="profileMicBtn" class="profile-btn" onclick="toggleMic()">🎤 Микрофон</button>
@@ -299,7 +291,7 @@
         <div id="messages" class="messages"></div>
         <div class="input-panel">
             <div class="input-wrapper">
-                <input id="input" placeholder="Сообщение..." onkeydown="if(event.key==='Enter') sendText()">
+                <input id="input" placeholder="Сообщение... Используй @ для пинга" onkeydown="if(event.key==='Enter') sendText(); else checkPingInput()" autocomplete="off">
                 <label class="btn-icon" style="display:inline-flex; align-items:center; justify-content:center; cursor:pointer;">📎<input type="file" id="mediaInput" accept="image/*,video/*,audio/*" style="display:none;"></label>
                 <button class="btn-icon" id="recordBtn">🎙️</button>
                 <button class="btn-icon" id="cancelVoiceBtn" style="display:none; background:#e03a3a;">❌</button>
@@ -307,6 +299,7 @@
                 <div id="waveVisual" class="wave-container" style="display:none;"><div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div></div>
                 <button class="btn-icon btn-send" onclick="sendText()">➤</button>
             </div>
+            <div id="pingSuggestions" class="ping-suggestions" style="display:none;"></div>
         </div>
     </div>
 
@@ -321,19 +314,36 @@
 <div id="settingsModal" class="settings-modal" style="display: none;">
     <div class="settings-box">
         <h3>⚙️ НАСТРОЙКИ</h3>
-        <input type="text" id="newNickInput" placeholder="Новый никнейм">
-        <button onclick="changeNickname()">Сменить ник</button>
+        <input type="text" id="newNickInput" placeholder="Новый никнейм (логин)">
+        <button onclick="changeNickname()">Сменить никнейм</button>
+        <div class="settings-divider"></div>
+        <input type="text" id="newDisplayNameInput" placeholder="Отображаемое имя">
+        <textarea id="newBioInput" placeholder="Биография" rows="2" style="resize:vertical;"></textarea>
+        <button onclick="updateProfile()">Обновить профиль</button>
         <div class="settings-divider"></div>
         <div style="margin: 10px 0;">
-            <label>📷 Сменить аватарку</label>
+            <label>📷 Аватарка</label>
             <input type="file" id="settingsAvatarInput" accept="image/jpeg,image/png,image/gif,image/webp">
         </div>
         <div class="settings-divider"></div>
-        <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0;">
-            <span>🌓 Тема</span>
-            <label class="switch"><input type="checkbox" id="themeToggle"><span class="slider"></span></label>
-        </div>
+        <div><strong>🎨 Кастомные темы</strong></div>
+        <div class="theme-option" onclick="setTheme('theme-dark')">🌙 Тёмная</div>
+        <div class="theme-option" onclick="setTheme('theme-light')">☀️ Светлая</div>
+        <div class="theme-option" onclick="setTheme('theme-oled')">🖤 OLED Black</div>
+        <div class="theme-option" onclick="setTheme('theme-matrix')">💚 Matrix</div>
+        <div class="settings-divider"></div>
         <button onclick="closeSettings()">Закрыть</button>
+    </div>
+</div>
+
+<div id="profileModal" class="profile-modal" style="display: none;">
+    <div class="profile-box">
+        <h3>👤 МОЙ ПРОФИЛЬ</h3>
+        <p><strong>Никнейм:</strong> <span id="profileNickname"></span></p>
+        <p><strong>Отображаемое имя:</strong> <span id="profileDisplayName"></span></p>
+        <p><strong>Описание (био):</strong> <span id="profileBio"></span></p>
+        <p><strong>Роль:</strong> <span id="profileRole"></span></p>
+        <button onclick="closeProfileModal()">Закрыть</button>
     </div>
 </div>
 
@@ -351,22 +361,21 @@
     const PROTECTED_NAME = "bigheaven3569";
     let currentUser = null, currentRole = null, currentAvatar = null, currentRoom = "general", socket = null;
     let currentStatus = "online";
+    let currentDisplayName = "", currentBio = "";
     let friendsList = [], friendRequests = [];
+    let usersDB = {};
     
     const loginModal = document.getElementById("loginModal");
     const appDiv = document.getElementById("app");
     
-    let isDarkTheme = localStorage.getItem("theme") !== "light";
-    function applyTheme() {
-        document.body.classList.toggle("light", !isDarkTheme);
-        document.body.classList.toggle("dark", isDarkTheme);
-        if(document.getElementById("themeToggle")) document.getElementById("themeToggle").checked = !isDarkTheme;
-        localStorage.setItem("theme", isDarkTheme ? "dark" : "light");
+    function setTheme(theme) {
+        document.body.className = theme;
+        localStorage.setItem("nexus_theme", theme);
     }
-    if(document.getElementById("themeToggle")) {
-        document.getElementById("themeToggle").addEventListener("change", (e) => { isDarkTheme = !e.target.checked; applyTheme(); });
-    }
-    applyTheme();
+    
+    let savedTheme = localStorage.getItem("nexus_theme");
+    if(savedTheme) setTheme(savedTheme);
+    else setTheme("theme-dark");
     
     const savedSession = localStorage.getItem("nexus_session");
     if (savedSession) {
@@ -376,13 +385,11 @@
                 .then(res => res.json()).then(data => {
                     if (data.success) {
                         currentUser = username; currentRole = data.role; currentAvatar = data.avatar;
+                        currentDisplayName = data.displayName || username;
+                        currentBio = data.bio || "";
                         loginModal.style.display = "none"; appDiv.style.display = "flex";
                         initSocket();
-                        document.getElementById("currentNickDisplay").innerText = currentUser;
-                        document.getElementById("currentRoleDisplay").innerHTML = currentRole;
-                        if(currentRole === "владелец") document.getElementById("currentRoleDisplay").classList.add("rgb-role");
-                        updateAvatar();
-                        updateStatusDot("online");
+                        updateUI();
                     } else { localStorage.removeItem("nexus_session"); }
                 });
         } catch(e) { localStorage.removeItem("nexus_session"); }
@@ -395,6 +402,7 @@
         document.getElementById("switchMode").innerText = isLoginMode ? "Нет аккаунта? Зарегистрироваться" : "Уже есть аккаунт? Войти";
         document.getElementById("loginError").innerText = "";
     };
+    
     document.getElementById("submitBtn").onclick = async () => {
         const username = document.getElementById("loginUsername").value.trim();
         const password = document.getElementById("loginPassword").value.trim();
@@ -404,19 +412,24 @@
         const data = await res.json();
         if (res.ok) {
             currentUser = username; currentRole = data.role; currentAvatar = data.avatar || null;
+            currentDisplayName = data.displayName || username;
+            currentBio = data.bio || "";
             localStorage.setItem("nexus_session", JSON.stringify({ username, password }));
             loginModal.style.display = "none"; appDiv.style.display = "flex";
             initSocket();
-            document.getElementById("currentNickDisplay").innerText = currentUser;
-            document.getElementById("currentRoleDisplay").innerHTML = currentRole;
-            updateAvatar();
-            updateStatusDot("online");
+            updateUI();
         } else { document.getElementById("loginError").innerText = data.error; }
     };
     
-    function updateAvatar() {
-        const url = currentAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser)}&background=5865f2&color=fff&size=36`;
-        document.getElementById("myAvatar").src = url;
+    function updateUI() {
+        document.getElementById("currentNickDisplay").innerText = currentDisplayName || currentUser;
+        document.getElementById("currentDisplayNameDisplay").innerHTML = `@${currentUser}`;
+        document.getElementById("currentBioDisplay").innerText = currentBio.substring(0, 30) + (currentBio.length > 30 ? "..." : "");
+        document.getElementById("currentRoleDisplay").innerHTML = currentRole;
+        if(currentRole === "владелец") document.getElementById("currentRoleDisplay").classList.add("rgb-role");
+        let avatarUrl = currentAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser)}&background=5865f2&color=fff&size=44`;
+        document.getElementById("myAvatar").src = avatarUrl;
+        updateStatusDot(currentStatus);
     }
     
     function updateStatusDot(status) {
@@ -450,6 +463,11 @@
         
         socket.on("chat", (msg) => {
             addMessageToUI(msg);
+            if(msg.ping && (msg.ping.includes(currentUser) || msg.ping.includes("everyone") || msg.ping.includes("here") || (msg.ping.includes(currentRole)))) {
+                playMessageSound();
+                const msgDiv = document.querySelector(`.message-group[data-msg-id="${msg.id}"]`);
+                if(msgDiv) msgDiv.classList.add("ping-highlight");
+            }
             if(msg.author !== currentUser && msg.author !== "🛡️ СИСТЕМА") playMessageSound();
         });
         
@@ -457,10 +475,10 @@
         socket.on("reaction-updated", ({ msgId, reactions }) => updateReactionsUI(msgId, reactions));
         socket.on("online", n => document.getElementById("online").innerText = n);
         socket.on("clear-chat", () => { document.getElementById("messages").innerHTML = ""; });
-        socket.on("new-room", (roomName) => {});
-        socket.on("delete-room", (roomName) => {});
         
         socket.on("all-users", (users) => {
+            usersDB = {};
+            users.forEach(u => { usersDB[u.username] = u; });
             updateOnlineUsers(users);
         });
         
@@ -495,8 +513,12 @@
             html += `<div class="friend-requests-header">👥 ДРУЗЬЯ (${friendsList.length})</div>`;
             friendsList.forEach(friend => {
                 html += `<div class="friend-card" onclick="openDM('${friend.username}')">
-                    <img class="dm-avatar" src="${friend.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(friend.username)}&background=5865f2&color=fff&size=28`}">
-                    <span class="dm-name">${escapeHtml(friend.username)}</span>
+                    <img class="dm-avatar" src="${friend.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(friend.username)}&background=5865f2&color=fff&size=32`}">
+                    <div style="flex:1">
+                        <div style="font-weight:600;">${escapeHtml(friend.displayName || friend.username)}</div>
+                        <div style="font-size:11px; opacity:0.6;">@${escapeHtml(friend.username)}</div>
+                        <div style="font-size:10px; opacity:0.5; font-style:italic;">${escapeHtml((friend.bio || "").substring(0, 40))}</div>
+                    </div>
                     <div class="dm-status ${friend.status === 'online' ? 'online' : 'offline'}"></div>
                 </div>`;
             });
@@ -512,12 +534,13 @@
             return `
                 <div class="online-user" onclick="openDM('${user.username}')">
                     <div style="position: relative;">
-                        <img class="online-user-avatar" src="${user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=5865f2&color=fff&size=32`}">
+                        <img class="online-user-avatar" src="${user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=5865f2&color=fff&size=36`}">
                         <div class="status-dot ${user.status === 'online' ? 'status-online' : user.status === 'idle' ? 'status-idle' : user.status === 'dnd' ? 'status-dnd' : 'status-offline'}" style="width: 8px; height: 8px;"></div>
                     </div>
                     <div class="online-user-info">
-                        <div class="online-user-name">${escapeHtml(user.username)}</div>
-                        <div class="online-user-role">${user.role || "пользователь"}</div>
+                        <div class="online-user-name">${escapeHtml(user.displayName || user.username)}</div>
+                        <div class="online-user-role">@${escapeHtml(user.username)} • ${user.role || "пользователь"}</div>
+                        <div class="online-user-bio">${escapeHtml((user.bio || "").substring(0, 50))}</div>
                     </div>
                     <div>${statusEmoji}</div>
                 </div>
@@ -567,9 +590,70 @@
         if(window.innerWidth <= 700) toggleSidebar();
     }
     
+    function checkPingInput() {
+        let input = document.getElementById("input");
+        let val = input.value;
+        let lastWord = val.split(" ").pop();
+        if(lastWord.startsWith("@")) {
+            let search = lastWord.substring(1).toLowerCase();
+            let suggestions = [];
+            if(search === "") {
+                suggestions = ["everyone", "here", ...Object.keys(usersDB).slice(0, 5)];
+            } else {
+                if("everyone".startsWith(search)) suggestions.push("everyone");
+                if("here".startsWith(search)) suggestions.push("here");
+                Object.keys(usersDB).forEach(u => {
+                    if(u.toLowerCase().startsWith(search) && u !== currentUser) suggestions.push(u);
+                });
+                suggestions = suggestions.slice(0, 8);
+            }
+            let suggDiv = document.getElementById("pingSuggestions");
+            if(suggestions.length > 0) {
+                suggDiv.innerHTML = suggestions.map(s => `<div class="ping-suggestion" onclick="insertPing('${s}')">@${s}</div>`).join("");
+                suggDiv.style.display = "block";
+            } else { suggDiv.style.display = "none"; }
+        } else {
+            document.getElementById("pingSuggestions").style.display = "none";
+        }
+    }
+    
+    function insertPing(name) {
+        let input = document.getElementById("input");
+        let val = input.value;
+        let parts = val.split(" ");
+        parts.pop();
+        parts.push(`@${name} `);
+        input.value = parts.join(" ");
+        input.focus();
+        document.getElementById("pingSuggestions").style.display = "none";
+    }
+    
     function sendText() {
         let input = document.getElementById("input");
-        if(input.value.trim()) { socket.emit("chat", input.value); input.value = ""; }
+        let text = input.value.trim();
+        if(!text) return;
+        
+        let pings = [];
+        let words = text.split(" ");
+        for(let w of words) {
+            if(w.startsWith("@")) {
+                let target = w.substring(1);
+                if(target === "everyone" || target === "here") pings.push(target);
+                else if(usersDB[target]) pings.push(target);
+                else if(target === "новичок" || target === "олд" || target === "владелец") pings.push(target);
+            }
+        }
+        
+        if(pings.includes("everyone") || pings.includes("here")) {
+            if(currentRole !== "владелец" && currentRole !== "админ") {
+                alert("@everyone и @here только для владельца и админа!");
+                return;
+            }
+        }
+        
+        socket.emit("chat", { text, pings });
+        input.value = "";
+        document.getElementById("pingSuggestions").style.display = "none";
     }
     
     function addMessageToUI(msg) {
@@ -578,16 +662,32 @@
         if(document.querySelector(`.message-group[data-msg-id="${msg.id}"]`)) return;
         const div = document.createElement("div");
         div.className = "message-group";
+        if(msg.ping && (msg.ping.includes(currentUser) || msg.ping.includes("everyone") || msg.ping.includes("here"))) div.classList.add("ping-highlight");
         div.setAttribute("data-msg-id", msg.id);
-        const avatarUrl = msg.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.author)}&background=5865f2&color=fff&size=40`;
+        
+        const avatarUrl = msg.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.author)}&background=5865f2&color=fff&size=44`;
         let contentHtml = '';
-        if(msg.type === 'text') contentHtml = `<div class="message-text">${escapeHtml(msg.text)}</div>`;
-        else if(msg.type === 'voice') contentHtml = `<div class="voice-bubble"><audio controls src="${msg.audio}"></audio></div>`;
+        if(msg.type === 'text') {
+            let processedText = escapeHtml(msg.text);
+            let words = processedText.split(" ");
+            let newWords = words.map(w => {
+                if(w.startsWith("@")) {
+                    let pingTarget = w.substring(1);
+                    if(pingTarget === "everyone" || pingTarget === "here" || usersDB[pingTarget]) {
+                        return `<span class="ping" onclick="openDM('${pingTarget}')">${w}</span>`;
+                    }
+                }
+                return w;
+            });
+            processedText = newWords.join(" ");
+            contentHtml = `<div class="message-text">${processedText}</div>`;
+        } else if(msg.type === 'voice') contentHtml = `<div class="voice-bubble"><audio controls src="${msg.audio}"></audio></div>`;
         else if(msg.type === 'media') {
             if(msg.mediaType === 'video') contentHtml = `<video controls class="media-preview" src="${msg.mediaUrl}"></video>`;
             else if(msg.mediaType === 'audio') contentHtml = `<audio controls src="${msg.mediaUrl}"></audio>`;
             else contentHtml = `<img class="media-preview" src="${msg.mediaUrl}" onclick="window.open('${msg.mediaUrl}')">`;
         }
+        
         let reactionsHtml = '';
         if(msg.reactions && Object.keys(msg.reactions).length > 0) {
             for(let [emoji, users] of Object.entries(msg.reactions)) {
@@ -595,11 +695,17 @@
             }
         }
         reactionsHtml += `<div class="reaction" onclick="event.stopPropagation(); showReactionPicker('${msg.id}')">➕</div>`;
+        
+        let displayName = msg.displayName || msg.author;
+        let bioText = msg.bio ? `✍️ ${msg.bio.substring(0, 30)}` : "";
+        
         div.innerHTML = `
             <img class="message-avatar" src="${avatarUrl}">
             <div class="message-content">
                 <div class="message-header">
-                    <div class="message-author">${escapeHtml(msg.author)} <span style="font-size:11px">${msg.role || ""}</span></div>
+                    <div class="message-displayname">${escapeHtml(displayName)}</div>
+                    <div class="message-username">@${escapeHtml(msg.author)}</div>
+                    ${bioText ? `<div class="message-bio">${escapeHtml(bioText)}</div>` : ""}
                     <div class="message-time">${new Date(msg.time).toLocaleTimeString()}</div>
                 </div>
                 ${contentHtml}
@@ -612,7 +718,7 @@
     }
     
     function showReactionPicker(msgId) {
-        const emojis = ["👍","❤️","😂","😮","😢","🔥","💀","👎","🎉","🤔"];
+        const emojis = ["👍","❤️","😂","😮","😢","🔥","💀","👎","🎉","🤔","🥺","✨","💩","👑","💀"];
         let picker = document.createElement("div");
         picker.className = "reaction-picker";
         emojis.forEach(emoji => {
@@ -622,7 +728,7 @@
             picker.appendChild(btn);
         });
         document.body.appendChild(picker);
-        picker.style.top = (event.clientY - 50) + "px";
+        picker.style.top = (event.clientY - 80) + "px";
         picker.style.left = event.clientX + "px";
         setTimeout(() => {
             document.addEventListener("click", function remove(e) { if(!picker.contains(e.target)) { picker.remove(); document.removeEventListener("click", remove); } });
@@ -640,24 +746,42 @@
         reactionsDiv.innerHTML = html;
     }
     
-    function escapeHtml(str) { return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
-    function toggleSidebar() { document.getElementById("sidebar").classList.toggle("open"); }
-    function openSettings() { document.getElementById("settingsModal").style.display = "flex"; document.getElementById("newNickInput").value = currentUser; }
-    function closeSettings() { document.getElementById("settingsModal").style.display = "none"; }
-    function openAddFriendModal() { document.getElementById("addFriendModal").style.display = "flex"; document.getElementById("friendUsername").value = ""; document.getElementById("friendRequestResult").innerText = ""; }
-    function closeAddFriendModal() { document.getElementById("addFriendModal").style.display = "none"; }
+    function updateProfile() {
+        let newDisplayName = document.getElementById("newDisplayNameInput").value.trim();
+        let newBio = document.getElementById("newBioInput").value;
+        if(newDisplayName) currentDisplayName = newDisplayName;
+        currentBio = newBio;
+        fetch("/update-profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: currentUser, displayName: currentDisplayName, bio: currentBio }) })
+            .then(() => { updateUI(); closeSettings(); });
+    }
     
     function changeNickname() {
         let newNick = document.getElementById("newNickInput").value.trim();
         if(!newNick || newNick === currentUser) { closeSettings(); return; }
-        if(newNick.toLowerCase() === PROTECTED_NAME.toLowerCase()) { alert("❌ Этот ник принадлежит владельцу!"); return; }
+        if(newNick.toLowerCase() === PROTECTED_NAME.toLowerCase() && currentUser !== PROTECTED_NAME) { alert("❌ Не ну ты блять рил еблан, изменить ник системы ради роли владельца? блять не смеши мои яйца 😔😔"); return; }
         currentUser = newNick;
-        document.getElementById("currentNickDisplay").innerText = currentUser;
+        updateUI();
         socket.emit("auth", { username: currentUser, room: currentRoom });
         const saved = JSON.parse(localStorage.getItem("nexus_session"));
         if(saved) localStorage.setItem("nexus_session", JSON.stringify({ username: newNick, password: saved.password }));
         closeSettings();
     }
+    
+    function openProfileModal() {
+        document.getElementById("profileNickname").innerText = currentUser;
+        document.getElementById("profileDisplayName").innerText = currentDisplayName || currentUser;
+        document.getElementById("profileBio").innerText = currentBio || "Нет описания";
+        document.getElementById("profileRole").innerHTML = currentRole;
+        document.getElementById("profileModal").style.display = "flex";
+    }
+    function closeProfileModal() { document.getElementById("profileModal").style.display = "none"; }
+    
+    function escapeHtml(str) { return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
+    function toggleSidebar() { document.getElementById("sidebar").classList.toggle("open"); }
+    function openSettings() { document.getElementById("settingsModal").style.display = "flex"; document.getElementById("newNickInput").value = currentUser; document.getElementById("newDisplayNameInput").value = currentDisplayName || ""; document.getElementById("newBioInput").value = currentBio || ""; }
+    function closeSettings() { document.getElementById("settingsModal").style.display = "none"; }
+    function openAddFriendModal() { document.getElementById("addFriendModal").style.display = "flex"; document.getElementById("friendUsername").value = ""; document.getElementById("friendRequestResult").innerText = ""; }
+    function closeAddFriendModal() { document.getElementById("addFriendModal").style.display = "none"; }
     
     document.getElementById("settingsAvatarInput").onchange = async (e) => {
         const file = e.target.files[0];
@@ -665,7 +789,7 @@
         const fd = new FormData(); fd.append("avatar", file); fd.append("username", currentUser);
         const res = await fetch("/upload-avatar", { method: "POST", body: fd });
         const data = await res.json();
-        if(data.url) { currentAvatar = data.url; updateAvatar(); }
+        if(data.url) { currentAvatar = data.url; updateUI(); }
     };
     
     document.getElementById("mediaInput").onchange = async (e) => {
