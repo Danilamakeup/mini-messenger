@@ -133,6 +133,7 @@ let rooms = {
     "other-fuckin-shit": { messages: [], users: new Set() }
 };
 let dms = {};
+let voiceChannels = {};
 
 const roomsFile = path.join(__dirname, "rooms.json");
 if (fs.existsSync(roomsFile)) {
@@ -623,11 +624,193 @@ io.on("connection", (socket) => {
         }
     });
 
+    // ========== ГОЛОСОВЫЕ КАНАЛЫ ==========
+    socket.on("join-voice-channel", (channelName) => {
+        const session = activeSessions[socket.id];
+        if (!session || !session.username) return;
+        
+        if (session.voiceChannel) {
+            const prev = voiceChannels[session.voiceChannel];
+            if (prev) {
+                prev.users = prev.users.filter(id => id !== socket.id);
+                io.to(session.voiceChannel).emit("voice-users-update", prev.users.map(id => {
+                    const s = activeSessions[id];
+                    if (!s) return null;
+                    return {
+                        username: s.username,
+                        displayName: userDisplayNames[s.username] || s.username,
+                        avatar: usersDB[s.username]?.avatar,
+                        status: userStatus[s.username] || "offline"
+                    };
+                }).filter(Boolean));
+            }
+        }
+        
+        if (!voiceChannels[channelName]) voiceChannels[channelName] = { users: [] };
+        voiceChannels[channelName].users.push(socket.id);
+        session.voiceChannel = channelName;
+        socket.join(channelName);
+        
+        io.to(channelName).emit("voice-users-update", voiceChannels[channelName].users.map(id => {
+            const s = activeSessions[id];
+            if (!s) return null;
+            return {
+                username: s.username,
+                displayName: userDisplayNames[s.username] || s.username,
+                avatar: usersDB[s.username]?.avatar,
+                status: userStatus[s.username] || "offline"
+            };
+        }).filter(Boolean));
+    });
+
+    socket.on("leave-voice-channel", () => {
+        const session = activeSessions[socket.id];
+        if (!session || !session.voiceChannel) return;
+        
+        const channel = session.voiceChannel;
+        if (voiceChannels[channel]) {
+            voiceChannels[channel].users = voiceChannels[channel].users.filter(id => id !== socket.id);
+            io.to(channel).emit("voice-users-update", voiceChannels[channel].users.map(id => {
+                const s = activeSessions[id];
+                if (!s) return null;
+                return {
+                    username: s.username,
+                    displayName: userDisplayNames[s.username] || s.username,
+                    avatar: usersDB[s.username]?.avatar,
+                    status: userStatus[s.username] || "offline"
+                };
+            }).filter(Boolean));
+        }
+        delete session.voiceChannel;
+        socket.leave(channel);
+    });
+
+    // ========== МОДЕРАТОРСКИЕ КОМАНДЫ ==========
+    socket.on("mod-action", ({ action, target, room, reason, duration }) => {
+        const session = activeSessions[socket.id];
+        if (!session || !session.username) return;
+        const user = usersDB[session.username];
+        if (!user || (user.role !== "владелец" && user.role !== "админ")) return;
+        
+        switch(action) {
+            case "kick":
+                const targetSession = getUserByUsername(target);
+                if (targetSession) {
+                    io.to(targetSession.socketId).emit("kick", `Вас выгнали из ${room}`);
+                    targetSession.session.room = null;
+                    io.to(targetSession.socketId).emit("auth-error", "Вы были выгнаны");
+                }
+                sendSystemMessage(room, `${target} был выгнан`);
+                break;
+                
+            case "ban":
+                bansDB[target] = true;
+                saveBans();
+                const bannedUser = getUserByUsername(target);
+                if (bannedUser) {
+                    io.to(bannedUser.socketId).emit("ban", "Вы были забанены");
+                    bannedUser.session.room = null;
+                }
+                sendSystemMessage(room, `${target} был забанен`);
+                break;
+                
+            case "unban":
+                delete bansDB[target];
+                saveBans();
+                sendSystemMessage(room, `${target} разбанен`);
+                break;
+                
+            case "mute":
+                if (!mutesDB[target]) mutesDB[target] = { rooms: {} };
+                const muteTime = duration || 60000; // по умолчанию 1 минута
+                mutesDB[target].rooms[room] = Date.now() + muteTime;
+                saveMutes();
+                sendSystemMessage(room, `${target} замучен на ${muteTime/1000} сек`);
+                break;
+                
+            case "unmute":
+                if (mutesDB[target]) {
+                    delete mutesDB[target].rooms[room];
+                    saveMutes();
+                    sendSystemMessage(room, `${target} размучен`);
+                }
+                break;
+                
+            case "warn":
+                if (!warnsDB[target]) warnsDB[target] = [];
+                warnsDB[target].push({ time: Date.now(), reason: reason || "Нарушение", by: session.username });
+                saveWarns();
+                sendSystemMessage(room, `${target} получил предупреждение ${reason ? "("+reason+")" : ""}`);
+                if (warnsDB[target].length >= 3) {
+                    bansDB[target] = true;
+                    saveBans();
+                    sendSystemMessage(room, `${target} забанен за 3 предупреждения`);
+                }
+                break;
+                
+            case "clear":
+                if (rooms[room]) {
+                    rooms[room].messages = [];
+                    saveRooms();
+                    io.to(room).emit("clear-chat");
+                }
+                break;
+                
+            case "create":
+                const newRoom = target;
+                if (!rooms[newRoom]) {
+                    rooms[newRoom] = { messages: [], users: new Set() };
+                    saveRooms();
+                    io.emit("new-room", newRoom);
+                    sendSystemMessage(newRoom, `Комната ${newRoom} создана`);
+                }
+                break;
+                
+            case "delete":
+                if (rooms[target] && target !== "general") {
+                    delete rooms[target];
+                    saveRooms();
+                    io.emit("delete-room", target);
+                }
+                break;
+                
+            case "whitelist":
+                if (whitelistDB[target] === undefined) {
+                    whitelistDB[target] = true;
+                    saveWhitelist();
+                    sendSystemMessage(room, `${target} добавлен в вайтлист`);
+                }
+                break;
+                
+            case "unwhitelist":
+                if (whitelistDB[target]) {
+                    whitelistDB[target] = false;
+                    saveWhitelist();
+                    sendSystemMessage(room, `${target} исключен из вайтлиста`);
+                }
+                break;
+        }
+    });
+
     socket.on("disconnect", () => {
         const session = activeSessions[socket.id];
         if (session && session.username) {
             userStatus[session.username] = "offline";
             io.emit("user-status-update", { username: session.username, status: "offline" });
+            
+            if (session.voiceChannel && voiceChannels[session.voiceChannel]) {
+                voiceChannels[session.voiceChannel].users = voiceChannels[session.voiceChannel].users.filter(id => id !== socket.id);
+                io.to(session.voiceChannel).emit("voice-users-update", voiceChannels[session.voiceChannel].users.map(id => {
+                    const s = activeSessions[id];
+                    if (!s) return null;
+                    return {
+                        username: s.username,
+                        displayName: userDisplayNames[s.username] || s.username,
+                        avatar: usersDB[s.username]?.avatar,
+                        status: userStatus[s.username] || "offline"
+                    };
+                }).filter(Boolean));
+            }
             
             const allUsers = Object.keys(usersDB).map(u => ({
                 username: u,
