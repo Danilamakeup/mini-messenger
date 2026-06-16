@@ -16,27 +16,6 @@ const io = new Server(server, {
     pingInterval: 25000
 });
 
-// ========== БЕЗОПАСНОСТЬ ==========
-const rateLimit = new Map();
-const MAX_REQUESTS = 100;
-const TIME_WINDOW = 60000;
-
-function checkRateLimit(ip) {
-    const now = Date.now();
-    if (!rateLimit.has(ip)) {
-        rateLimit.set(ip, { count: 1, time: now });
-        return true;
-    }
-    const data = rateLimit.get(ip);
-    if (now - data.time > TIME_WINDOW) {
-        rateLimit.set(ip, { count: 1, time: now });
-        return true;
-    }
-    if (data.count >= MAX_REQUESTS) return false;
-    data.count++;
-    return true;
-}
-
 // ========== ПАПКИ ==========
 const publicDir = path.join(__dirname, "public");
 const voicesDir = path.join(publicDir, "voices");
@@ -52,18 +31,131 @@ app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 
 // ========== НАСТРОЙКА EMAIL ==========
-const EMAIL_ENABLED = process.env.EMAIL_USER && process.env.EMAIL_PASS;
+// Проверяем наличие переменных окружения
+const EMAIL_USER = process.env.EMAIL_USER || 'auramap.test@gmail.com';
+const EMAIL_PASS = process.env.EMAIL_PASS || 'test123456';
+const EMAIL_HOST = process.env.EMAIL_HOST || 'smtp.gmail.com';
+const EMAIL_PORT = parseInt(process.env.EMAIL_PORT) || 587;
 
-const transporter = EMAIL_ENABLED ? nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.EMAIL_PORT) || 587,
-    secure: false,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    },
-    tls: { rejectUnauthorized: false }
-}) : null;
+let transporter = null;
+let EMAIL_ENABLED = false;
+
+// Пытаемся настроить почту
+async function setupEmail() {
+    try {
+        // Проверяем, не используем ли мы тестовый режим
+        if (process.env.TEST_MODE === 'true') {
+            console.log('🧪 Тестовый режим: почта отключена');
+            EMAIL_ENABLED = false;
+            return;
+        }
+
+        // Если нет данных для почты - создаем тестовый аккаунт Ethereal
+        if (!EMAIL_USER || !EMAIL_PASS || EMAIL_USER === 'auramap.test@gmail.com') {
+            console.log('📧 Создаем тестовый аккаунт Ethereal...');
+            const testAccount = await nodemailer.createTestAccount();
+            
+            transporter = nodemailer.createTransport({
+                host: 'smtp.ethereal.email',
+                port: 587,
+                secure: false,
+                auth: {
+                    user: testAccount.user,
+                    pass: testAccount.pass
+                }
+            });
+            
+            EMAIL_ENABLED = true;
+            console.log('✅ Тестовый Email готов:');
+            console.log(`📧 Логин: ${testAccount.user}`);
+            console.log(`🔑 Пароль: ${testAccount.pass}`);
+            console.log(`📬 Письма смотреть: https://ethereal.email/login`);
+            return;
+        }
+
+        // Настройка реальной почты
+        transporter = nodemailer.createTransport({
+            host: EMAIL_HOST,
+            port: EMAIL_PORT,
+            secure: EMAIL_PORT === 465,
+            auth: {
+                user: EMAIL_USER,
+                pass: EMAIL_PASS
+            },
+            tls: {
+                rejectUnauthorized: false
+            }
+        });
+
+        // Проверяем соединение
+        await transporter.verify();
+        EMAIL_ENABLED = true;
+        console.log('✅ Email настроен и готов к отправке!');
+        console.log(`📧 Отправитель: ${EMAIL_USER}`);
+        
+    } catch(error) {
+        console.error('❌ Ошибка настройки email:', error.message);
+        console.log('⚠️ Почта будет работать в тестовом режиме (коды будут выводиться в консоль)');
+        EMAIL_ENABLED = false;
+    }
+}
+
+// Функция отправки письма с кодом
+async function sendVerificationEmail(email, code, type = 'verification') {
+    if (!EMAIL_ENABLED || !transporter) {
+        console.log(`📧 [ТЕСТОВЫЙ РЕЖИМ] Код для ${email}: ${code}`);
+        return { success: true, testMode: true };
+    }
+
+    try {
+        const subject = type === 'reset' 
+            ? '🔐 Восстановление пароля Auramap'
+            : '🔐 Подтверждение регистрации в Auramap';
+        
+        const title = type === 'reset'
+            ? 'Восстановление пароля'
+            : 'Подтверждение email';
+        
+        const info = await transporter.sendMail({
+            from: `"Auramap" <${EMAIL_USER}>`,
+            to: email,
+            subject: subject,
+            html: `
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 40px; background: #0a0c10; color: #e1e7f0; border-radius: 24px; border: 1px solid #1e2128;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h1 style="font-size: 32px; background: linear-gradient(135deg, #5865f2, #4752c4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0;">🌟 Auramap</h1>
+                    </div>
+                    
+                    <h2 style="text-align: center; font-weight: 400; color: #8b93a3; font-size: 20px; margin-bottom: 24px;">${title}</h2>
+                    
+                    <p style="text-align: center; color: #e1e7f0; font-size: 16px; margin-bottom: 20px;">Ваш код подтверждения:</p>
+                    
+                    <div style="background: #1a1d26; padding: 24px; border-radius: 16px; text-align: center; font-size: 40px; letter-spacing: 16px; font-weight: bold; color: #5865f2; font-family: 'Courier New', monospace; border: 1px solid #2c2f3a;">
+                        ${code}
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 24px;">
+                        <p style="color: #8b93a3; font-size: 14px;">⏱ Код действителен <strong style="color: #e1e7f0;">10 минут</strong></p>
+                        <p style="color: #5a6270; font-size: 12px; margin-top: 16px;">Если вы не запрашивали это письмо, просто проигнорируйте его.</p>
+                    </div>
+                    
+                    <div style="border-top: 1px solid #1e2128; margin-top: 30px; padding-top: 20px; text-align: center; color: #5a6270; font-size: 12px;">
+                        © 2024 Auramap. Все права защищены.
+                    </div>
+                </div>
+            `
+        });
+        
+        console.log('✅ Письмо отправлено:', info.messageId);
+        return { success: true, messageId: info.messageId };
+    } catch(error) {
+        console.error('❌ Ошибка отправки:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+// Запускаем настройку почты
+setupEmail();
 
 // ========== ЗАГРУЗКИ ==========
 const uploadAudio = multer({
@@ -99,17 +191,17 @@ const uploadAvatar = multer({
 });
 
 // ========== БАЗЫ ДАННЫХ ==========
-const DB_FILES = ['users.json', 'bans.json', 'warns.json', 'mutes.json', 'whitelist.json', 'friends.json', 'rooms.json', 'dms.json'];
+const DB_FILES = ['users', 'bans', 'warns', 'mutes', 'whitelist', 'friends', 'rooms', 'dms'];
 const DB = {};
 
-DB_FILES.forEach(file => {
-    const filePath = path.join(__dirname, file);
+DB_FILES.forEach(name => {
+    const filePath = path.join(__dirname, name + '.json');
     if (fs.existsSync(filePath)) {
         try {
-            DB[file.replace('.json', '')] = JSON.parse(fs.readFileSync(filePath));
-        } catch(e) { DB[file.replace('.json', '')] = {}; }
+            DB[name] = JSON.parse(fs.readFileSync(filePath));
+        } catch(e) { DB[name] = {}; }
     } else {
-        DB[file.replace('.json', '')] = {};
+        DB[name] = {};
     }
 });
 
@@ -205,43 +297,32 @@ app.get("/friends/:username", (req, res) => {
     res.json({ friends: friendsWithData, requests: userFriends.requests || [] });
 });
 
+// ========== ОТПРАВКА КОДА ПОДТВЕРЖДЕНИЯ ==========
 app.post("/send-verification", async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: "Email обязателен" });
-    if (!EMAIL_ENABLED) return res.status(500).json({ error: "Email временно отключен" });
+    if (!email.includes('@')) return res.status(400).json({ error: "Некорректный email" });
     
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     resetCodes[email] = { code, timestamp: Date.now() };
     
-    try {
-        await transporter.sendMail({
-            from: `"Auramap" <${process.env.EMAIL_USER}>`,
-            to: email,
-            subject: "🔐 Подтверждение регистрации в Auramap",
-            html: `
-                <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; background: #0a0c10; color: #e1e7f0; border-radius: 20px;">
-                    <h1 style="color: #5865f2; text-align: center; font-size: 28px;">🌟 Auramap</h1>
-                    <h2 style="text-align: center; font-weight: 400; opacity: 0.8;">Подтверждение email</h2>
-                    <p style="text-align: center; font-size: 16px;">Ваш код подтверждения:</p>
-                    <div style="background: #1a1d26; padding: 20px; border-radius: 16px; text-align: center; font-size: 36px; letter-spacing: 12px; font-weight: bold; color: #5865f2; font-family: monospace;">
-                        ${code}
-                    </div>
-                    <p style="text-align: center; color: #8b93a3; margin-top: 20px;">Код действителен 10 минут</p>
-                    <p style="text-align: center; color: #8b93a3; font-size: 12px; opacity: 0.6;">Если вы не регистрировались в Auramap, проигнорируйте это письмо</p>
-                </div>
-            `
+    const result = await sendVerificationEmail(email, code, 'verification');
+    
+    if (result.success) {
+        res.json({ 
+            success: true, 
+            testMode: result.testMode || false,
+            message: result.testMode ? `Тестовый режим: код ${code}` : 'Код отправлен на почту'
         });
-        res.json({ success: true });
-    } catch(err) {
-        console.error("Email error:", err);
-        res.status(500).json({ error: "Не удалось отправить email" });
+    } else {
+        res.status(500).json({ error: "Не удалось отправить email: " + result.error });
     }
 });
 
+// ========== ВОССТАНОВЛЕНИЕ ПАРОЛЯ ==========
 app.post("/send-reset-code", async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: "Email обязателен" });
-    if (!EMAIL_ENABLED) return res.status(500).json({ error: "Email временно отключен" });
     
     let foundUser = null;
     for (let [username, data] of Object.entries(USERS)) {
@@ -255,28 +336,17 @@ app.post("/send-reset-code", async (req, res) => {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     resetCodes[email] = { code, timestamp: Date.now(), username: foundUser };
     
-    try {
-        await transporter.sendMail({
-            from: `"Auramap" <${process.env.EMAIL_USER}>`,
-            to: email,
-            subject: "🔐 Восстановление пароля Auramap",
-            html: `
-                <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; background: #0a0c10; color: #e1e7f0; border-radius: 20px;">
-                    <h1 style="color: #5865f2; text-align: center; font-size: 28px;">🌟 Auramap</h1>
-                    <h2 style="text-align: center; font-weight: 400; opacity: 0.8;">Восстановление пароля</h2>
-                    <p style="text-align: center; font-size: 16px;">Ваш код для сброса пароля:</p>
-                    <div style="background: #1a1d26; padding: 20px; border-radius: 16px; text-align: center; font-size: 36px; letter-spacing: 12px; font-weight: bold; color: #5865f2; font-family: monospace;">
-                        ${code}
-                    </div>
-                    <p style="text-align: center; color: #8b93a3; margin-top: 20px;">Код действителен 10 минут</p>
-                    <p style="text-align: center; color: #8b93a3; font-size: 12px; opacity: 0.6;">Если вы не запрашивали восстановление пароля, проигнорируйте это письмо</p>
-                </div>
-            `
+    const result = await sendVerificationEmail(email, code, 'reset');
+    
+    if (result.success) {
+        res.json({ 
+            success: true, 
+            username: foundUser,
+            testMode: result.testMode || false,
+            message: result.testMode ? `Тестовый режим: код ${code}` : 'Код отправлен на почту'
         });
-        res.json({ success: true, username: foundUser });
-    } catch(err) {
-        console.error("Email error:", err);
-        res.status(500).json({ error: "Не удалось отправить email" });
+    } else {
+        res.status(500).json({ error: "Не удалось отправить email: " + result.error });
     }
 });
 
@@ -285,10 +355,10 @@ app.post("/verify-code", (req, res) => {
     if (!email || !code) return res.status(400).json({ error: "Email и код обязательны" });
     
     const record = resetCodes[email];
-    if (!record) return res.status(400).json({ error: "Код не найден" });
+    if (!record) return res.status(400).json({ error: "Код не найден. Запросите новый" });
     if (Date.now() - record.timestamp > 600000) {
         delete resetCodes[email];
-        return res.status(400).json({ error: "Код истек" });
+        return res.status(400).json({ error: "Код истек. Запросите новый" });
     }
     if (record.code !== code) return res.status(400).json({ error: "Неверный код" });
     
@@ -311,13 +381,14 @@ app.post("/reset-password", (req, res) => {
     res.json({ success: true });
 });
 
+// ========== РЕГИСТРАЦИЯ ==========
 app.post("/register", (req, res) => {
     const { username, password, email } = req.body;
     if (!username || !password || !email) return res.status(400).json({ error: "Заполните все поля" });
-    if (WHITELIST[username] === false) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
-    if (username === OWNER_USERNAME) return res.status(403).json({ error: "НИК ЗАНЯТ" });
-    if (USERS[username]) return res.status(400).json({ error: "НИК ЗАНЯТ" });
-    if (BANS[username]) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
+    if (WHITELIST[username] === false) return res.status(403).json({ error: "Вы в бане!" });
+    if (username === OWNER_USERNAME) return res.status(403).json({ error: "Ник занят" });
+    if (USERS[username]) return res.status(400).json({ error: "Ник занят" });
+    if (BANS[username]) return res.status(403).json({ error: "Вы в бане!" });
     if (password.length < 6) return res.status(400).json({ error: "Пароль должен быть не менее 6 символов" });
     if (!email.includes('@')) return res.status(400).json({ error: "Некорректный email" });
     
@@ -333,11 +404,12 @@ app.post("/register", (req, res) => {
     res.json({ success: true, role: "новичок", displayName: username, bio: "" });
 });
 
+// ========== ЛОГИН ==========
 app.post("/login", (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: "Заполните все поля" });
-    if (BANS[username]) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
-    if (WHITELIST[username] === false) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
+    if (BANS[username]) return res.status(403).json({ error: "Вы в бане!" });
+    if (WHITELIST[username] === false) return res.status(403).json({ error: "Вы в бане!" });
     
     if (username === OWNER_USERNAME) {
         if (password === OWNER_PASSWORD) {
@@ -377,6 +449,7 @@ app.post("/login", (req, res) => {
     });
 });
 
+// ========== ДРУЗЬЯ ==========
 app.post("/friend-request", (req, res) => {
     const { from, to } = req.body;
     if (!from || !to) return res.status(400).json({ error: "Не указаны имена" });
@@ -442,9 +515,9 @@ app.post("/change-nick", (req, res) => {
     const { oldUsername, newUsername, password } = req.body;
     const user = USERS[oldUsername];
     if (!user || user.password !== password) return res.status(401).json({ error: "Неверный пароль" });
-    if (newUsername === OWNER_USERNAME) return res.status(403).json({ error: "ЭТО НИК ВЛАДЕЛЬЦА" });
-    if (USERS[newUsername] && newUsername !== oldUsername) return res.status(400).json({ error: "НИК ЗАНЯТ" });
-    if (BANS[newUsername]) return res.status(403).json({ error: "ЭТОТ НИК В БАНЕ!" });
+    if (newUsername === OWNER_USERNAME) return res.status(403).json({ error: "Это ник владельца" });
+    if (USERS[newUsername] && newUsername !== oldUsername) return res.status(400).json({ error: "Ник занят" });
+    if (BANS[newUsername]) return res.status(403).json({ error: "Этот ник в бане!" });
     
     USERS[newUsername] = { ...user };
     delete USERS[oldUsername];
@@ -795,8 +868,6 @@ io.on("connection", (socket) => {
         
         io.to(channelName).emit("voice-users-update", users);
         io.to(channelName).emit("voice-count", users.length);
-        
-        // Оповещаем других о подключении
         socket.to(channelName).emit("user-joined", socket.id);
     });
 
@@ -825,7 +896,6 @@ io.on("connection", (socket) => {
         socket.leave(channel);
     });
 
-    // ========== SIGNAЛЫ ДЛЯ WEBRTC ==========
     socket.on("signal", ({ to, data }) => {
         const target = getUserByUsername(to);
         if (target) {
@@ -983,4 +1053,15 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🚀 Auramap сервер на ${PORT}`));
+server.listen(PORT, () => {
+    console.log(`\n🚀 Auramap сервер запущен на порту ${PORT}`);
+    console.log(`🌐 http://localhost:${PORT}\n`);
+    console.log('📧 Статус почты:', EMAIL_ENABLED ? '✅ Готова к отправке' : '⚠️ Тестовый режим (коды в консоли)');
+    if (!EMAIL_ENABLED) {
+        console.log('💡 Для настройки почты добавьте переменные окружения:');
+        console.log('   EMAIL_USER=your-email@gmail.com');
+        console.log('   EMAIL_PASS=your-app-password');
+        console.log('   EMAIL_HOST=smtp.gmail.com');
+        console.log('   EMAIL_PORT=587\n');
+    }
+});
