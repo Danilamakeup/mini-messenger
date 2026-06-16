@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>NEXUS</title>
+    <title>Auramap</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.js"></script>
     <style>
-        /* ===== БАЗОВЫЕ СТИЛИ ===== */
+        /* ===== БАЗОВЫЕ СТИЛИ (сохранены) ===== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
@@ -22,7 +22,7 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #5865f2; border-radius: 10px; }
         
-        /* ===== ТЕМЫ ===== */
+        /* ===== ТЕМЫ (сохранены) ===== */
         body.theme-dark { background: #0a0c10; color: #e1e7f0; }
         body.theme-dark .sidebar { background: #111318; border-right: 1px solid #1e2128; }
         body.theme-dark .chat { background: #0f1117; }
@@ -51,7 +51,7 @@
         body.theme-matrix .sidebar, body.theme-matrix .chat, body.theme-matrix .chat-header, body.theme-matrix .input-panel { background: #0a0f0a; border-color: #33ff33; }
         body.theme-matrix .input-wrapper { background: #0a1a0a; border-color: #33ff33; }
         
-        /* ===== КОМПОНЕНТЫ ===== */
+        /* ===== КОМПОНЕНТЫ (сохранены) ===== */
         .app { display: flex; height: 100vh; }
         
         .sidebar { 
@@ -71,6 +71,7 @@
             align-items: center;
             border-bottom: 1px solid;
             min-height: 60px;
+            background: inherit;
         }
         .sidebar-header button { 
             background: none; 
@@ -420,6 +421,7 @@
             border: 1px solid #2c2f3a;
         }
         .modal-content h2 { margin-bottom: 20px; text-align: center; font-size: 24px; }
+        .modal-content .modal-subtitle { text-align: center; opacity: 0.7; margin-bottom: 16px; font-size: 14px; }
         .modal-content input, .modal-content textarea { 
             width: 100%; 
             padding: 14px; 
@@ -449,6 +451,7 @@
         .modal-content .btn-secondary { background: #2c2f3a; }
         .modal-content .btn-danger { background: #e03a3a; }
         .modal-content .modal-error { color: #e03a3a; margin-top: 12px; font-size: 13px; text-align: center; }
+        .modal-content .modal-success { color: #23a55a; margin-top: 12px; font-size: 13px; text-align: center; }
         .modal-divider { margin: 16px 0; border-top: 1px solid #2c2f3a; }
         .theme-option { 
             padding: 12px; 
@@ -543,30 +546,96 @@
             line-height: 1;
         }
         .reaction-picker span:hover { background: #5865f2; transform: scale(1.2); }
+        
+        .code-inputs {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin: 12px 0;
+        }
+        .code-inputs input {
+            width: 50px !important;
+            height: 60px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin: 0 !important;
+        }
     </style>
 </head>
 <body>
 
 <!-- ===== МОДАЛ ВХОДА ===== -->
 <div id="loginModal" class="modal active">
-    <div class="modal-content" style="max-width: 380px;">
-        <h2>🔐 NEXUS</h2>
+    <div class="modal-content" style="max-width: 400px;">
+        <h2>🌟 Auramap</h2>
+        <div style="text-align: center; opacity: 0.7; margin-bottom: 16px; font-size: 14px;">Общайся безопасно</div>
         <input type="text" id="loginUsername" placeholder="Никнейм">
         <input type="password" id="loginPassword" placeholder="Пароль">
         <button id="submitBtn">Войти</button>
+        <div style="margin-top: 8px; text-align: right;">
+            <span id="forgotPasswordBtn" style="color: #5865f2; cursor: pointer; font-size: 13px;">Забыли пароль?</span>
+        </div>
         <div class="modal-error" id="loginError"></div>
-        <div style="margin-top:16px; text-align:center;">
-            <span id="switchMode" style="color:#5865f2; cursor:pointer; font-size:14px;">Нет аккаунта? Зарегистрироваться</span>
+        <div class="modal-divider"></div>
+        <div style="text-align: center;">
+            <span id="switchMode" style="color: #5865f2; cursor: pointer; font-size: 14px;">Нет аккаунта? Зарегистрироваться</span>
         </div>
     </div>
 </div>
 
-<!-- ===== ОСНОВНОЕ ПРИЛОЖЕНИЕ ===== -->
+<!-- ===== МОДАЛ РЕГИСТРАЦИИ ===== -->
+<div id="registerModal" class="modal">
+    <div class="modal-content" style="max-width: 400px;">
+        <h2>📝 Регистрация</h2>
+        <input type="text" id="regUsername" placeholder="Никнейм">
+        <input type="email" id="regEmail" placeholder="Email (для восстановления)">
+        <input type="password" id="regPassword" placeholder="Пароль (мин. 6 символов)">
+        <div style="display: flex; gap: 8px;">
+            <input type="text" id="regCode" placeholder="Код из email" style="flex:1;">
+            <button id="sendCodeBtn" style="width: auto; padding: 12px 20px; margin-top: 8px; background: #2c2f3a;">📧</button>
+        </div>
+        <button id="registerBtn">Зарегистрироваться</button>
+        <div class="modal-error" id="regError"></div>
+        <div class="modal-success" id="regSuccess"></div>
+        <div class="modal-divider"></div>
+        <div style="text-align: center;">
+            <span id="backToLoginBtn" style="color: #5865f2; cursor: pointer; font-size: 14px;">← Назад к входу</span>
+        </div>
+    </div>
+</div>
+
+<!-- ===== МОДАЛ ВОССТАНОВЛЕНИЯ ПАРОЛЯ ===== -->
+<div id="resetModal" class="modal">
+    <div class="modal-content" style="max-width: 400px;">
+        <h2>🔐 Восстановление</h2>
+        <div id="resetStep1">
+            <p class="modal-subtitle">Введите email, привязанный к аккаунту</p>
+            <input type="email" id="resetEmail" placeholder="Ваш email">
+            <button id="sendResetCodeBtn">Отправить код</button>
+        </div>
+        <div id="resetStep2" style="display: none;">
+            <p class="modal-subtitle">Введите код из email</p>
+            <input type="text" id="resetCode" placeholder="6-значный код">
+            <p class="modal-subtitle" style="margin-top: 12px;">Новый пароль</p>
+            <input type="password" id="resetNewPassword" placeholder="Новый пароль (мин. 6 символов)">
+            <button id="resetPasswordBtn">Сбросить пароль</button>
+        </div>
+        <div class="modal-error" id="resetError"></div>
+        <div class="modal-success" id="resetSuccess"></div>
+        <div class="modal-divider"></div>
+        <div style="text-align: center;">
+            <span id="backToLoginFromReset" style="color: #5865f2; cursor: pointer; font-size: 14px;">← Назад к входу</span>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ОСНОВНОЕ ПРИЛОЖЕНИЕ (сохранено) ===== -->
 <div class="app" id="app" style="display:none;">
     <!-- САЙДБАР -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            ✨ NEXUS
+            🌟 Auramap
             <div>
                 <button onclick="openAddFriendModal()" title="Добавить друга">➕</button>
                 <button onclick="openSettings()" title="Настройки">⚙️</button>
@@ -650,7 +719,7 @@
 <!-- КНОПКА МЕНЮ (МОБИЛЬНАЯ) -->
 <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
 
-<!-- ===== МОДАЛЬНЫЕ ОКНА ===== -->
+<!-- ===== МОДАЛЬНЫЕ ОКНА (сохранены) ===== -->
 <div id="settingsModal" class="modal">
     <div class="modal-content">
         <h2>⚙️ Настройки</h2>
@@ -705,6 +774,7 @@
     let currentDisplayName = "", currentBio = "";
     let friendsList = [], friendRequests = [];
     let usersDB = {};
+    let resetEmail = null;
     
     // Голосовой чат
     let voiceStream = null, voicePeers = {}, inVoiceChannel = false, currentVoiceChannel = null;
@@ -712,6 +782,8 @@
     let isRecording = false, audioCtxRec = null, recordedSamples = [], recordTimer = null;
     
     const loginModal = document.getElementById("loginModal");
+    const registerModal = document.getElementById("registerModal");
+    const resetModal = document.getElementById("resetModal");
     const appDiv = document.getElementById("app");
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     
@@ -737,14 +809,14 @@
     // ===== ТЕМЫ =====
     function setTheme(theme) {
         document.body.className = theme;
-        localStorage.setItem("nexus_theme", theme);
+        localStorage.setItem("auramap_theme", theme);
     }
-    let savedTheme = localStorage.getItem("nexus_theme");
+    let savedTheme = localStorage.getItem("auramap_theme");
     if(savedTheme) setTheme(savedTheme);
     else setTheme("theme-dark");
     
     // ===== АВТОВХОД =====
-    const savedSession = localStorage.getItem("nexus_session");
+    const savedSession = localStorage.getItem("auramap_session");
     if (savedSession) {
         try {
             const { username, password } = JSON.parse(savedSession);
@@ -759,32 +831,206 @@
                         initSocket();
                         updateUI();
                         if(Notification.permission === "default") Notification.requestPermission();
-                    } else { localStorage.removeItem("nexus_session"); }
+                    } else { localStorage.removeItem("auramap_session"); }
                 });
-        } catch(e) { localStorage.removeItem("nexus_session"); }
+        } catch(e) { localStorage.removeItem("auramap_session"); }
     }
     
-    // ===== ЛОГИН/РЕГИСТРАЦИЯ =====
-    let isLoginMode = true;
-    document.getElementById("switchMode").onclick = () => {
-        isLoginMode = !isLoginMode;
-        document.querySelector("#loginModal h2").innerText = isLoginMode ? "🔐 Вход" : "📝 Регистрация";
-        document.getElementById("switchMode").innerText = isLoginMode ? "Нет аккаунта? Зарегистрироваться" : "Уже есть аккаунт? Войти";
-        document.getElementById("loginError").innerText = "";
+    // ===== НАВИГАЦИЯ МЕЖДУ МОДАЛКАМИ =====
+    function showLogin() {
+        registerModal.classList.remove("active");
+        resetModal.classList.remove("active");
+        loginModal.classList.add("active");
+    }
+    
+    function showRegister() {
+        loginModal.classList.remove("active");
+        resetModal.classList.remove("active");
+        registerModal.classList.add("active");
+        document.getElementById("regError").innerText = "";
+        document.getElementById("regSuccess").innerText = "";
+    }
+    
+    function showReset() {
+        loginModal.classList.remove("active");
+        registerModal.classList.remove("active");
+        resetModal.classList.add("active");
+        document.getElementById("resetError").innerText = "";
+        document.getElementById("resetSuccess").innerText = "";
+        document.getElementById("resetStep1").style.display = "block";
+        document.getElementById("resetStep2").style.display = "none";
+        resetEmail = null;
+    }
+    
+    document.getElementById("switchMode").onclick = showRegister;
+    document.getElementById("backToLoginBtn").onclick = showLogin;
+    document.getElementById("backToLoginFromReset").onclick = showLogin;
+    document.getElementById("forgotPasswordBtn").onclick = showReset;
+    
+    // ===== РЕГИСТРАЦИЯ С КОДОМ =====
+    document.getElementById("sendCodeBtn").onclick = async () => {
+        const email = document.getElementById("regEmail").value.trim();
+        if (!email) {
+            document.getElementById("regError").innerText = "Введите email";
+            return;
+        }
+        try {
+            const res = await fetch("/send-verification", { 
+                method: "POST", 
+                headers: { "Content-Type": "application/json" }, 
+                body: JSON.stringify({ email }) 
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById("regSuccess").innerText = "📧 Код отправлен на вашу почту!";
+                document.getElementById("regError").innerText = "";
+                document.getElementById("regCode").focus();
+            } else {
+                document.getElementById("regError").innerText = data.error || "Ошибка отправки";
+            }
+        } catch(e) {
+            document.getElementById("regError").innerText = "Ошибка соединения";
+        }
     };
     
+    document.getElementById("registerBtn").onclick = async () => {
+        const username = document.getElementById("regUsername").value.trim();
+        const email = document.getElementById("regEmail").value.trim();
+        const password = document.getElementById("regPassword").value;
+        const code = document.getElementById("regCode").value.trim();
+        
+        if (!username || !email || !password || !code) {
+            document.getElementById("regError").innerText = "Заполните все поля";
+            return;
+        }
+        if (password.length < 6) {
+            document.getElementById("regError").innerText = "Пароль должен быть не менее 6 символов";
+            return;
+        }
+        
+        // Проверяем код
+        try {
+            const verifyRes = await fetch("/verify-code", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, code })
+            });
+            const verifyData = await verifyRes.json();
+            if (!verifyData.success) {
+                document.getElementById("regError").innerText = verifyData.error || "Неверный код";
+                return;
+            }
+        } catch(e) {
+            document.getElementById("regError").innerText = "Ошибка проверки кода";
+            return;
+        }
+        
+        // Регистрация
+        const res = await fetch("/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password, email })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            document.getElementById("regSuccess").innerText = "✅ Регистрация успешна! Войдите в аккаунт.";
+            document.getElementById("regError").innerText = "";
+            setTimeout(showLogin, 1500);
+        } else {
+            document.getElementById("regError").innerText = data.error || "Ошибка регистрации";
+        }
+    };
+    
+    // ===== ВОССТАНОВЛЕНИЕ ПАРОЛЯ =====
+    document.getElementById("sendResetCodeBtn").onclick = async () => {
+        const email = document.getElementById("resetEmail").value.trim();
+        if (!email) {
+            document.getElementById("resetError").innerText = "Введите email";
+            return;
+        }
+        try {
+            const res = await fetch("/send-reset-code", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email })
+            });
+            const data = await res.json();
+            if (data.success) {
+                resetEmail = email;
+                document.getElementById("resetStep1").style.display = "none";
+                document.getElementById("resetStep2").style.display = "block";
+                document.getElementById("resetError").innerText = "";
+                document.getElementById("resetSuccess").innerText = "📧 Код отправлен! Проверьте почту.";
+                setTimeout(() => document.getElementById("resetSuccess").innerText = "", 5000);
+            } else {
+                document.getElementById("resetError").innerText = data.error || "Пользователь не найден";
+            }
+        } catch(e) {
+            document.getElementById("resetError").innerText = "Ошибка соединения";
+        }
+    };
+    
+    document.getElementById("resetPasswordBtn").onclick = async () => {
+        const code = document.getElementById("resetCode").value.trim();
+        const newPassword = document.getElementById("resetNewPassword").value;
+        
+        if (!code || !newPassword) {
+            document.getElementById("resetError").innerText = "Заполните все поля";
+            return;
+        }
+        if (newPassword.length < 6) {
+            document.getElementById("resetError").innerText = "Пароль должен быть не менее 6 символов";
+            return;
+        }
+        if (!resetEmail) {
+            document.getElementById("resetError").innerText = "Сначала запросите код";
+            return;
+        }
+        
+        try {
+            // Проверяем код
+            const verifyRes = await fetch("/verify-code", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: resetEmail, code })
+            });
+            const verifyData = await verifyRes.json();
+            if (!verifyData.success) {
+                document.getElementById("resetError").innerText = verifyData.error || "Неверный код";
+                return;
+            }
+            
+            // Сбрасываем пароль
+            const resetRes = await fetch("/reset-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: resetEmail, newPassword })
+            });
+            const resetData = await resetRes.json();
+            if (resetData.success) {
+                document.getElementById("resetSuccess").innerText = "✅ Пароль успешно изменен! Войдите в аккаунт.";
+                document.getElementById("resetError").innerText = "";
+                setTimeout(showLogin, 1500);
+            } else {
+                document.getElementById("resetError").innerText = resetData.error || "Ошибка сброса пароля";
+            }
+        } catch(e) {
+            document.getElementById("resetError").innerText = "Ошибка соединения";
+        }
+    };
+    
+    // ===== ЛОГИН =====
     document.getElementById("submitBtn").onclick = async () => {
         const username = document.getElementById("loginUsername").value.trim();
         const password = document.getElementById("loginPassword").value.trim();
         if (!username || !password) { document.getElementById("loginError").innerText = "Заполните все поля"; return; }
-        const endpoint = isLoginMode ? "/login" : "/register";
-        const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password }) });
+        const res = await fetch("/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password }) });
         const data = await res.json();
         if (res.ok) {
             currentUser = username; currentRole = data.role; currentAvatar = data.avatar || null;
             currentDisplayName = data.displayName || username;
             currentBio = data.bio || "";
-            localStorage.setItem("nexus_session", JSON.stringify({ username, password }));
+            localStorage.setItem("auramap_session", JSON.stringify({ username, password }));
             loginModal.classList.remove("active");
             appDiv.style.display = "flex";
             initSocket();
@@ -793,7 +1039,7 @@
         } else { document.getElementById("loginError").innerText = data.error; }
     };
     
-    // ===== ОБНОВЛЕНИЕ UI =====
+    // ===== ОСТАЛЬНЫЕ ФУНКЦИИ (сохранены) =====
     function updateUI() {
         document.getElementById("currentNickDisplay").innerText = currentDisplayName || currentUser;
         document.getElementById("currentDisplayNameDisplay").innerHTML = `@${currentUser}`;
@@ -819,7 +1065,7 @@
         if(window.innerWidth <= 768) toggleSidebar();
     }
     
-    // ===== WEBSOCKET =====
+    // ===== WEBSOCKET (сохранен полностью) =====
     function initSocket() {
         socket = io();
         
@@ -830,7 +1076,7 @@
         
         socket.on("auth-error", (msg) => { alert(msg); if(msg.includes("БАН")) location.reload(); });
         socket.on("kick", (msg) => { alert(msg); location.reload(); });
-        socket.on("ban", (msg) => { alert(msg); localStorage.removeItem("nexus_session"); location.reload(); });
+        socket.on("ban", (msg) => { alert(msg); localStorage.removeItem("auramap_session"); location.reload(); });
         socket.on("mute", (msg) => alert(msg));
         
         socket.on("history", (msgs) => {
@@ -941,7 +1187,7 @@
         if(Notification.permission === "default") Notification.requestPermission();
     }
     
-    // ===== ДРУЗЬЯ =====
+    // ===== ДРУЗЬЯ (сохранены) =====
     function loadFriends() {
         fetch("/friends/" + currentUser).then(res => res.json()).then(data => {
             if(data.friends) friendsList = data.friends;
@@ -1049,7 +1295,7 @@
         document.getElementById("onlineCount").innerText = users.length;
     }
     
-    // ===== СООБЩЕНИЯ =====
+    // ===== СООБЩЕНИЯ (сохранены) =====
     function checkPingInput() {
         let input = document.getElementById("input");
         let val = input.value;
@@ -1228,7 +1474,9 @@
         currentVoiceChannel = channelName;
         inVoiceChannel = true;
         document.querySelectorAll(".voice-room").forEach(el => el.classList.remove("active"));
-        document.querySelector(`.voice-room:contains("${channelName}")`)?.classList.add("active");
+        document.querySelectorAll(".voice-room").forEach(el => {
+            if(el.textContent.includes(channelName)) el.classList.add("active");
+        });
         
         try {
             voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -1371,8 +1619,8 @@
         currentUser = newNick;
         updateUI();
         socket.emit("auth", { username: currentUser, room: currentRoom });
-        const saved = JSON.parse(localStorage.getItem("nexus_session"));
-        if(saved) localStorage.setItem("nexus_session", JSON.stringify({ username: newNick, password: saved.password }));
+        const saved = JSON.parse(localStorage.getItem("auramap_session"));
+        if(saved) localStorage.setItem("auramap_session", JSON.stringify({ username: newNick, password: saved.password }));
         closeSettings();
     }
     
@@ -1434,7 +1682,7 @@
         });
     });
     
-    console.log("🚀 NEXUS запущен");
+    console.log("🚀 Auramap запущен");
 </script>
 </body>
 </html>
