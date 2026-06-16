@@ -5,34 +5,37 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const nodemailer = require("nodemailer");
+const crypto = require("crypto");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { 
     cors: { origin: "*" },
-    maxHttpBufferSize: 1e7
+    maxHttpBufferSize: 20 * 1024 * 1024,
+    pingTimeout: 60000,
+    pingInterval: 25000
 });
 
-// ========== НАСТРОЙКА EMAIL ==========
-// Для теста используем Ethereal (фейковый SMTP)
-// В продакшене замените на реальные данные
-const transporter = nodemailer.createTransport({
-    host: 'smtp.ethereal.email',
-    port: 587,
-    auth: {
-        user: 'your-ethereal-email@ethereal.email',
-        pass: 'your-ethereal-password'
+// ========== БЕЗОПАСНОСТЬ ==========
+const rateLimit = new Map();
+const MAX_REQUESTS = 100;
+const TIME_WINDOW = 60000;
+
+function checkRateLimit(ip) {
+    const now = Date.now();
+    if (!rateLimit.has(ip)) {
+        rateLimit.set(ip, { count: 1, time: now });
+        return true;
     }
-});
-
-// Для реальной почты (Gmail, Yandex, Mail.ru):
-// const transporter = nodemailer.createTransport({
-//     service: 'gmail', // или 'yandex', 'mail.ru'
-//     auth: {
-//         user: 'your-email@gmail.com',
-//         pass: 'your-app-password'
-//     }
-// });
+    const data = rateLimit.get(ip);
+    if (now - data.time > TIME_WINDOW) {
+        rateLimit.set(ip, { count: 1, time: now });
+        return true;
+    }
+    if (data.count >= MAX_REQUESTS) return false;
+    data.count++;
+    return true;
+}
 
 // ========== ПАПКИ ==========
 const publicDir = path.join(__dirname, "public");
@@ -45,13 +48,28 @@ const avatarsDir = path.join(publicDir, "avatars");
 });
 
 app.use(express.static(publicDir));
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "20mb" }));
+app.use(express.urlencoded({ extended: true, limit: "20mb" }));
+
+// ========== НАСТРОЙКА EMAIL ==========
+const EMAIL_ENABLED = process.env.EMAIL_USER && process.env.EMAIL_PASS;
+
+const transporter = EMAIL_ENABLED ? nodemailer.createTransport({
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.EMAIL_PORT) || 587,
+    secure: false,
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    },
+    tls: { rejectUnauthorized: false }
+}) : null;
 
 // ========== ЗАГРУЗКИ ==========
 const uploadAudio = multer({
     storage: multer.diskStorage({
         destination: voicesDir,
-        filename: (req, file, cb) => cb(null, Date.now() + ".mp3")
+        filename: (req, file, cb) => cb(null, crypto.randomBytes(16).toString('hex') + ".mp3")
     }),
     limits: { fileSize: 15 * 1024 * 1024 }
 });
@@ -59,134 +77,79 @@ const uploadAudio = multer({
 const uploadMedia = multer({
     storage: multer.diskStorage({
         destination: uploadsDir,
-        filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
+        filename: (req, file, cb) => cb(null, crypto.randomBytes(16).toString('hex') + path.extname(file.originalname))
     }),
-    limits: { fileSize: 15 * 1024 * 1024 },
+    limits: { fileSize: 20 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
         const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg'];
-        if (allowed.includes(file.mimetype)) cb(null, true);
-        else cb(new Error('Неподдерживаемый формат'), false);
+        cb(null, allowed.includes(file.mimetype));
     }
 });
 
 const uploadAvatar = multer({
     storage: multer.diskStorage({
         destination: avatarsDir,
-        filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
+        filename: (req, file, cb) => cb(null, crypto.randomBytes(16).toString('hex') + path.extname(file.originalname))
     }),
     limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
         const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        if (allowed.includes(file.mimetype)) cb(null, true);
-        else cb(new Error('Можно только PNG, JPG, GIF, WEBP!'), false);
+        cb(null, allowed.includes(file.mimetype));
     }
 });
 
 // ========== БАЗЫ ДАННЫХ ==========
-const usersFile = path.join(__dirname, "users.json");
-let usersDB = {};
-if (fs.existsSync(usersFile)) {
-    try {
-        usersDB = JSON.parse(fs.readFileSync(usersFile));
-    } catch(e) { usersDB = {}; }
+const DB_FILES = ['users.json', 'bans.json', 'warns.json', 'mutes.json', 'whitelist.json', 'friends.json', 'rooms.json', 'dms.json'];
+const DB = {};
+
+DB_FILES.forEach(file => {
+    const filePath = path.join(__dirname, file);
+    if (fs.existsSync(filePath)) {
+        try {
+            DB[file.replace('.json', '')] = JSON.parse(fs.readFileSync(filePath));
+        } catch(e) { DB[file.replace('.json', '')] = {}; }
+    } else {
+        DB[file.replace('.json', '')] = {};
+    }
+});
+
+function saveDB(name) {
+    if (DB[name]) {
+        fs.writeFileSync(path.join(__dirname, name + '.json'), JSON.stringify(DB[name], null, 2));
+    }
 }
-function saveUsers() { fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2)); }
 
-const bansFile = path.join(__dirname, "bans.json");
-let bansDB = {};
-if (fs.existsSync(bansFile)) {
-    try {
-        bansDB = JSON.parse(fs.readFileSync(bansFile));
-    } catch(e) { bansDB = {}; }
-}
-function saveBans() { fs.writeFileSync(bansFile, JSON.stringify(bansDB, null, 2)); }
+// ========== ДАННЫЕ ==========
+const USERS = DB.users || {};
+const BANS = DB.bans || {};
+const WARNS = DB.warns || {};
+const MUTES = DB.mutes || {};
+const WHITELIST = DB.whitelist || {};
+const FRIENDS = DB.friends || {};
+const ROOMS = DB.rooms || {};
+const DMS = DB.dms || {};
 
-const warnsFile = path.join(__dirname, "warns.json");
-let warnsDB = {};
-if (fs.existsSync(warnsFile)) {
-    try {
-        warnsDB = JSON.parse(fs.readFileSync(warnsFile));
-    } catch(e) { warnsDB = {}; }
-}
-function saveWarns() { fs.writeFileSync(warnsFile, JSON.stringify(warnsDB, null, 2)); }
-
-const mutesFile = path.join(__dirname, "mutes.json");
-let mutesDB = {};
-if (fs.existsSync(mutesFile)) {
-    try {
-        mutesDB = JSON.parse(fs.readFileSync(mutesFile));
-    } catch(e) { mutesDB = {}; }
-}
-function saveMutes() { fs.writeFileSync(mutesFile, JSON.stringify(mutesDB, null, 2)); }
-
-const whitelistFile = path.join(__dirname, "whitelist.json");
-let whitelistDB = {};
-if (fs.existsSync(whitelistFile)) {
-    try {
-        whitelistDB = JSON.parse(fs.readFileSync(whitelistFile));
-    } catch(e) { whitelistDB = {}; }
-}
-function saveWhitelist() { fs.writeFileSync(whitelistFile, JSON.stringify(whitelistDB, null, 2)); }
-
-const friendsFile = path.join(__dirname, "friends.json");
-let friendsDB = {};
-if (fs.existsSync(friendsFile)) {
-    try {
-        friendsDB = JSON.parse(fs.readFileSync(friendsFile));
-    } catch(e) { friendsDB = {}; }
-}
-function saveFriends() { fs.writeFileSync(friendsFile, JSON.stringify(friendsDB, null, 2)); }
-
-// ========== ВРЕМЕННЫЕ КОДЫ ДЛЯ ВОССТАНОВЛЕНИЯ ==========
-const resetCodes = {};
-
-// ========== ЗАЩИЩЁННЫЙ НИК ВЛАДЕЛЬЦА ==========
 const OWNER_USERNAME = "bigheaven3569";
 const OWNER_PASSWORD = "swill1337";
 
-// ========== СТАТУСЫ И ПРОФАЙЛЫ ==========
 let userStatus = {};
 let userDisplayNames = {};
 let userBios = {};
 let userEmails = {};
 let activeSessions = {};
-
-// ========== КОМНАТЫ ==========
-let rooms = {
-    general: { messages: [], users: new Set() },
-    gaming: { messages: [], users: new Set() },
-    music: { messages: [], users: new Set() },
-    "other-fuckin-shit": { messages: [], users: new Set() }
-};
-let dms = {};
 let voiceChannels = {};
+let resetCodes = {};
+let messageIdCounter = 0;
 
-const roomsFile = path.join(__dirname, "rooms.json");
-if (fs.existsSync(roomsFile)) {
-    try {
-        const roomsData = JSON.parse(fs.readFileSync(roomsFile));
-        for (let [name, data] of Object.entries(roomsData)) {
-            if (rooms[name]) rooms[name].messages = data.messages;
-            else rooms[name] = { messages: data.messages, users: new Set() };
-        }
-    } catch(e) {}
-}
+// Инициализация комнат
+const defaultRooms = ['general', 'gaming', 'music', 'other-fuckin-shit'];
+defaultRooms.forEach(room => {
+    if (!ROOMS[room]) ROOMS[room] = { messages: [], users: new Set() };
+});
 
-function saveRooms() {
-    const roomsData = {};
-    for (let [name, room] of Object.entries(rooms)) {
-        roomsData[name] = { messages: room.messages.slice(-500) };
-    }
-    fs.writeFileSync(roomsFile, JSON.stringify(roomsData, null, 2));
+function getMessageId() {
+    return ++messageIdCounter + '_' + Date.now().toString(36);
 }
-
-const dmsFile = path.join(__dirname, "dms.json");
-if (fs.existsSync(dmsFile)) {
-    try {
-        dms = JSON.parse(fs.readFileSync(dmsFile));
-    } catch(e) { dms = {}; }
-}
-function saveDMs() { fs.writeFileSync(dmsFile, JSON.stringify(dms, null, 2)); }
 
 function getUserByUsername(username) {
     for (let [socketId, session] of Object.entries(activeSessions)) {
@@ -197,7 +160,7 @@ function getUserByUsername(username) {
 
 function sendSystemMessage(room, text) {
     const msg = {
-        id: Date.now() + "_" + Math.random(),
+        id: getMessageId(),
         type: "text",
         author: "system",
         displayName: "🛡️ СИСТЕМА",
@@ -208,21 +171,21 @@ function sendSystemMessage(room, text) {
         reactions: {},
         pings: []
     };
-    if (rooms[room]) {
-        rooms[room].messages.push(msg);
+    if (ROOMS[room]) {
+        ROOMS[room].messages.push(msg);
         io.to(room).emit("chat", msg);
-        saveRooms();
+        saveDB('rooms');
     }
 }
 
 // ========== API ==========
 app.get("/users-list", (req, res) => {
-    const users = Object.keys(usersDB).map(u => ({
+    const users = Object.keys(USERS).map(u => ({
         username: u,
         displayName: userDisplayNames[u] || u,
         bio: userBios[u] || "",
-        avatar: usersDB[u]?.avatar,
-        role: usersDB[u]?.role,
+        avatar: USERS[u]?.avatar,
+        role: USERS[u]?.role,
         status: userStatus[u] || "offline"
     }));
     res.json(users);
@@ -230,41 +193,41 @@ app.get("/users-list", (req, res) => {
 
 app.get("/friends/:username", (req, res) => {
     const username = req.params.username;
-    const userFriends = friendsDB[username] || { friends: [], requests: [] };
+    const userFriends = FRIENDS[username] || { friends: [], requests: [] };
     const friendsWithData = (userFriends.friends || []).map(f => ({
         username: f,
         displayName: userDisplayNames[f] || f,
         bio: userBios[f] || "",
-        avatar: usersDB[f]?.avatar,
+        avatar: USERS[f]?.avatar,
         status: userStatus[f] || "offline",
-        role: usersDB[f]?.role
+        role: USERS[f]?.role
     }));
     res.json({ friends: friendsWithData, requests: userFriends.requests || [] });
 });
 
-// ===== ОТПРАВКА КОДА ПОДТВЕРЖДЕНИЯ =====
 app.post("/send-verification", async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: "Email обязателен" });
+    if (!EMAIL_ENABLED) return res.status(500).json({ error: "Email временно отключен" });
     
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     resetCodes[email] = { code, timestamp: Date.now() };
     
     try {
         await transporter.sendMail({
-            from: '"Auramap" <noreply@auramap.com>',
+            from: `"Auramap" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: "🔐 Подтверждение регистрации в Auramap",
             html: `
-                <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #0a0c10; color: #e1e7f0; border-radius: 16px;">
-                    <h1 style="color: #5865f2; text-align: center;">🌟 Auramap</h1>
-                    <h2 style="text-align: center;">Подтверждение email</h2>
+                <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; background: #0a0c10; color: #e1e7f0; border-radius: 20px;">
+                    <h1 style="color: #5865f2; text-align: center; font-size: 28px;">🌟 Auramap</h1>
+                    <h2 style="text-align: center; font-weight: 400; opacity: 0.8;">Подтверждение email</h2>
                     <p style="text-align: center; font-size: 16px;">Ваш код подтверждения:</p>
-                    <div style="background: #1a1d26; padding: 20px; border-radius: 12px; text-align: center; font-size: 32px; letter-spacing: 8px; font-weight: bold; color: #5865f2;">
+                    <div style="background: #1a1d26; padding: 20px; border-radius: 16px; text-align: center; font-size: 36px; letter-spacing: 12px; font-weight: bold; color: #5865f2; font-family: monospace;">
                         ${code}
                     </div>
                     <p style="text-align: center; color: #8b93a3; margin-top: 20px;">Код действителен 10 минут</p>
-                    <p style="text-align: center; color: #8b93a3; font-size: 12px;">Если вы не регистрировались в Auramap, проигнорируйте это письмо</p>
+                    <p style="text-align: center; color: #8b93a3; font-size: 12px; opacity: 0.6;">Если вы не регистрировались в Auramap, проигнорируйте это письмо</p>
                 </div>
             `
         });
@@ -275,14 +238,13 @@ app.post("/send-verification", async (req, res) => {
     }
 });
 
-// ===== ВОССТАНОВЛЕНИЕ ПАРОЛЯ =====
 app.post("/send-reset-code", async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: "Email обязателен" });
+    if (!EMAIL_ENABLED) return res.status(500).json({ error: "Email временно отключен" });
     
-    // Проверяем, существует ли пользователь с таким email
     let foundUser = null;
-    for (let [username, data] of Object.entries(usersDB)) {
+    for (let [username, data] of Object.entries(USERS)) {
         if (userEmails[username] === email) {
             foundUser = username;
             break;
@@ -295,19 +257,19 @@ app.post("/send-reset-code", async (req, res) => {
     
     try {
         await transporter.sendMail({
-            from: '"Auramap" <noreply@auramap.com>',
+            from: `"Auramap" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: "🔐 Восстановление пароля Auramap",
             html: `
-                <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #0a0c10; color: #e1e7f0; border-radius: 16px;">
-                    <h1 style="color: #5865f2; text-align: center;">🌟 Auramap</h1>
-                    <h2 style="text-align: center;">Восстановление пароля</h2>
+                <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; background: #0a0c10; color: #e1e7f0; border-radius: 20px;">
+                    <h1 style="color: #5865f2; text-align: center; font-size: 28px;">🌟 Auramap</h1>
+                    <h2 style="text-align: center; font-weight: 400; opacity: 0.8;">Восстановление пароля</h2>
                     <p style="text-align: center; font-size: 16px;">Ваш код для сброса пароля:</p>
-                    <div style="background: #1a1d26; padding: 20px; border-radius: 12px; text-align: center; font-size: 32px; letter-spacing: 8px; font-weight: bold; color: #5865f2;">
+                    <div style="background: #1a1d26; padding: 20px; border-radius: 16px; text-align: center; font-size: 36px; letter-spacing: 12px; font-weight: bold; color: #5865f2; font-family: monospace;">
                         ${code}
                     </div>
                     <p style="text-align: center; color: #8b93a3; margin-top: 20px;">Код действителен 10 минут</p>
-                    <p style="text-align: center; color: #8b93a3; font-size: 12px;">Если вы не запрашивали восстановление пароля, проигнорируйте это письмо</p>
+                    <p style="text-align: center; color: #8b93a3; font-size: 12px; opacity: 0.6;">Если вы не запрашивали восстановление пароля, проигнорируйте это письмо</p>
                 </div>
             `
         });
@@ -318,25 +280,21 @@ app.post("/send-reset-code", async (req, res) => {
     }
 });
 
-// ===== ПРОВЕРКА КОДА =====
 app.post("/verify-code", (req, res) => {
     const { email, code } = req.body;
     if (!email || !code) return res.status(400).json({ error: "Email и код обязательны" });
     
     const record = resetCodes[email];
     if (!record) return res.status(400).json({ error: "Код не найден" });
-    
-    if (Date.now() - record.timestamp > 600000) { // 10 минут
+    if (Date.now() - record.timestamp > 600000) {
         delete resetCodes[email];
         return res.status(400).json({ error: "Код истек" });
     }
-    
     if (record.code !== code) return res.status(400).json({ error: "Неверный код" });
     
     res.json({ success: true, username: record.username });
 });
 
-// ===== СБРОС ПАРОЛЯ =====
 app.post("/reset-password", (req, res) => {
     const { email, newPassword } = req.body;
     if (!email || !newPassword) return res.status(400).json({ error: "Email и новый пароль обязательны" });
@@ -344,56 +302,55 @@ app.post("/reset-password", (req, res) => {
     
     const record = resetCodes[email];
     if (!record) return res.status(400).json({ error: "Сначала подтвердите код" });
+    if (!USERS[record.username]) return res.status(404).json({ error: "Пользователь не найден" });
     
-    if (!usersDB[record.username]) return res.status(404).json({ error: "Пользователь не найден" });
-    
-    usersDB[record.username].password = newPassword;
-    saveUsers();
+    USERS[record.username].password = newPassword;
+    saveDB('users');
     delete resetCodes[email];
     
     res.json({ success: true });
 });
 
-// ===== РЕГИСТРАЦИЯ С EMAIL =====
 app.post("/register", (req, res) => {
     const { username, password, email } = req.body;
     if (!username || !password || !email) return res.status(400).json({ error: "Заполните все поля" });
-    if (whitelistDB[username] === false) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
+    if (WHITELIST[username] === false) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
     if (username === OWNER_USERNAME) return res.status(403).json({ error: "НИК ЗАНЯТ" });
-    if (usersDB[username]) return res.status(400).json({ error: "НИК ЗАНЯТ" });
-    if (bansDB[username]) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
+    if (USERS[username]) return res.status(400).json({ error: "НИК ЗАНЯТ" });
+    if (BANS[username]) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
     if (password.length < 6) return res.status(400).json({ error: "Пароль должен быть не менее 6 символов" });
+    if (!email.includes('@')) return res.status(400).json({ error: "Некорректный email" });
     
-    // Проверяем, не занят ли email
-    for (let [u, data] of Object.entries(usersDB)) {
+    for (let [u, data] of Object.entries(USERS)) {
         if (userEmails[u] === email) return res.status(400).json({ error: "Этот email уже используется" });
     }
     
-    usersDB[username] = { password, role: "новичок", createdAt: Date.now(), avatar: null };
+    USERS[username] = { password, role: "новичок", createdAt: Date.now(), avatar: null };
     userDisplayNames[username] = username;
     userBios[username] = "";
     userEmails[username] = email;
-    saveUsers();
+    saveDB('users');
     res.json({ success: true, role: "новичок", displayName: username, bio: "" });
 });
 
 app.post("/login", (req, res) => {
     const { username, password } = req.body;
-    if (bansDB[username]) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
-    if (whitelistDB[username] === false) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
+    if (!username || !password) return res.status(400).json({ error: "Заполните все поля" });
+    if (BANS[username]) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
+    if (WHITELIST[username] === false) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
     
     if (username === OWNER_USERNAME) {
         if (password === OWNER_PASSWORD) {
-            if (!usersDB[OWNER_USERNAME]) {
-                usersDB[OWNER_USERNAME] = { password: OWNER_PASSWORD, role: "владелец", createdAt: Date.now(), avatar: null };
+            if (!USERS[OWNER_USERNAME]) {
+                USERS[OWNER_USERNAME] = { password: OWNER_PASSWORD, role: "владелец", createdAt: Date.now(), avatar: null };
                 userDisplayNames[OWNER_USERNAME] = OWNER_USERNAME;
                 userBios[OWNER_USERNAME] = "Владелец сервера";
-                saveUsers();
+                saveDB('users');
             }
             return res.json({ 
                 success: true, 
                 role: "владелец", 
-                avatar: usersDB[OWNER_USERNAME]?.avatar || null, 
+                avatar: USERS[OWNER_USERNAME]?.avatar || null, 
                 displayName: userDisplayNames[OWNER_USERNAME] || OWNER_USERNAME, 
                 bio: userBios[OWNER_USERNAME] || "" 
             });
@@ -401,14 +358,14 @@ app.post("/login", (req, res) => {
         return res.status(401).json({ error: "Неверный пароль" });
     }
     
-    if (!usersDB[username]) return res.status(401).json({ error: "НИК НЕ НАЙДЕН" });
-    if (usersDB[username].password !== password) return res.status(401).json({ error: "НЕПРАВИЛЬНЫЙ ПАРОЛЬ" });
+    if (!USERS[username]) return res.status(401).json({ error: "Пользователь не найден" });
+    if (USERS[username].password !== password) return res.status(401).json({ error: "Неверный пароль" });
     
-    const user = usersDB[username];
+    const user = USERS[username];
     const days = Math.floor((Date.now() - user.createdAt) / 86400000);
     if (days >= 7 && user.role === "новичок") {
         user.role = "олд";
-        saveUsers();
+        saveDB('users');
     }
     
     res.json({ 
@@ -420,22 +377,21 @@ app.post("/login", (req, res) => {
     });
 });
 
-// ===== ОСТАЛЬНЫЕ API (без изменений) =====
 app.post("/friend-request", (req, res) => {
     const { from, to } = req.body;
     if (!from || !to) return res.status(400).json({ error: "Не указаны имена" });
     if (from === to) return res.status(400).json({ error: "Нельзя добавить себя" });
-    if (!usersDB[to]) return res.status(404).json({ error: "Пользователь не найден" });
+    if (!USERS[to]) return res.status(404).json({ error: "Пользователь не найден" });
     
-    if (!friendsDB[to]) friendsDB[to] = { friends: [], requests: [] };
-    if (!friendsDB[from]) friendsDB[from] = { friends: [], requests: [] };
+    if (!FRIENDS[to]) FRIENDS[to] = { friends: [], requests: [] };
+    if (!FRIENDS[from]) FRIENDS[from] = { friends: [], requests: [] };
     
-    if ((friendsDB[to].friends || []).includes(from)) return res.status(400).json({ error: "Уже в друзьях" });
-    if ((friendsDB[to].requests || []).includes(from)) return res.status(400).json({ error: "Заявка уже отправлена" });
+    if ((FRIENDS[to].friends || []).includes(from)) return res.status(400).json({ error: "Уже в друзьях" });
+    if ((FRIENDS[to].requests || []).includes(from)) return res.status(400).json({ error: "Заявка уже отправлена" });
     
-    if (!friendsDB[to].requests) friendsDB[to].requests = [];
-    friendsDB[to].requests.push(from);
-    saveFriends();
+    if (!FRIENDS[to].requests) FRIENDS[to].requests = [];
+    FRIENDS[to].requests.push(from);
+    saveDB('friends');
     
     const target = getUserByUsername(to);
     if (target) {
@@ -446,19 +402,19 @@ app.post("/friend-request", (req, res) => {
 
 app.post("/accept-friend", (req, res) => {
     const { currentUser, fromUser } = req.body;
-    if (!friendsDB[currentUser]) friendsDB[currentUser] = { friends: [], requests: [] };
-    if (!friendsDB[fromUser]) friendsDB[fromUser] = { friends: [], requests: [] };
+    if (!FRIENDS[currentUser]) FRIENDS[currentUser] = { friends: [], requests: [] };
+    if (!FRIENDS[fromUser]) FRIENDS[fromUser] = { friends: [], requests: [] };
     
-    friendsDB[currentUser].requests = (friendsDB[currentUser].requests || []).filter(r => r !== fromUser);
-    if (!(friendsDB[currentUser].friends || []).includes(fromUser)) {
-        if (!friendsDB[currentUser].friends) friendsDB[currentUser].friends = [];
-        friendsDB[currentUser].friends.push(fromUser);
+    FRIENDS[currentUser].requests = (FRIENDS[currentUser].requests || []).filter(r => r !== fromUser);
+    if (!(FRIENDS[currentUser].friends || []).includes(fromUser)) {
+        if (!FRIENDS[currentUser].friends) FRIENDS[currentUser].friends = [];
+        FRIENDS[currentUser].friends.push(fromUser);
     }
-    if (!(friendsDB[fromUser].friends || []).includes(currentUser)) {
-        if (!friendsDB[fromUser].friends) friendsDB[fromUser].friends = [];
-        friendsDB[fromUser].friends.push(currentUser);
+    if (!(FRIENDS[fromUser].friends || []).includes(currentUser)) {
+        if (!FRIENDS[fromUser].friends) FRIENDS[fromUser].friends = [];
+        FRIENDS[fromUser].friends.push(currentUser);
     }
-    saveFriends();
+    saveDB('friends');
     
     const fromSocket = getUserByUsername(fromUser);
     if (fromSocket) io.to(fromSocket.socketId).emit("friend-accepted", { fromUser: currentUser });
@@ -468,9 +424,9 @@ app.post("/accept-friend", (req, res) => {
 
 app.post("/decline-friend", (req, res) => {
     const { currentUser, fromUser } = req.body;
-    if (friendsDB[currentUser]) {
-        friendsDB[currentUser].requests = (friendsDB[currentUser].requests || []).filter(r => r !== fromUser);
-        saveFriends();
+    if (FRIENDS[currentUser]) {
+        FRIENDS[currentUser].requests = (FRIENDS[currentUser].requests || []).filter(r => r !== fromUser);
+        saveDB('friends');
     }
     res.json({ success: true });
 });
@@ -484,14 +440,14 @@ app.post("/update-profile", (req, res) => {
 
 app.post("/change-nick", (req, res) => {
     const { oldUsername, newUsername, password } = req.body;
-    const user = usersDB[oldUsername];
+    const user = USERS[oldUsername];
     if (!user || user.password !== password) return res.status(401).json({ error: "Неверный пароль" });
     if (newUsername === OWNER_USERNAME) return res.status(403).json({ error: "ЭТО НИК ВЛАДЕЛЬЦА" });
-    if (usersDB[newUsername] && newUsername !== oldUsername) return res.status(400).json({ error: "НИК ЗАНЯТ" });
-    if (bansDB[newUsername]) return res.status(403).json({ error: "ЭТОТ НИК В БАНЕ!" });
+    if (USERS[newUsername] && newUsername !== oldUsername) return res.status(400).json({ error: "НИК ЗАНЯТ" });
+    if (BANS[newUsername]) return res.status(403).json({ error: "ЭТОТ НИК В БАНЕ!" });
     
-    usersDB[newUsername] = { ...user };
-    delete usersDB[oldUsername];
+    USERS[newUsername] = { ...user };
+    delete USERS[oldUsername];
     if (userDisplayNames[oldUsername]) {
         userDisplayNames[newUsername] = userDisplayNames[oldUsername];
         delete userDisplayNames[oldUsername];
@@ -504,17 +460,17 @@ app.post("/change-nick", (req, res) => {
         userEmails[newUsername] = userEmails[oldUsername];
         delete userEmails[oldUsername];
     }
-    saveUsers();
+    saveDB('users');
     res.json({ success: true, newUsername });
 });
 
 app.post("/upload-avatar", uploadAvatar.single("avatar"), (req, res) => {
     if (!req.file) return res.status(400).json({ error: "Файл не загружен" });
     const { username } = req.body;
-    if (usersDB[username]) {
-        usersDB[username].avatar = "/avatars/" + req.file.filename;
-        saveUsers();
-        res.json({ url: usersDB[username].avatar });
+    if (USERS[username]) {
+        USERS[username].avatar = "/avatars/" + req.file.filename;
+        saveDB('users');
+        res.json({ url: USERS[username].avatar });
     } else {
         res.status(404).json({ error: "Пользователь не найден" });
     }
@@ -525,25 +481,25 @@ app.post("/upload-audio", uploadAudio.single("audio"), (req, res) => {
 });
 
 app.post("/upload-media", uploadMedia.single("file"), (req, res) => {
-    if (!req.file) return res.status(400).json({ error: "Файл больше 15 МБ" });
+    if (!req.file) return res.status(400).json({ error: "Файл не загружен" });
     let fileType = "image";
     if (req.file.mimetype.startsWith("video")) fileType = "video";
     if (req.file.mimetype.startsWith("audio")) fileType = "audio";
     res.json({ url: "/uploads/" + req.file.filename, fileType });
 });
 
-// ========== SOCKET.IO (полностью сохранен) ==========
+// ========== SOCKET.IO ==========
 io.on("connection", (socket) => {
     console.log("✅ Подключился:", socket.id);
 
     socket.on("auth", ({ username, room }) => {
         try {
-            if (bansDB[username]) {
+            if (BANS[username]) {
                 socket.emit("auth-error", "ТЫ В БАНЕ!");
                 socket.disconnect();
                 return;
             }
-            if (!usersDB[username]) {
+            if (!USERS[username]) {
                 socket.emit("auth-error", "Пользователь не найден");
                 socket.disconnect();
                 return;
@@ -551,8 +507,8 @@ io.on("connection", (socket) => {
             
             if (activeSessions[socket.id]) {
                 const prevRoom = activeSessions[socket.id].room;
-                if (prevRoom && rooms[prevRoom]) {
-                    rooms[prevRoom].users.delete(socket.id);
+                if (prevRoom && ROOMS[prevRoom]) {
+                    ROOMS[prevRoom].users.delete(socket.id);
                     socket.leave(prevRoom);
                 }
             }
@@ -561,14 +517,14 @@ io.on("connection", (socket) => {
             socket.join(room);
             
             if (room && room.startsWith("dm_")) {
-                if (!dms[room]) dms[room] = [];
-                socket.emit("history", dms[room].slice(-200));
-            } else if (room && rooms[room]) {
-                rooms[room].users.add(socket.id);
-                socket.emit("history", rooms[room].messages.slice(-200));
+                if (!DMS[room]) DMS[room] = [];
+                socket.emit("history", DMS[room].slice(-200));
+            } else if (room && ROOMS[room]) {
+                ROOMS[room].users.add(socket.id);
+                socket.emit("history", ROOMS[room].messages.slice(-200));
             } else if (room) {
-                rooms[room] = { messages: [], users: new Set() };
-                rooms[room].users.add(socket.id);
+                ROOMS[room] = { messages: [], users: new Set() };
+                ROOMS[room].users.add(socket.id);
                 socket.emit("history", []);
             }
 
@@ -577,8 +533,8 @@ io.on("connection", (socket) => {
 
             socket.emit("user-data", { 
                 username, 
-                role: usersDB[username].role, 
-                avatar: usersDB[username].avatar,
+                role: USERS[username].role, 
+                avatar: USERS[username].avatar,
                 displayName: userDisplayNames[username] || username,
                 bio: userBios[username] || "",
                 status: userStatus[username] 
@@ -586,17 +542,17 @@ io.on("connection", (socket) => {
             
             io.emit("online", Object.keys(activeSessions).length);
             
-            const allUsers = Object.keys(usersDB).map(u => ({
+            const allUsers = Object.keys(USERS).map(u => ({
                 username: u,
                 displayName: userDisplayNames[u] || u,
                 bio: userBios[u] || "",
-                avatar: usersDB[u]?.avatar,
-                role: usersDB[u]?.role,
+                avatar: USERS[u]?.avatar,
+                role: USERS[u]?.role,
                 status: userStatus[u] || "offline"
             }));
             io.emit("all-users", allUsers);
             
-            const userFriends = friendsDB[username] || { friends: [], requests: [] };
+            const userFriends = FRIENDS[username] || { friends: [], requests: [] };
             socket.emit("friends-list", { friends: userFriends.friends || [], requests: userFriends.requests || [] });
         } catch(err) {
             console.error("Auth error:", err);
@@ -610,12 +566,12 @@ io.on("connection", (socket) => {
             userStatus[session.username] = status;
             io.emit("user-status-update", { username: session.username, status });
             
-            const allUsers = Object.keys(usersDB).map(u => ({
+            const allUsers = Object.keys(USERS).map(u => ({
                 username: u,
                 displayName: userDisplayNames[u] || u,
                 bio: userBios[u] || "",
-                avatar: usersDB[u]?.avatar,
-                role: usersDB[u]?.role,
+                avatar: USERS[u]?.avatar,
+                role: USERS[u]?.role,
                 status: userStatus[u] || "offline"
             }));
             io.emit("all-users", allUsers);
@@ -626,14 +582,14 @@ io.on("connection", (socket) => {
         const session = activeSessions[socket.id];
         if (!session || !session.username) return;
         
-        const user = usersDB[session.username];
+        const user = USERS[session.username];
         if (!user) return;
         
         let text = typeof data === "string" ? data : (data.text || "");
         let pings = typeof data === "object" ? (data.pings || []) : [];
         
         const msg = {
-            id: Date.now() + "_" + Math.random(),
+            id: getMessageId(),
             type: "text",
             author: session.username,
             displayName: userDisplayNames[session.username] || session.username,
@@ -649,14 +605,14 @@ io.on("connection", (socket) => {
         
         try {
             if (session.room && session.room.startsWith("dm_")) {
-                if (!dms[session.room]) dms[session.room] = [];
-                dms[session.room].push(msg);
-                saveDMs();
+                if (!DMS[session.room]) DMS[session.room] = [];
+                DMS[session.room].push(msg);
+                saveDB('dms');
                 io.to(session.room).emit("chat", msg);
-            } else if (session.room && rooms[session.room]) {
-                rooms[session.room].messages.push(msg);
+            } else if (session.room && ROOMS[session.room]) {
+                ROOMS[session.room].messages.push(msg);
                 io.to(session.room).emit("chat", msg);
-                saveRooms();
+                saveDB('rooms');
             }
         } catch(err) {
             console.error("Chat error:", err);
@@ -666,11 +622,11 @@ io.on("connection", (socket) => {
     socket.on("media", (url, fileType) => {
         const session = activeSessions[socket.id];
         if (!session || !session.username) return;
-        const user = usersDB[session.username];
+        const user = USERS[session.username];
         if (!user) return;
         
         const msg = {
-            id: Date.now() + "_" + Math.random(),
+            id: getMessageId(),
             type: "media",
             author: session.username,
             displayName: userDisplayNames[session.username] || session.username,
@@ -686,14 +642,14 @@ io.on("connection", (socket) => {
         
         try {
             if (session.room && session.room.startsWith("dm_")) {
-                if (!dms[session.room]) dms[session.room] = [];
-                dms[session.room].push(msg);
-                saveDMs();
+                if (!DMS[session.room]) DMS[session.room] = [];
+                DMS[session.room].push(msg);
+                saveDB('dms');
                 io.to(session.room).emit("chat", msg);
-            } else if (session.room && rooms[session.room]) {
-                rooms[session.room].messages.push(msg);
+            } else if (session.room && ROOMS[session.room]) {
+                ROOMS[session.room].messages.push(msg);
                 io.to(session.room).emit("chat", msg);
-                saveRooms();
+                saveDB('rooms');
             }
         } catch(err) {
             console.error("Media error:", err);
@@ -703,11 +659,11 @@ io.on("connection", (socket) => {
     socket.on("voice-msg", (url) => {
         const session = activeSessions[socket.id];
         if (!session || !session.username) return;
-        const user = usersDB[session.username];
+        const user = USERS[session.username];
         if (!user) return;
         
         const msg = {
-            id: Date.now() + "_" + Math.random(),
+            id: getMessageId(),
             type: "voice",
             author: session.username,
             displayName: userDisplayNames[session.username] || session.username,
@@ -722,14 +678,14 @@ io.on("connection", (socket) => {
         
         try {
             if (session.room && session.room.startsWith("dm_")) {
-                if (!dms[session.room]) dms[session.room] = [];
-                dms[session.room].push(msg);
-                saveDMs();
+                if (!DMS[session.room]) DMS[session.room] = [];
+                DMS[session.room].push(msg);
+                saveDB('dms');
                 io.to(session.room).emit("chat", msg);
-            } else if (session.room && rooms[session.room]) {
-                rooms[session.room].messages.push(msg);
+            } else if (session.room && ROOMS[session.room]) {
+                ROOMS[session.room].messages.push(msg);
                 io.to(session.room).emit("chat", msg);
-                saveRooms();
+                saveDB('rooms');
             }
         } catch(err) {
             console.error("Voice error:", err);
@@ -741,17 +697,20 @@ io.on("connection", (socket) => {
         if (!session || !session.username) return;
         
         let messages;
-        if (room && room.startsWith("dm_")) messages = dms[room];
-        else if (room && rooms[room]) messages = rooms[room].messages;
+        if (room && room.startsWith("dm_")) messages = DMS[room];
+        else if (room && ROOMS[room]) messages = ROOMS[room].messages;
         
         if (!messages) return;
         
         const index = messages.findIndex(m => m.id == msgId);
         if (index !== -1) {
-            messages.splice(index, 1);
-            io.to(room).emit("message-deleted", { msgId });
-            if (!room.startsWith("dm_")) saveRooms();
-            else saveDMs();
+            const msg = messages[index];
+            if (msg.author === session.username || USERS[session.username]?.role === "владелец") {
+                messages.splice(index, 1);
+                io.to(room).emit("message-deleted", { msgId });
+                if (!room.startsWith("dm_")) saveDB('rooms');
+                else saveDB('dms');
+            }
         }
     });
 
@@ -760,8 +719,8 @@ io.on("connection", (socket) => {
         if (!session || !session.username) return;
         
         let messages;
-        if (room && room.startsWith("dm_")) messages = dms[room];
-        else if (room && rooms[room]) messages = rooms[room].messages;
+        if (room && room.startsWith("dm_")) messages = DMS[room];
+        else if (room && ROOMS[room]) messages = ROOMS[room].messages;
         
         if (!messages) return;
         
@@ -770,8 +729,28 @@ io.on("connection", (socket) => {
             if (!msg.reactions[emoji]) msg.reactions[emoji] = [];
             if (!msg.reactions[emoji].includes(session.username)) msg.reactions[emoji].push(session.username);
             io.to(room).emit("reaction-updated", { msgId, reactions: msg.reactions });
-            if (!room.startsWith("dm_")) saveRooms();
-            else saveDMs();
+            if (!room.startsWith("dm_")) saveDB('rooms');
+            else saveDB('dms');
+        }
+    });
+
+    socket.on("remove-reaction", ({ room, msgId, emoji }) => {
+        const session = activeSessions[socket.id];
+        if (!session || !session.username) return;
+        
+        let messages;
+        if (room && room.startsWith("dm_")) messages = DMS[room];
+        else if (room && ROOMS[room]) messages = ROOMS[room].messages;
+        
+        if (!messages) return;
+        
+        const msg = messages.find(m => m.id == msgId);
+        if (msg && msg.reactions[emoji]) {
+            msg.reactions[emoji] = msg.reactions[emoji].filter(u => u !== session.username);
+            if (msg.reactions[emoji].length === 0) delete msg.reactions[emoji];
+            io.to(room).emit("reaction-updated", { msgId, reactions: msg.reactions });
+            if (!room.startsWith("dm_")) saveDB('rooms');
+            else saveDB('dms');
         }
     });
 
@@ -790,10 +769,11 @@ io.on("connection", (socket) => {
                     return {
                         username: s.username,
                         displayName: userDisplayNames[s.username] || s.username,
-                        avatar: usersDB[s.username]?.avatar,
+                        avatar: USERS[s.username]?.avatar,
                         status: userStatus[s.username] || "offline"
                     };
                 }).filter(Boolean));
+                io.to(session.voiceChannel).emit("voice-count", prev.users.length);
             }
         }
         
@@ -802,16 +782,22 @@ io.on("connection", (socket) => {
         session.voiceChannel = channelName;
         socket.join(channelName);
         
-        io.to(channelName).emit("voice-users-update", voiceChannels[channelName].users.map(id => {
+        const users = voiceChannels[channelName].users.map(id => {
             const s = activeSessions[id];
             if (!s) return null;
             return {
                 username: s.username,
                 displayName: userDisplayNames[s.username] || s.username,
-                avatar: usersDB[s.username]?.avatar,
+                avatar: USERS[s.username]?.avatar,
                 status: userStatus[s.username] || "offline"
             };
-        }).filter(Boolean));
+        }).filter(Boolean);
+        
+        io.to(channelName).emit("voice-users-update", users);
+        io.to(channelName).emit("voice-count", users.length);
+        
+        // Оповещаем других о подключении
+        socket.to(channelName).emit("user-joined", socket.id);
     });
 
     socket.on("leave-voice-channel", () => {
@@ -821,125 +807,140 @@ io.on("connection", (socket) => {
         const channel = session.voiceChannel;
         if (voiceChannels[channel]) {
             voiceChannels[channel].users = voiceChannels[channel].users.filter(id => id !== socket.id);
-            io.to(channel).emit("voice-users-update", voiceChannels[channel].users.map(id => {
+            const users = voiceChannels[channel].users.map(id => {
                 const s = activeSessions[id];
                 if (!s) return null;
                 return {
                     username: s.username,
                     displayName: userDisplayNames[s.username] || s.username,
-                    avatar: usersDB[s.username]?.avatar,
+                    avatar: USERS[s.username]?.avatar,
                     status: userStatus[s.username] || "offline"
                 };
-            }).filter(Boolean));
+            }).filter(Boolean);
+            io.to(channel).emit("voice-users-update", users);
+            io.to(channel).emit("voice-count", users.length);
+            io.to(channel).emit("user-left", socket.id);
         }
         delete session.voiceChannel;
         socket.leave(channel);
     });
 
-    // ========== МОДЕРАТОРСКИЕ КОМАНДЫ ==========
+    // ========== SIGNAЛЫ ДЛЯ WEBRTC ==========
+    socket.on("signal", ({ to, data }) => {
+        const target = getUserByUsername(to);
+        if (target) {
+            io.to(target.socketId).emit("signal", { from: socket.id, data });
+        }
+    });
+
+    // ========== МОДЕРАЦИЯ ==========
     socket.on("mod-action", ({ action, target, room, reason, duration }) => {
         const session = activeSessions[socket.id];
         if (!session || !session.username) return;
-        const user = usersDB[session.username];
+        const user = USERS[session.username];
         if (!user || (user.role !== "владелец" && user.role !== "админ")) return;
         
         switch(action) {
-            case "kick":
+            case "kick": {
                 const targetSession = getUserByUsername(target);
                 if (targetSession) {
                     io.to(targetSession.socketId).emit("kick", `Вас выгнали из ${room}`);
                     targetSession.session.room = null;
+                    targetSession.session.voiceChannel = null;
                     io.to(targetSession.socketId).emit("auth-error", "Вы были выгнаны");
+                    socket.disconnect(true);
                 }
                 sendSystemMessage(room, `${target} был выгнан`);
                 break;
-                
-            case "ban":
-                bansDB[target] = true;
-                saveBans();
+            }
+            case "ban": {
+                BANS[target] = true;
+                saveDB('bans');
                 const bannedUser = getUserByUsername(target);
                 if (bannedUser) {
                     io.to(bannedUser.socketId).emit("ban", "Вы были забанены");
                     bannedUser.session.room = null;
+                    bannedUser.session.voiceChannel = null;
                 }
                 sendSystemMessage(room, `${target} был забанен`);
                 break;
-                
-            case "unban":
-                delete bansDB[target];
-                saveBans();
+            }
+            case "unban": {
+                delete BANS[target];
+                saveDB('bans');
                 sendSystemMessage(room, `${target} разбанен`);
                 break;
-                
-            case "mute":
-                if (!mutesDB[target]) mutesDB[target] = { rooms: {} };
+            }
+            case "mute": {
+                if (!MUTES[target]) MUTES[target] = { rooms: {} };
                 const muteTime = duration || 60000;
-                mutesDB[target].rooms[room] = Date.now() + muteTime;
-                saveMutes();
+                MUTES[target].rooms[room] = Date.now() + muteTime;
+                saveDB('mutes');
                 sendSystemMessage(room, `${target} замучен на ${muteTime/1000} сек`);
                 break;
-                
-            case "unmute":
-                if (mutesDB[target]) {
-                    delete mutesDB[target].rooms[room];
-                    saveMutes();
+            }
+            case "unmute": {
+                if (MUTES[target]) {
+                    delete MUTES[target].rooms[room];
+                    saveDB('mutes');
                     sendSystemMessage(room, `${target} размучен`);
                 }
                 break;
-                
-            case "warn":
-                if (!warnsDB[target]) warnsDB[target] = [];
-                warnsDB[target].push({ time: Date.now(), reason: reason || "Нарушение", by: session.username });
-                saveWarns();
+            }
+            case "warn": {
+                if (!WARNS[target]) WARNS[target] = [];
+                WARNS[target].push({ time: Date.now(), reason: reason || "Нарушение", by: session.username });
+                saveDB('warns');
                 sendSystemMessage(room, `${target} получил предупреждение ${reason ? "("+reason+")" : ""}`);
-                if (warnsDB[target].length >= 3) {
-                    bansDB[target] = true;
-                    saveBans();
+                if (WARNS[target].length >= 3) {
+                    BANS[target] = true;
+                    saveDB('bans');
                     sendSystemMessage(room, `${target} забанен за 3 предупреждения`);
                 }
                 break;
-                
-            case "clear":
-                if (rooms[room]) {
-                    rooms[room].messages = [];
-                    saveRooms();
+            }
+            case "clear": {
+                if (ROOMS[room]) {
+                    ROOMS[room].messages = [];
+                    saveDB('rooms');
                     io.to(room).emit("clear-chat");
                 }
                 break;
-                
-            case "create":
+            }
+            case "create": {
                 const newRoom = target;
-                if (!rooms[newRoom]) {
-                    rooms[newRoom] = { messages: [], users: new Set() };
-                    saveRooms();
+                if (!ROOMS[newRoom]) {
+                    ROOMS[newRoom] = { messages: [], users: new Set() };
+                    saveDB('rooms');
                     io.emit("new-room", newRoom);
                     sendSystemMessage(newRoom, `Комната ${newRoom} создана`);
                 }
                 break;
-                
-            case "delete":
-                if (rooms[target] && target !== "general") {
-                    delete rooms[target];
-                    saveRooms();
+            }
+            case "delete": {
+                if (ROOMS[target] && target !== "general") {
+                    delete ROOMS[target];
+                    saveDB('rooms');
                     io.emit("delete-room", target);
                 }
                 break;
-                
-            case "whitelist":
-                if (whitelistDB[target] === undefined) {
-                    whitelistDB[target] = true;
-                    saveWhitelist();
+            }
+            case "whitelist": {
+                if (WHITELIST[target] === undefined) {
+                    WHITELIST[target] = true;
+                    saveDB('whitelist');
                     sendSystemMessage(room, `${target} добавлен в вайтлист`);
                 }
                 break;
-                
-            case "unwhitelist":
-                if (whitelistDB[target]) {
-                    whitelistDB[target] = false;
-                    saveWhitelist();
+            }
+            case "unwhitelist": {
+                if (WHITELIST[target]) {
+                    WHITELIST[target] = false;
+                    saveDB('whitelist');
                     sendSystemMessage(room, `${target} исключен из вайтлиста`);
                 }
                 break;
+            }
         }
     });
 
@@ -951,24 +952,27 @@ io.on("connection", (socket) => {
             
             if (session.voiceChannel && voiceChannels[session.voiceChannel]) {
                 voiceChannels[session.voiceChannel].users = voiceChannels[session.voiceChannel].users.filter(id => id !== socket.id);
-                io.to(session.voiceChannel).emit("voice-users-update", voiceChannels[session.voiceChannel].users.map(id => {
+                const users = voiceChannels[session.voiceChannel].users.map(id => {
                     const s = activeSessions[id];
                     if (!s) return null;
                     return {
                         username: s.username,
                         displayName: userDisplayNames[s.username] || s.username,
-                        avatar: usersDB[s.username]?.avatar,
+                        avatar: USERS[s.username]?.avatar,
                         status: userStatus[s.username] || "offline"
                     };
-                }).filter(Boolean));
+                }).filter(Boolean);
+                io.to(session.voiceChannel).emit("voice-users-update", users);
+                io.to(session.voiceChannel).emit("voice-count", users.length);
+                io.to(session.voiceChannel).emit("user-left", socket.id);
             }
             
-            const allUsers = Object.keys(usersDB).map(u => ({
+            const allUsers = Object.keys(USERS).map(u => ({
                 username: u,
                 displayName: userDisplayNames[u] || u,
                 bio: userBios[u] || "",
-                avatar: usersDB[u]?.avatar,
-                role: usersDB[u]?.role,
+                avatar: USERS[u]?.avatar,
+                role: USERS[u]?.role,
                 status: userStatus[u] || "offline"
             }));
             io.emit("all-users", allUsers);
