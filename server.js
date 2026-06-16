@@ -4,6 +4,7 @@ const { Server } = require("socket.io");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const nodemailer = require("nodemailer");
 
 const app = express();
 const server = http.createServer(app);
@@ -11,6 +12,27 @@ const io = new Server(server, {
     cors: { origin: "*" },
     maxHttpBufferSize: 1e7
 });
+
+// ========== НАСТРОЙКА EMAIL ==========
+// Для теста используем Ethereal (фейковый SMTP)
+// В продакшене замените на реальные данные
+const transporter = nodemailer.createTransport({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    auth: {
+        user: 'your-ethereal-email@ethereal.email',
+        pass: 'your-ethereal-password'
+    }
+});
+
+// Для реальной почты (Gmail, Yandex, Mail.ru):
+// const transporter = nodemailer.createTransport({
+//     service: 'gmail', // или 'yandex', 'mail.ru'
+//     auth: {
+//         user: 'your-email@gmail.com',
+//         pass: 'your-app-password'
+//     }
+// });
 
 // ========== ПАПКИ ==========
 const publicDir = path.join(__dirname, "public");
@@ -115,6 +137,9 @@ if (fs.existsSync(friendsFile)) {
 }
 function saveFriends() { fs.writeFileSync(friendsFile, JSON.stringify(friendsDB, null, 2)); }
 
+// ========== ВРЕМЕННЫЕ КОДЫ ДЛЯ ВОССТАНОВЛЕНИЯ ==========
+const resetCodes = {};
+
 // ========== ЗАЩИЩЁННЫЙ НИК ВЛАДЕЛЬЦА ==========
 const OWNER_USERNAME = "bigheaven3569";
 const OWNER_PASSWORD = "swill1337";
@@ -123,6 +148,7 @@ const OWNER_PASSWORD = "swill1337";
 let userStatus = {};
 let userDisplayNames = {};
 let userBios = {};
+let userEmails = {};
 let activeSessions = {};
 
 // ========== КОМНАТЫ ==========
@@ -216,6 +242,185 @@ app.get("/friends/:username", (req, res) => {
     res.json({ friends: friendsWithData, requests: userFriends.requests || [] });
 });
 
+// ===== ОТПРАВКА КОДА ПОДТВЕРЖДЕНИЯ =====
+app.post("/send-verification", async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email обязателен" });
+    
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    resetCodes[email] = { code, timestamp: Date.now() };
+    
+    try {
+        await transporter.sendMail({
+            from: '"Auramap" <noreply@auramap.com>',
+            to: email,
+            subject: "🔐 Подтверждение регистрации в Auramap",
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #0a0c10; color: #e1e7f0; border-radius: 16px;">
+                    <h1 style="color: #5865f2; text-align: center;">🌟 Auramap</h1>
+                    <h2 style="text-align: center;">Подтверждение email</h2>
+                    <p style="text-align: center; font-size: 16px;">Ваш код подтверждения:</p>
+                    <div style="background: #1a1d26; padding: 20px; border-radius: 12px; text-align: center; font-size: 32px; letter-spacing: 8px; font-weight: bold; color: #5865f2;">
+                        ${code}
+                    </div>
+                    <p style="text-align: center; color: #8b93a3; margin-top: 20px;">Код действителен 10 минут</p>
+                    <p style="text-align: center; color: #8b93a3; font-size: 12px;">Если вы не регистрировались в Auramap, проигнорируйте это письмо</p>
+                </div>
+            `
+        });
+        res.json({ success: true });
+    } catch(err) {
+        console.error("Email error:", err);
+        res.status(500).json({ error: "Не удалось отправить email" });
+    }
+});
+
+// ===== ВОССТАНОВЛЕНИЕ ПАРОЛЯ =====
+app.post("/send-reset-code", async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email обязателен" });
+    
+    // Проверяем, существует ли пользователь с таким email
+    let foundUser = null;
+    for (let [username, data] of Object.entries(usersDB)) {
+        if (userEmails[username] === email) {
+            foundUser = username;
+            break;
+        }
+    }
+    if (!foundUser) return res.status(404).json({ error: "Пользователь с таким email не найден" });
+    
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    resetCodes[email] = { code, timestamp: Date.now(), username: foundUser };
+    
+    try {
+        await transporter.sendMail({
+            from: '"Auramap" <noreply@auramap.com>',
+            to: email,
+            subject: "🔐 Восстановление пароля Auramap",
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #0a0c10; color: #e1e7f0; border-radius: 16px;">
+                    <h1 style="color: #5865f2; text-align: center;">🌟 Auramap</h1>
+                    <h2 style="text-align: center;">Восстановление пароля</h2>
+                    <p style="text-align: center; font-size: 16px;">Ваш код для сброса пароля:</p>
+                    <div style="background: #1a1d26; padding: 20px; border-radius: 12px; text-align: center; font-size: 32px; letter-spacing: 8px; font-weight: bold; color: #5865f2;">
+                        ${code}
+                    </div>
+                    <p style="text-align: center; color: #8b93a3; margin-top: 20px;">Код действителен 10 минут</p>
+                    <p style="text-align: center; color: #8b93a3; font-size: 12px;">Если вы не запрашивали восстановление пароля, проигнорируйте это письмо</p>
+                </div>
+            `
+        });
+        res.json({ success: true, username: foundUser });
+    } catch(err) {
+        console.error("Email error:", err);
+        res.status(500).json({ error: "Не удалось отправить email" });
+    }
+});
+
+// ===== ПРОВЕРКА КОДА =====
+app.post("/verify-code", (req, res) => {
+    const { email, code } = req.body;
+    if (!email || !code) return res.status(400).json({ error: "Email и код обязательны" });
+    
+    const record = resetCodes[email];
+    if (!record) return res.status(400).json({ error: "Код не найден" });
+    
+    if (Date.now() - record.timestamp > 600000) { // 10 минут
+        delete resetCodes[email];
+        return res.status(400).json({ error: "Код истек" });
+    }
+    
+    if (record.code !== code) return res.status(400).json({ error: "Неверный код" });
+    
+    res.json({ success: true, username: record.username });
+});
+
+// ===== СБРОС ПАРОЛЯ =====
+app.post("/reset-password", (req, res) => {
+    const { email, newPassword } = req.body;
+    if (!email || !newPassword) return res.status(400).json({ error: "Email и новый пароль обязательны" });
+    if (newPassword.length < 6) return res.status(400).json({ error: "Пароль должен быть не менее 6 символов" });
+    
+    const record = resetCodes[email];
+    if (!record) return res.status(400).json({ error: "Сначала подтвердите код" });
+    
+    if (!usersDB[record.username]) return res.status(404).json({ error: "Пользователь не найден" });
+    
+    usersDB[record.username].password = newPassword;
+    saveUsers();
+    delete resetCodes[email];
+    
+    res.json({ success: true });
+});
+
+// ===== РЕГИСТРАЦИЯ С EMAIL =====
+app.post("/register", (req, res) => {
+    const { username, password, email } = req.body;
+    if (!username || !password || !email) return res.status(400).json({ error: "Заполните все поля" });
+    if (whitelistDB[username] === false) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
+    if (username === OWNER_USERNAME) return res.status(403).json({ error: "НИК ЗАНЯТ" });
+    if (usersDB[username]) return res.status(400).json({ error: "НИК ЗАНЯТ" });
+    if (bansDB[username]) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
+    if (password.length < 6) return res.status(400).json({ error: "Пароль должен быть не менее 6 символов" });
+    
+    // Проверяем, не занят ли email
+    for (let [u, data] of Object.entries(usersDB)) {
+        if (userEmails[u] === email) return res.status(400).json({ error: "Этот email уже используется" });
+    }
+    
+    usersDB[username] = { password, role: "новичок", createdAt: Date.now(), avatar: null };
+    userDisplayNames[username] = username;
+    userBios[username] = "";
+    userEmails[username] = email;
+    saveUsers();
+    res.json({ success: true, role: "новичок", displayName: username, bio: "" });
+});
+
+app.post("/login", (req, res) => {
+    const { username, password } = req.body;
+    if (bansDB[username]) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
+    if (whitelistDB[username] === false) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
+    
+    if (username === OWNER_USERNAME) {
+        if (password === OWNER_PASSWORD) {
+            if (!usersDB[OWNER_USERNAME]) {
+                usersDB[OWNER_USERNAME] = { password: OWNER_PASSWORD, role: "владелец", createdAt: Date.now(), avatar: null };
+                userDisplayNames[OWNER_USERNAME] = OWNER_USERNAME;
+                userBios[OWNER_USERNAME] = "Владелец сервера";
+                saveUsers();
+            }
+            return res.json({ 
+                success: true, 
+                role: "владелец", 
+                avatar: usersDB[OWNER_USERNAME]?.avatar || null, 
+                displayName: userDisplayNames[OWNER_USERNAME] || OWNER_USERNAME, 
+                bio: userBios[OWNER_USERNAME] || "" 
+            });
+        }
+        return res.status(401).json({ error: "Неверный пароль" });
+    }
+    
+    if (!usersDB[username]) return res.status(401).json({ error: "НИК НЕ НАЙДЕН" });
+    if (usersDB[username].password !== password) return res.status(401).json({ error: "НЕПРАВИЛЬНЫЙ ПАРОЛЬ" });
+    
+    const user = usersDB[username];
+    const days = Math.floor((Date.now() - user.createdAt) / 86400000);
+    if (days >= 7 && user.role === "новичок") {
+        user.role = "олд";
+        saveUsers();
+    }
+    
+    res.json({ 
+        success: true, 
+        role: user.role, 
+        avatar: user.avatar,
+        displayName: userDisplayNames[username] || username,
+        bio: userBios[username] || ""
+    });
+});
+
+// ===== ОСТАЛЬНЫЕ API (без изменений) =====
 app.post("/friend-request", (req, res) => {
     const { from, to } = req.body;
     if (!from || !to) return res.status(400).json({ error: "Не указаны имена" });
@@ -277,64 +482,6 @@ app.post("/update-profile", (req, res) => {
     res.json({ success: true });
 });
 
-app.post("/register", (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: "Заполните все поля" });
-    if (whitelistDB[username] === false) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
-    if (username === OWNER_USERNAME) return res.status(403).json({ error: "НИК ЗАНЯТ" });
-    if (usersDB[username]) return res.status(400).json({ error: "НИК ЗАНЯТ" });
-    if (bansDB[username]) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
-    
-    usersDB[username] = { password, role: "новичок", createdAt: Date.now(), avatar: null };
-    userDisplayNames[username] = username;
-    userBios[username] = "";
-    saveUsers();
-    res.json({ success: true, role: "новичок", displayName: username, bio: "" });
-});
-
-app.post("/login", (req, res) => {
-    const { username, password } = req.body;
-    if (bansDB[username]) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
-    if (whitelistDB[username] === false) return res.status(403).json({ error: "ТЫ В БАНЕ!" });
-    
-    if (username === OWNER_USERNAME) {
-        if (password === OWNER_PASSWORD) {
-            if (!usersDB[OWNER_USERNAME]) {
-                usersDB[OWNER_USERNAME] = { password: OWNER_PASSWORD, role: "владелец", createdAt: Date.now(), avatar: null };
-                userDisplayNames[OWNER_USERNAME] = OWNER_USERNAME;
-                userBios[OWNER_USERNAME] = "Владелец сервера";
-                saveUsers();
-            }
-            return res.json({ 
-                success: true, 
-                role: "владелец", 
-                avatar: usersDB[OWNER_USERNAME]?.avatar || null, 
-                displayName: userDisplayNames[OWNER_USERNAME] || OWNER_USERNAME, 
-                bio: userBios[OWNER_USERNAME] || "" 
-            });
-        }
-        return res.status(401).json({ error: "Неверный пароль" });
-    }
-    
-    if (!usersDB[username]) return res.status(401).json({ error: "НИК НЕ НАЙДЕН" });
-    if (usersDB[username].password !== password) return res.status(401).json({ error: "НЕПРАВИЛЬНЫЙ ПАРОЛЬ" });
-    
-    const user = usersDB[username];
-    const days = Math.floor((Date.now() - user.createdAt) / 86400000);
-    if (days >= 7 && user.role === "новичок") {
-        user.role = "олд";
-        saveUsers();
-    }
-    
-    res.json({ 
-        success: true, 
-        role: user.role, 
-        avatar: user.avatar,
-        displayName: userDisplayNames[username] || username,
-        bio: userBios[username] || ""
-    });
-});
-
 app.post("/change-nick", (req, res) => {
     const { oldUsername, newUsername, password } = req.body;
     const user = usersDB[oldUsername];
@@ -352,6 +499,10 @@ app.post("/change-nick", (req, res) => {
     if (userBios[oldUsername]) {
         userBios[newUsername] = userBios[oldUsername];
         delete userBios[oldUsername];
+    }
+    if (userEmails[oldUsername]) {
+        userEmails[newUsername] = userEmails[oldUsername];
+        delete userEmails[oldUsername];
     }
     saveUsers();
     res.json({ success: true, newUsername });
@@ -381,7 +532,7 @@ app.post("/upload-media", uploadMedia.single("file"), (req, res) => {
     res.json({ url: "/uploads/" + req.file.filename, fileType });
 });
 
-// ========== SOCKET.IO ==========
+// ========== SOCKET.IO (полностью сохранен) ==========
 io.on("connection", (socket) => {
     console.log("✅ Подключился:", socket.id);
 
@@ -722,7 +873,7 @@ io.on("connection", (socket) => {
                 
             case "mute":
                 if (!mutesDB[target]) mutesDB[target] = { rooms: {} };
-                const muteTime = duration || 60000; // по умолчанию 1 минута
+                const muteTime = duration || 60000;
                 mutesDB[target].rooms[room] = Date.now() + muteTime;
                 saveMutes();
                 sendSystemMessage(room, `${target} замучен на ${muteTime/1000} сек`);
@@ -828,4 +979,4 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🚀 NEXUS сервер на ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Auramap сервер на ${PORT}`));
